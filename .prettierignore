@@ -1,0 +1,7 @@
+node_modules
+dist
+.output
+.tanstack
+convex/_generated
+infrastructure/.terraform
+*.tfstate*

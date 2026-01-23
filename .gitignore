@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.output/
+.tanstack/
+
+# Convex
+convex/_generated/
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.*.local
+.dev.vars
+.dev.vars.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Terraform
+infrastructure/.terraform/
+infrastructure/*.tfstate
+infrastructure/*.tfstate.*
+infrastructure/.terraform.lock.hcl
+infrastructure/*.tfvars
+!infrastructure/terraform.tfvars.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+
+# Wrangler
+.wrangler/

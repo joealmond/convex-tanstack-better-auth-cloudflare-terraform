@@ -1,0 +1,67 @@
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control!
+
+# =============================================================================
+# Required - Cloudflare
+# =============================================================================
+cloudflare_api_token  = ""  # From https://dash.cloudflare.com/profile/api-tokens
+cloudflare_account_id = ""  # From Cloudflare dashboard
+worker_name           = "convex-tanstack-cf-production"
+
+# =============================================================================
+# Required - Convex
+# =============================================================================
+convex_url      = "https://your-deployment.convex.cloud"
+convex_site_url = "https://your-deployment.convex.site"
+
+# =============================================================================
+# Required - Better Auth
+# =============================================================================
+better_auth_secret = ""  # Generate with: openssl rand -base64 32
+site_url           = "https://your-app.workers.dev"
+
+# =============================================================================
+# Required - Google OAuth
+# =============================================================================
+google_client_id     = ""
+google_client_secret = ""
+
+# =============================================================================
+# Optional - Custom Domain
+# Required for: rate limiting, cache rules, security headers
+# =============================================================================
+# custom_domain      = "example.com"
+# custom_subdomain   = "app"  # For app.example.com, or leave empty for apex
+# cloudflare_zone_id = ""     # Required for custom domain features
+
+# =============================================================================
+# Optional - Storage (Free Tier)
+# =============================================================================
+enable_kv_cache   = false  # KV namespace: 100k reads/day free
+enable_r2_storage = false  # R2 bucket: 10GB storage free
+
+# =============================================================================
+# Optional - Security (Free Tier)
+# Recommended for production!
+# =============================================================================
+enable_turnstile        = false  # Bot protection (FREE unlimited)
+turnstile_domains       = ["localhost", "your-domain.com"]  # Allowed domains
+enable_rate_limiting    = false  # Auth endpoint protection (requires custom domain)
+enable_security_headers = false  # X-Frame-Options etc (requires custom domain)
+
+# =============================================================================
+# Optional - Performance (Free Tier)
+# =============================================================================
+enable_cache_rules = false  # Static asset caching (requires custom domain)
+enable_analytics   = false  # Privacy-friendly analytics (requires custom domain)
+
+# =============================================================================
+# PRODUCTION RECOMMENDED CONFIG
+# =============================================================================
+# Uncomment for production setup:
+#
+# enable_turnstile        = true
+# enable_rate_limiting    = true
+# enable_security_headers = true
+# enable_cache_rules      = true
+# enable_analytics        = true

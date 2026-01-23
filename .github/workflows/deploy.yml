@@ -1,0 +1,156 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - production
+
+env:
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+  # Convex hosting: 'cloud' or 'self-hosted'
+  CONVEX_HOSTING: ${{ vars.CONVEX_HOSTING || 'cloud' }}
+  # Deploy target: 'cloudflare', 'vercel', or 'netlify'
+  DEPLOY_TARGET: ${{ vars.DEPLOY_TARGET || 'cloudflare' }}
+
+jobs:
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ========================================
+      # Deploy Convex Backend - Cloud
+      # ========================================
+      - name: Deploy Convex (Cloud - Production)
+        if: env.CONVEX_HOSTING == 'cloud' && env.ENVIRONMENT == 'production'
+        run: npx convex deploy --yes
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+      - name: Push Convex (Cloud - Preview)
+        if: env.CONVEX_HOSTING == 'cloud' && env.ENVIRONMENT == 'preview'
+        run: npx convex dev --once --typecheck=disable
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+      # ========================================
+      # Deploy Convex Backend - Self-hosted
+      # ========================================
+      - name: Deploy Convex (Self-hosted - Production)
+        if: env.CONVEX_HOSTING == 'self-hosted' && env.ENVIRONMENT == 'production'
+        run: npx convex deploy --yes --url ${{ secrets.CONVEX_URL_PROD }}
+        env:
+          CONVEX_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY_PROD }}
+
+      - name: Push Convex (Self-hosted - Preview)
+        if: env.CONVEX_HOSTING == 'self-hosted' && env.ENVIRONMENT == 'preview'
+        run: npx convex dev --once --typecheck=disable --url ${{ secrets.CONVEX_URL }}
+        env:
+          CONVEX_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY }}
+
+      # ========================================
+      # Build Frontend
+      # ========================================
+      - name: Build (Production)
+        if: env.ENVIRONMENT == 'production'
+        run: npm run build:prod
+        env:
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL_PROD }}
+          VITE_CONVEX_SITE_URL: ${{ secrets.VITE_CONVEX_SITE_URL_PROD }}
+          VITE_APP_ENV: production
+
+      - name: Build (Preview)
+        if: env.ENVIRONMENT == 'preview'
+        run: npm run build:preview
+        env:
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+          VITE_CONVEX_SITE_URL: ${{ secrets.VITE_CONVEX_SITE_URL }}
+          VITE_APP_ENV: preview
+
+      # ========================================
+      # Deploy to Cloudflare Workers
+      # ========================================
+      - name: Deploy to Cloudflare Workers
+        if: env.DEPLOY_TARGET == 'cloudflare'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env ${{ env.ENVIRONMENT }}
+
+      # ========================================
+      # Deploy to Vercel
+      # ========================================
+      - name: Install Vercel CLI
+        if: env.DEPLOY_TARGET == 'vercel'
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel (Preview)
+        if: env.DEPLOY_TARGET == 'vercel' && env.ENVIRONMENT == 'preview'
+        run: vercel deploy --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel (Production)
+        if: env.DEPLOY_TARGET == 'vercel' && env.ENVIRONMENT == 'production'
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # ========================================
+      # Deploy to Netlify
+      # ========================================
+      - name: Deploy to Netlify (Preview)
+        if: env.DEPLOY_TARGET == 'netlify' && env.ENVIRONMENT == 'preview'
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=dist
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Deploy to Netlify (Production)
+        if: env.DEPLOY_TARGET == 'netlify' && env.ENVIRONMENT == 'production'
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --prod --dir=dist
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      # ========================================
+      # Summary
+      # ========================================
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | ${{ env.ENVIRONMENT }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deploy Target** | ${{ env.DEPLOY_TARGET }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Convex Hosting** | ${{ env.CONVEX_HOSTING }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY

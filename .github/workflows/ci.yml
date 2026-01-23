@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CONVEX_HOSTING: ${{ vars.CONVEX_HOSTING || 'cloud' }}
+  NODE_VERSION: '24'
+
+jobs:
+  # ============================================
+  # Code Quality Checks
+  # ============================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Generate Convex types (Cloud)
+        if: env.CONVEX_HOSTING == 'cloud'
+        run: npx convex dev --once --typecheck=disable
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      
+      - name: Generate Convex types (Self-hosted)
+        if: env.CONVEX_HOSTING == 'self-hosted'
+        run: npx convex dev --once --typecheck=disable --url ${{ secrets.CONVEX_URL }}
+        env:
+          CONVEX_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY }}
+      
+      - run: npm run typecheck
+
+  format:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      - name: Check formatting
+        run: npx prettier --check .
+
+  # ============================================
+  # Security Checks
+  # ============================================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+        continue-on-error: true  # Don't fail on audit issues, just report
+
+  # ============================================
+  # Build Verification
+  # ============================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Generate Convex types (Cloud)
+        if: env.CONVEX_HOSTING == 'cloud'
+        run: npx convex dev --once --typecheck=disable
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      
+      - name: Generate Convex types (Self-hosted)
+        if: env.CONVEX_HOSTING == 'self-hosted'
+        run: npx convex dev --once --typecheck=disable --url ${{ secrets.CONVEX_URL }}
+        env:
+          CONVEX_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY }}
+      
+      - name: Build
+        run: npm run build:preview
+        env:
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+          VITE_APP_ENV: preview
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+  # ============================================
+  # Summary
+  # ============================================
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, format, build]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.typecheck.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "❌ Some checks failed"
+            exit 1
+          fi
+          echo "✅ All checks passed"

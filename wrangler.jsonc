@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "convex-tanstack-cloudflare",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "assets": {
+    "directory": "./dist/client"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "env": {
+    "preview": {
+      "name": "convex-tanstack-cf-preview",
+      "vars": {
+        "APP_ENV": "preview"
+      }
+    },
+    "production": {
+      "name": "convex-tanstack-cf-production",
+      "vars": {
+        "APP_ENV": "production"
+      },
+      // Rate limiting: 100 requests per minute per IP
+      // Requires Cloudflare Workers Paid plan
+      // Configure in Cloudflare Dashboard: Security > WAF > Rate limiting rules
+      // Example rule: If request rate exceeds 100 per minute from same IP, block for 60 seconds
+      // This comment serves as documentation - actual rate limiting is configured in the dashboard
+    }
+  }
+}
