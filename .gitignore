@@ -41,3 +41,6 @@ coverage/
 
 # Wrangler
 .wrangler/
+
+# Generated route tree
+src/routeTree.gen.ts
