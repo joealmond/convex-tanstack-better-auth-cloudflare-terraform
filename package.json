@@ -30,9 +30,11 @@
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.13.10",
     "@convex-dev/better-auth": "^0.10.10",
+    "@convex-dev/rate-limiter": "^0.3.2",
     "@convex-dev/react-query": "^0.1.0",
     "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-slot": "^1.2.4",
+    "@t3-oss/env-core": "^0.13.10",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-router": "^1.154.14",
     "@tanstack/react-router-with-query": "^1.130.17",

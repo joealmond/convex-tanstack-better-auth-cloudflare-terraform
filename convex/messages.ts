@@ -1,6 +1,7 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { requireAuth, requireAdmin } from './lib/authHelpers'
+import { withRateLimit } from './lib/middleware/withRateLimit'
 
 // List all messages (public)
 export const list = query({
@@ -10,22 +11,22 @@ export const list = query({
   },
 })
 
-// Send a new message (authenticated users only)
+// Send a new message (authenticated users only + rate limited)
 export const send = mutation({
   args: {
     content: v.string(),
   },
-  handler: async (ctx, args) => {
-    // Require authentication
-    const user = await requireAuth(ctx)
-
-    return await ctx.db.insert('messages', {
-      content: args.content,
-      authorId: user._id,
-      authorName: user.name ?? 'Anonymous',
-      createdAt: Date.now(),
-    })
-  },
+  handler: withRateLimit(
+    async (ctx, args, user) => {
+      return await ctx.db.insert('messages', {
+        content: args.content,
+        authorId: user._id,
+        authorName: user.name ?? 'Anonymous',
+        createdAt: Date.now(),
+      })
+    },
+    'SEND_MESSAGE' // 10 messages per minute (configurable by role)
+  ),
 })
 
 // Delete own message (author only)

@@ -177,6 +177,12 @@ terraform init && terraform apply
 
 | Topic                   | Link                                                       |
 | ----------------------- | ---------------------------------------------------------- |
+| **Architecture Guide**  | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               |
+| **Rate Limiting** ⚡    | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)             |
+| **Email with Resend** ⚡| [docs/EMAIL_WITH_RESEND.md](docs/EMAIL_WITH_RESEND.md)     |
+| **Stripe Payments**     | [docs/STRIPE_PAYMENTS.md](docs/STRIPE_PAYMENTS.md)         |
+| **AI Integration**      | [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md)           |
+| **File Uploads**        | [docs/FILE_UPLOADS.md](docs/FILE_UPLOADS.md)               |
 | **RBAC & Permissions**  | [docs/RBAC.md](docs/RBAC.md)                               |
 | **AI Guidelines**       | [docs/AI_GUIDELINES.md](docs/AI_GUIDELINES.md)             |
 | **Cloudflare Features** | [docs/CLOUDFLARE_FEATURES.md](docs/CLOUDFLARE_FEATURES.md) |
@@ -187,6 +193,8 @@ terraform init && terraform apply
 | **Vercel Deploy**       | [docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md)               |
 | **Netlify Deploy**      | [docs/NETLIFY_SETUP.md](docs/NETLIFY_SETUP.md)             |
 | **Terraform**           | [infrastructure/README.md](infrastructure/README.md)       |
+
+⚡ = Production-ready implementations included
 
 ### External Docs
 
