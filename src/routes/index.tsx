@@ -189,13 +189,13 @@ function HomePage() {
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={session?.user ? 'Type a message...' : 'Sign in to send messages'}
-              disabled={!session?.user || isSending}
+              placeholder="Type a message..."
+              disabled={isSending}
               className="flex-1 px-4 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
             />
             <button
               type="submit"
-              disabled={!session?.user || !newMessage.trim() || isSending}
+              disabled={!newMessage.trim() || isSending}
               className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {isSending ? (
@@ -213,16 +213,17 @@ function HomePage() {
           <h2 className="font-semibold mb-2">✨ What's working here:</h2>
           <ul className="text-sm text-muted-foreground space-y-1">
             <li>✅ Real-time Convex database + Better Auth (Google OAuth)</li>
+            <li>✅ Anonymous & authenticated messaging with rate limiting</li>
             <li>✅ SSR with TanStack Start + React Query</li>
             <li>✅ RBAC, protected routes, toast notifications (Sonner)</li>
             <li>✅ Form validation (react-hook-form + Zod), custom 404 page</li>
             <li>✅ Vitest testing suite, Tailwind CSS, Cloudflare Workers</li>
           </ul>
           <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
-            💡 <strong>Become Admin:</strong> Add your email to{' '}
+            💡 <strong>Sign in to show your name</strong> — anonymous messages appear as
+            "Anonymous". <strong>Become Admin:</strong> Add your email to{' '}
             <code className="text-primary">ADMIN_EMAILS</code> in{' '}
-            <code className="text-primary">convex/lib/config.ts</code> — see{' '}
-            <code className="text-primary">docs/RBAC.md</code> for details.
+            <code className="text-primary">convex/lib/config.ts</code>.
           </p>
         </div>
       </main>

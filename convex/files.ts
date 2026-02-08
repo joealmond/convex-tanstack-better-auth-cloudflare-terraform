@@ -1,16 +1,27 @@
-import { query, mutation } from './_generated/server'
+import { query, mutation, type QueryCtx } from './_generated/server'
 import { v } from 'convex/values'
+import { requireAuth } from './lib/authHelpers'
+import { authComponent } from './auth'
+import type { AuthUser } from './lib/authHelpers'
+
+/**
+ * Safely get the authenticated user without throwing.
+ * Returns null if not authenticated (important for public queries).
+ */
+async function getAuthUserSafe(ctx: QueryCtx): Promise<AuthUser | null> {
+  try {
+    return (await authComponent.getAuthUser(ctx)) as AuthUser | null
+  } catch {
+    return null
+  }
+}
 
 // Generate an upload URL for file uploads
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     // Require authentication for uploads
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) {
-      throw new Error('Must be authenticated to upload files')
-    }
-
+    await requireAuth(ctx)
     return await ctx.storage.generateUploadUrl()
   },
 })
@@ -24,17 +35,14 @@ export const saveFile = mutation({
     size: v.number(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) {
-      throw new Error('Must be authenticated to save files')
-    }
+    const user = await requireAuth(ctx)
 
     return await ctx.db.insert('files', {
       storageId: args.storageId,
       name: args.name,
       type: args.type,
       size: args.size,
-      uploadedBy: identity.subject,
+      uploadedBy: user._id,
       createdAt: Date.now(),
     })
   },
@@ -44,14 +52,14 @@ export const saveFile = mutation({
 export const listMyFiles = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) {
+    const user = await getAuthUserSafe(ctx)
+    if (!user) {
       return []
     }
 
     const files = await ctx.db
       .query('files')
-      .withIndex('by_uploader', (q) => q.eq('uploadedBy', identity.subject))
+      .withIndex('by_uploader', (q) => q.eq('uploadedBy', user._id))
       .collect()
 
     // Add download URLs
@@ -70,18 +78,15 @@ export const deleteFile = mutation({
     id: v.id('files'),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) {
-      throw new Error('Must be authenticated')
-    }
+    const user = await requireAuth(ctx)
 
     const file = await ctx.db.get(args.id)
     if (!file) {
       throw new Error('File not found')
     }
 
-    if (file.uploadedBy !== identity.subject) {
-      throw new Error('Not authorized')
+    if (file.uploadedBy !== user._id) {
+      throw new Error('Not authorized to delete this file')
     }
 
     // Delete from storage and database

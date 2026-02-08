@@ -70,9 +70,10 @@ export const RATE_LIMITS = {
 
 /**
  * Role-based multipliers
- * Premium users get higher limits
+ * Different user types get different rate limits
  */
 export const ROLE_MULTIPLIERS = {
+  guest: 0.5, // Anonymous users get 50% (stricter limits)
   user: 1, // Standard users
   premium: 5, // Premium users get 5x
   admin: 100, // Admins get 100x (effectively unlimited)

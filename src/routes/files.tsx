@@ -85,7 +85,10 @@ function FilesPage() {
   }
 
   const handleSignIn = () => {
-    signIn.social({ provider: 'google' })
+    signIn.social({
+      provider: 'google',
+      callbackURL: '/files',
+    })
   }
 
   // Not authenticated

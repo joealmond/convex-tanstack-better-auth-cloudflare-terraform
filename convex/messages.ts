@@ -1,7 +1,8 @@
-import { query, mutation } from './_generated/server'
+import { query, mutation, type MutationCtx } from './_generated/server'
 import { v } from 'convex/values'
 import { requireAuth, requireAdmin } from './lib/authHelpers'
-import { withRateLimit } from './lib/middleware/withRateLimit'
+import { authComponent } from './auth'
+import { RateLimitService } from './lib/services/rateLimitService'
 
 // List all messages (public)
 export const list = query({
@@ -11,22 +12,32 @@ export const list = query({
   },
 })
 
-// Send a new message (authenticated users only + rate limited)
+// Send a new message (anyone can send, rate limited)
 export const send = mutation({
   args: {
     content: v.string(),
   },
-  handler: withRateLimit(
-    async (ctx, args: { content: string }, user) => {
-      return await ctx.db.insert('messages', {
-        content: args.content,
-        authorId: user._id,
-        authorName: user.name ?? 'Anonymous',
-        createdAt: Date.now(),
-      })
-    },
-    'SEND_MESSAGE' // 10 messages per minute (configurable by role)
-  ),
+  handler: async (ctx: MutationCtx, args) => {
+    // Get user if authenticated (but don't require it)
+    let user = null
+    try {
+      user = await authComponent.getAuthUser(ctx)
+    } catch {
+      // Not authenticated, that's ok
+    }
+
+    // Rate limit: use user ID if authenticated, otherwise use a generic key
+    const rateLimitKey = user?._id || 'anonymous'
+    const rateLimitService = new RateLimitService(ctx)
+    await rateLimitService.checkLimit('SEND_MESSAGE', rateLimitKey, user ? 'user' : 'guest')
+
+    return await ctx.db.insert('messages', {
+      content: args.content,
+      authorId: user?._id,
+      authorName: user?.name ?? 'Anonymous',
+      createdAt: Date.now(),
+    })
+  },
 })
 
 // Delete own message (author only)
