@@ -289,13 +289,156 @@ Most mobile-first apps should lock to portrait:
 
 ### OAuth / Sign-In on Native
 
-Google OAuth redirects won't work directly from `capacitor://localhost`. Options:
+Google OAuth blocks embedded WebViews. The solution uses `better-auth-capacitor` to open OAuth in the **system browser** (Safari/Chrome) and handle the callback via deep links.
 
-1. **In-App Browser**: Use `@capacitor/browser` to open OAuth flow in a system browser, then handle the callback via deep links / app URL scheme
-2. **Custom scheme redirect**: Register a custom URL scheme and configure your OAuth provider to redirect to it
-3. **Google Sign-In SDK**: Use `@codetrix-studio/capacitor-google-auth` for native Google Sign-In
+#### Install Dependencies
 
-This is the most complex part of Capacitor integration — plan for research time.
+```bash
+npm install better-auth-capacitor @capacitor/preferences @capacitor/app
+```
+
+#### Deep Link Setup
+
+Register a custom URL scheme (e.g., `yourapp://`):
+
+**iOS** — `ios/App/App/Info.plist`:
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>yourapp</string>
+    </array>
+  </dict>
+</array>
+```
+
+**Android** — `android/app/src/main/AndroidManifest.xml`:
+```xml
+<intent-filter>
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="yourapp" />
+</intent-filter>
+```
+
+#### Server Config (`convex/auth.ts`)
+
+```typescript
+import { capacitor } from 'better-auth-capacitor'
+
+const auth = betterAuth({
+  baseURL: process.env.CONVEX_SITE_URL,  // NOT SITE_URL — must be the actual Convex HTTP URL
+  trustedOrigins: [
+    'capacitor://localhost',     // iOS WebView
+    'https://localhost',         // Android WebView
+    'yourapp://',                // Deep link scheme
+  ],
+  plugins: [convex({ authConfig }), capacitor()],
+})
+```
+
+**Important**: Use `process.env.CONVEX_SITE_URL` (the Convex HTTP endpoint like `https://xxx.convex.site`), not `SITE_URL` (which is typically `http://localhost:3000` in dev). OAuth redirects go to this URL on the phone — it must be publicly accessible.
+
+#### Client Config (`src/lib/auth-client.ts`)
+
+```typescript
+import { withCapacitor } from 'better-auth-capacitor/client'
+import { isNative } from '@/lib/platform'
+
+const authClient = createAuthClient(withCapacitor({
+  baseURL: isNative() ? import.meta.env.VITE_CONVEX_SITE_URL : undefined,
+  plugins: [convexClient()],
+}, {
+  scheme: 'yourapp',               // Must match Info.plist / AndroidManifest
+  storagePrefix: 'better-auth',
+}))
+```
+
+#### The Convex Cookie Bridge (`convex/http.ts`)
+
+**This is critical.** The `capacitor()` plugin uses after-hooks to inject `set-cookie` into the OAuth redirect URL. However, in Convex runtime, Better Auth throws an `APIError` with status 302 for redirects, which **bypasses all plugin after-hooks**. The cookie never gets injected and auth silently fails.
+
+The fix is a Proxy wrapper at the HTTP layer that post-processes the Response:
+
+```typescript
+import { createAuth } from './auth'
+
+// Proxy wrapper: injects set-cookie as ?cookie= param on native redirects
+function createAuthWithNativeBridge(ctx: any) {
+  const auth = createAuth(ctx)
+  return new Proxy(auth, {
+    get(target, prop, receiver) {
+      if (prop === 'handler') {
+        const originalHandler = Reflect.get(target, prop, receiver)
+        return async (request: Request) => {
+          const response = await originalHandler(request)
+          if (response.status >= 300 && response.status < 400) {
+            const location = response.headers.get('location')
+            const setCookie = response.headers.get('set-cookie')
+            // Only intercept redirects to non-HTTP schemes (yourapp://)
+            if (location && setCookie && !location.startsWith('http')) {
+              const sessionMatch = setCookie.match(
+                /(?:__Secure-)?better-auth\.session_token=([^;]+)/
+              )
+              if (sessionMatch) {
+                const separator = location.includes('?') ? '&' : '?'
+                const newLocation = `${location}${separator}cookie=${encodeURIComponent(
+                  `__Secure-better-auth.session_token=${sessionMatch[1]}`
+                )}`
+                return new Response(null, {
+                  status: response.status,
+                  headers: { ...Object.fromEntries(response.headers), location: newLocation },
+                })
+              }
+            }
+          }
+          return response
+        }
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+}
+
+// Register routes with the bridge wrapper instead of plain createAuth
+authComponent.registerRoutes(http, createAuthWithNativeBridge, {
+  cors: {
+    allowedHeaders: ['capacitor-origin', 'x-skip-oauth-proxy'],
+    exposedHeaders: ['set-auth-token'],
+  },
+})
+```
+
+#### CORS for Capacitor
+
+The `registerRoutes()` call **must** include `cors` options. Without it, Capacitor WebView cross-origin requests fail silently (no OPTIONS handler).
+
+#### Google Cloud Console
+
+Add `{CONVEX_SITE_URL}/api/auth/callback/google` as an **Authorized redirect URI** in the Google Cloud Console OAuth 2.0 client settings.
+
+#### How It Works (End-to-End)
+
+```
+1. App calls signIn.social({ provider: 'google' })
+2. better-auth-capacitor opens system browser via ASWebAuthenticationSession (iOS)
+3. Browser → Google OAuth → redirects to CONVEX_SITE_URL/api/auth/callback/google
+4. Better Auth processes callback, creates session, returns 302 with set-cookie + location: yourapp://auth/callback
+5. Cookie Bridge Proxy intercepts the 302, reads set-cookie, appends ?cookie=... to the redirect URL
+6. System browser follows redirect → yourapp://auth/callback?cookie=session_token_value
+7. better-auth-capacitor receives deep link, stores session in @capacitor/preferences
+8. Auth complete — user is signed in
+```
+
+#### Gotchas
+
+- **APIError bypass**: Better Auth's 302 is an `APIError`, not a normal Response — plugin after-hooks never run in Convex. The HTTP-layer Proxy is the only reliable fix.
+- **Cookie name varies**: In production (HTTPS), the cookie is `__Secure-better-auth.session_token`. In dev, it's `better-auth.session_token`. The regex handles both.
+- **`Reflect.get` is required**: The Proxy must use `Reflect.get(target, prop, receiver)` for non-handler properties to preserve Convex's `$context` getter (which is a getter, not a plain property).
+- **signIn.social returns immediately on native**: The function returns while the system browser is still open. Check `result.error` for pre-redirect failures, but a missing `result.data` is normal on native.
 
 ---
 
@@ -332,5 +475,5 @@ server: {
 - [ ] Create ProGuard patch script for Android
 - [ ] Add safe area inset CSS for status bar / notch / home indicator
 - [ ] Lock orientation to portrait
-- [ ] Configure OAuth flow for native (deep links or native SDK)
+- [ ] Configure OAuth flow for native (see "OAuth / Sign-In on Native" section above)
 - [ ] Test on real devices (simulator has camera/GPS limitations)

@@ -217,3 +217,17 @@ Add their email to `ADMIN_EMAILS` in `convex/lib/config.ts`.
 - **Convex (backend)**: Set via `npx convex env set KEY value`
   - `BETTER_AUTH_SECRET` (required, generate with `openssl rand -base64 32`)
   - `SITE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+
+## Mobile / Capacitor
+
+This template supports native iOS/Android apps via Capacitor. See `docs/MOBILE.md` for the full setup guide.
+
+### Key Patterns
+
+- **Dual build**: `npm run build` produces SSR output (Cloudflare) + SPA shell (Capacitor). Both from one codebase.
+- **Platform detection**: Use `src/lib/platform.ts` (`isNative()`, `isIOS()`, `isAndroid()`) to branch behavior.
+- **Auth on native**: Google OAuth doesn't work from WebViews. Use `better-auth-capacitor` to open OAuth in the system browser + handle callback via deep links. **Critical**: Convex runtime requires a Cookie Bridge Proxy in `convex/http.ts` because Better Auth's 302 redirects bypass plugin after-hooks. See `docs/MOBILE.md` → "OAuth / Sign-In on Native" for the full pattern.
+- **Auth baseURL**: Native apps must use `VITE_CONVEX_SITE_URL` (the Convex HTTP endpoint), not relative URLs. Web apps use `undefined` (relative to origin).
+- **CORS**: `registerRoutes()` must include `cors` options for Capacitor WebView cross-origin requests to work.
+- **Safe areas**: Use `env(safe-area-inset-*)` CSS variables for status bar, notch, and home indicator spacing.
+- **SSR graceful fallback**: `getAuth()` server functions must be wrapped in try/catch — they fail in SPA mode (no server).
