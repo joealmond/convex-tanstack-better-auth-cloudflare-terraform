@@ -31,6 +31,13 @@ const envSchema = z.object({
     .enum(['development', 'preview', 'production'])
     .default('development')
     .describe('Application environment'),
+
+  // Sentry DSN for error tracking (optional — omit to disable Sentry)
+  VITE_SENTRY_DSN: z
+    .string()
+    .url()
+    .describe('Sentry DSN from sentry.io → Project Settings → Client Keys')
+    .optional(),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -44,6 +51,7 @@ function getEnv(): Env {
     VITE_CONVEX_URL: import.meta.env.VITE_CONVEX_URL,
     VITE_CONVEX_SITE_URL: import.meta.env.VITE_CONVEX_SITE_URL,
     VITE_APP_ENV: import.meta.env.VITE_APP_ENV,
+    VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
   })
 
   if (!parsed.success) {

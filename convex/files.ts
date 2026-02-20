@@ -1,19 +1,20 @@
-import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
-import { requireAuth, getAuthUserSafe } from './lib/authHelpers'
+import { ConvexError } from 'convex/values'
+import { authMutation, publicQuery } from './lib/customFunctions'
+import { getAuthUserSafe } from './lib/authHelpers'
 
 // Generate an upload URL for file uploads
-export const generateUploadUrl = mutation({
+// ctx.user injected by authMutation — authentication is required
+export const generateUploadUrl = authMutation({
   args: {},
   handler: async (ctx) => {
-    // Require authentication for uploads
-    await requireAuth(ctx)
     return await ctx.storage.generateUploadUrl()
   },
 })
 
 // Save file metadata after upload
-export const saveFile = mutation({
+// ctx.user and ctx.userId injected by authMutation
+export const saveFile = authMutation({
   args: {
     storageId: v.id('_storage'),
     name: v.string(),
@@ -21,20 +22,18 @@ export const saveFile = mutation({
     size: v.number(),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx)
-
     return await ctx.db.insert('files', {
       storageId: args.storageId,
       name: args.name,
       type: args.type,
       size: args.size,
-      uploadedBy: user._id,
+      uploadedBy: ctx.userId,
     })
   },
 })
 
-// List user's files
-export const listMyFiles = query({
+// List user's files (SSR-safe — returns [] if not authenticated)
+export const listMyFiles = publicQuery({
   args: {},
   handler: async (ctx) => {
     const user = await getAuthUserSafe(ctx)
@@ -57,21 +56,20 @@ export const listMyFiles = query({
   },
 })
 
-// Delete a file
-export const deleteFile = mutation({
+// Delete a file (owner only)
+// ctx.user and ctx.userId injected by authMutation
+export const deleteFile = authMutation({
   args: {
     id: v.id('files'),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx)
-
     const file = await ctx.db.get(args.id)
     if (!file) {
-      throw new Error('File not found')
+      throw new ConvexError('File not found')
     }
 
-    if (file.uploadedBy !== user._id) {
-      throw new Error('Not authorized to delete this file')
+    if (file.uploadedBy !== ctx.userId) {
+      throw new ConvexError('Not authorized to delete this file')
     }
 
     // Delete from storage and database

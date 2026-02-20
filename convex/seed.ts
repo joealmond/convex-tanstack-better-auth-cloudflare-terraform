@@ -21,7 +21,7 @@
  * - Does NOT create users — users are managed by Better Auth
  */
 
-import { mutation } from './_generated/server'
+import { internalMutation } from './lib/customFunctions'
 
 const SAMPLE_MESSAGES = [
   {
@@ -50,7 +50,7 @@ const SAMPLE_MESSAGES = [
  * Seed the database with sample data.
  * Safe to call multiple times — only seeds if tables are empty.
  */
-export const run = mutation({
+export const run = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Check if messages already exist

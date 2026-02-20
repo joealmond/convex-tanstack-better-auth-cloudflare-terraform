@@ -11,7 +11,7 @@ Convex Storage is already configured in this template! You just need to build th
 ```typescript
 // 1. Generate upload URL (backend)
 // convex/files.ts - Already in template!
-export const generateUploadUrl = mutation({
+export const generateUploadUrl = authMutation({
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl()
   },
@@ -304,7 +304,7 @@ Apply rate limiting to uploads:
 // convex/files.ts
 import { withFileUploadLimit } from './lib/middleware/withRateLimit'
 
-export const saveFile = mutation({
+export const saveFile = authMutation({
   args: {
     /* ... */
   },
@@ -327,14 +327,14 @@ async function deleteFile(fileId: Id<'files'>) {
 }
 
 // Backend (already in template)
-export const deleteFile = mutation({
+export const deleteFile = authMutation({
   args: { id: v.id('files') },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx)
+    // ctx.user and ctx.userId are auto-injected by authMutation
     const file = await ctx.db.get(args.id)
 
-    if (file.uploadedBy !== user._id) {
-      throw new Error('Not authorized')
+    if (file.uploadedBy !== ctx.userId) {
+      throw new ConvexError('Not authorized')
     }
 
     await ctx.storage.delete(file.storageId)

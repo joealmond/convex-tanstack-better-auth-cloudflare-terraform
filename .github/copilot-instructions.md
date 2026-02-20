@@ -12,6 +12,7 @@ This template provides a modern, production-ready full-stack application with re
 | **Edge**          | Cloudflare Workers       | `wrangler.jsonc`, `src/server.ts`          |
 | **Styling**       | Tailwind CSS v4          | `src/styles/`                              |
 | **Rate Limiting** | @convex-dev/rate-limiter | `convex/lib/services/rateLimitService.ts`  |
+| **Observability** | Sentry (optional)        | `src/lib/logger.ts`, `src/router.tsx`      |
 
 ## Architecture Concepts
 
@@ -37,6 +38,16 @@ This template provides a modern, production-ready full-stack application with re
 - Define limits in `convex/lib/services/rateLimitService.ts`
 - Use `rateLimiter.limit(ctx, 'operationName', { key })` in mutations
 
+### Error Handling & Observability
+
+- All Convex functions use custom wrappers from `convex/lib/customFunctions.ts` (NOT raw `query`/`mutation`)
+- Wrappers provide a **global exception filter**: errors are logged and normalized to `ConvexError`
+- Frontend uses `src/lib/logger.ts` — dev: console, prod: Sentry
+- Sentry is optional — gated behind `VITE_SENTRY_DSN` env var
+- Global `QueryCache.onError` logs silently; `MutationCache.onError` logs + shows toast
+- `ErrorBoundary` at root catches React render errors and dispatches to logger
+- Use `ConvexError` (not raw `Error`) for user-facing error messages in Convex functions
+
 ### File Organization
 
 ```
@@ -45,11 +56,12 @@ convex/            # Backend
 ├── schema.ts      # Database schema (uses _creationTime, not createdAt)
 ├── http.ts        # HTTP routes (auth endpoints)
 ├── convex.config.ts # Registers betterAuth + rateLimiter components
-├── lib/           # Helpers (rateLimit, permissions)
-│   ├── authHelpers.ts  # getAuthUser, getAuthUserSafe, requireAuth, requireAdmin, isAdmin
-│   ├── config.ts       # ADMIN_EMAILS, ROLES
-│   ├── services/       # rateLimitService (uses @convex-dev/rate-limiter)
-│   └── middleware/      # withRateLimit decorator
+├── lib/           # Helpers (rateLimit, permissions, custom functions)
+│   ├── authHelpers.ts      # getAuthUser, getAuthUserSafe, requireAuth, requireAdmin, isAdmin
+│   ├── customFunctions.ts  # authQuery, authMutation, adminMutation, publicQuery, etc.
+│   ├── config.ts           # ADMIN_EMAILS, ROLES
+│   ├── services/           # rateLimitService (uses @convex-dev/rate-limiter)
+│   └── middleware/          # withRateLimit decorator
 └── *.ts           # Queries and mutations by domain
 
 src/               # Frontend
@@ -59,18 +71,21 @@ src/               # Frontend
 │   └── _authenticated/  # Protected routes (redirects unauthenticated users)
 ├── components/    # React components
 ├── hooks/         # Custom hooks
-└── lib/           # Utilities (auth-client, env, utils)
+└── lib/           # Utilities (auth-client, env, logger, utils)
 ```
 
 ## Code Patterns
 
 ### Convex Functions
 
+Always use custom wrappers from `convex/lib/customFunctions.ts` — NEVER use raw `query`/`mutation` from `_generated/server`.
+
 ```typescript
-// Query with auth (safe for SSR — returns null, doesn't throw)
+// Public query (no auth, SSR-safe)
+import { publicQuery } from './lib/customFunctions'
 import { getAuthUserSafe } from './lib/authHelpers'
 
-export const list = query({
+export const list = publicQuery({
   args: {},
   handler: async (ctx) => {
     const user = await getAuthUserSafe(ctx)
@@ -79,39 +94,52 @@ export const list = query({
   },
 })
 
-// Mutation with auth (throws if not authenticated)
-import { requireAuth } from './lib/authHelpers'
+// Authenticated mutation — ctx.user and ctx.userId are auto-injected
+import { authMutation } from './lib/customFunctions'
 
-export const create = mutation({
+export const create = authMutation({
   args: { name: v.string() },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx)
-    return await ctx.db.insert('items', { name: args.name, userId: user._id })
+    // ctx.user (AuthUser) and ctx.userId (string) are guaranteed
+    return await ctx.db.insert('items', { name: args.name, userId: ctx.userId })
   },
 })
 
-// Admin-only mutation
-import { requireAdmin } from './lib/authHelpers'
+// Admin-only mutation — ctx.user injected after verifying admin role
+import { adminMutation } from './lib/customFunctions'
 
-export const deleteAny = mutation({
+export const deleteAny = adminMutation({
   args: { id: v.id('items') },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
     await ctx.db.delete(args.id)
   },
 })
 ```
 
+### Available Function Wrappers
+
+| Wrapper            | Auth          | Use Case                              |
+| ------------------ | ------------- | ------------------------------------- |
+| `publicQuery`      | None          | Public reads, SSR loaders             |
+| `publicMutation`   | None          | Anonymous writes (e.g. guest message) |
+| `authQuery`        | Required      | Authenticated reads                   |
+| `authMutation`     | Required      | Authenticated writes                  |
+| `adminQuery`       | Admin only    | Admin dashboards                      |
+| `adminMutation`    | Admin only    | Admin operations                      |
+| `internalQuery`    | None (callee) | Called by scheduler/crons only        |
+| `internalMutation` | None (callee) | Internal writes (side effects)        |
+| `internalAction`   | None (callee) | Internal actions (external APIs)      |
+
 ### Rate-Limited Mutation
 
 ```typescript
+import { authMutation } from './lib/customFunctions'
 import { rateLimiter } from './lib/services/rateLimitService'
 
-export const send = mutation({
+export const send = authMutation({
   args: { content: v.string() },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx)
-    await rateLimiter.limit(ctx, 'sendMessage', { key: user._id })
+    await rateLimiter.limit(ctx, 'sendMessage', { key: ctx.userId })
     // ... mutation logic
   },
 })
@@ -156,12 +184,14 @@ function ItemList() {
 
 ### Adding a Convex Function
 
-1. Define args with Convex validators (`v.string()`, `v.number()`, etc.) — NOT Zod
-2. Use `requireAuth(ctx)` or `getAuthUserSafe(ctx)` for auth
-3. Better Auth user IDs are `v.string()` (not `v.id('user')`)
-4. Use `_creationTime` instead of manual `createdAt` fields
-5. Export as `query` or `mutation`
-6. Types auto-generated in `convex/_generated/`
+1. Import the appropriate wrapper from `convex/lib/customFunctions.ts`
+2. Define args with Convex validators (`v.string()`, `v.number()`, etc.) — NOT Zod
+3. For `authMutation`/`authQuery`: use `ctx.user` and `ctx.userId` (auto-injected)
+4. For SSR-safe optional auth in `publicQuery`: use `getAuthUserSafe(ctx)` from authHelpers
+5. Use `ConvexError` (from `convex/values`) for user-facing errors — NOT raw `Error`
+6. Better Auth user IDs are `v.string()` (not `v.id('user')`)
+7. Use `_creationTime` instead of manual `createdAt` fields
+8. Types auto-generated in `convex/_generated/`
 
 ### Adding a Route
 
@@ -173,13 +203,39 @@ function ItemList() {
 ### Adding Auth Check
 
 ```typescript
-import { requireAuth, getAuthUserSafe } from './lib/authHelpers'
+// Preferred: use authMutation/authQuery — ctx.user auto-injected
+import { authMutation } from './lib/customFunctions'
 
-// Throws if not authenticated (for mutations)
-const user = await requireAuth(ctx)
+export const myAction = authMutation({
+  args: {},
+  handler: async (ctx) => {
+    // ctx.user is guaranteed to be an authenticated AuthUser
+    // ctx.userId is the user's _id string
+  },
+})
 
-// Returns null if not authenticated (for queries, SSR-safe)
-const user = await getAuthUserSafe(ctx)
+// For optional auth in public functions:
+import { publicQuery } from './lib/customFunctions'
+import { getAuthUserSafe } from './lib/authHelpers'
+
+export const optionalAuth = publicQuery({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthUserSafe(ctx) // null if not logged in (SSR-safe)
+  },
+})
+```
+
+### Frontend Logging
+
+```typescript
+import { logger } from '@/lib/logger'
+
+logger.info('User signed in', { userId: '123' })
+logger.warn('Slow query detected', { duration: 3200 })
+logger.error('Failed to upload', error, { fileId: 'abc' })
+// Dev: formatted console output
+// Prod: errors/warnings → Sentry (if VITE_SENTRY_DSN is set)
 ```
 
 ### Making a User Admin
@@ -188,18 +244,20 @@ Add their email to `ADMIN_EMAILS` in `convex/lib/config.ts`.
 
 ## Important Files
 
-| Purpose         | File                                      |
-| --------------- | ----------------------------------------- |
-| Database schema | `convex/schema.ts`                        |
-| Auth config     | `convex/auth.ts`                          |
-| Auth helpers    | `convex/lib/authHelpers.ts`               |
-| HTTP routes     | `convex/http.ts`                          |
-| Rate limiting   | `convex/lib/services/rateLimitService.ts` |
-| Frontend auth   | `src/lib/auth-client.ts`                  |
-| Router setup    | `src/router.tsx`                          |
-| Root layout     | `src/routes/__root.tsx`                   |
-| Workers config  | `wrangler.jsonc`                          |
-| Env validation  | `src/lib/env.ts`                          |
+| Purpose          | File                                      |
+| ---------------- | ----------------------------------------- |
+| Database schema  | `convex/schema.ts`                        |
+| Custom functions | `convex/lib/customFunctions.ts`           |
+| Auth config      | `convex/auth.ts`                          |
+| Auth helpers     | `convex/lib/authHelpers.ts`               |
+| HTTP routes      | `convex/http.ts`                          |
+| Rate limiting    | `convex/lib/services/rateLimitService.ts` |
+| Frontend auth    | `src/lib/auth-client.ts`                  |
+| Frontend logger  | `src/lib/logger.ts`                       |
+| Router setup     | `src/router.tsx`                          |
+| Root layout      | `src/routes/__root.tsx`                   |
+| Workers config   | `wrangler.jsonc`                          |
+| Env validation   | `src/lib/env.ts`                          |
 
 ## Style Guidelines
 
@@ -213,7 +271,7 @@ Add their email to `ADMIN_EMAILS` in `convex/lib/config.ts`.
 
 ## Environment Variables
 
-- **Vite (client)**: `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_APP_ENV`
+- **Vite (client)**: `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_APP_ENV`, `VITE_SENTRY_DSN` (optional)
 - **Convex (backend)**: Set via `npx convex env set KEY value`
   - `BETTER_AUTH_SECRET` (required, generate with `openssl rand -base64 32`)
   - `SITE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`

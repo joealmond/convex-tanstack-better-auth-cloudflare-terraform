@@ -249,6 +249,8 @@ done
 echo "✅ All Capacitor Android plugins patched"
 ```
 
+**Commonly affected plugins**: `@capacitor/camera`, `@capacitor/geolocation`, `@capacitor/share`, `@capacitor/haptics`, `better-auth-capacitor`, `capacitor-camera-view`. The wildcard pattern above catches all Capacitor plugins automatically.
+
 Add to `package.json`:
 ```json
 "scripts": {
@@ -477,3 +479,12 @@ server: {
 - [ ] Lock orientation to portrait
 - [ ] Configure OAuth flow for native (see "OAuth / Sign-In on Native" section above)
 - [ ] Test on real devices (simulator has camera/GPS limitations)
+
+---
+
+## Additional Resources
+
+- **[MOBILE_TESTING_DEBUGGING.md](MOBILE_TESTING_DEBUGGING.md)** — Platform-specific testing procedures, debugging iOS logging issues, SceneDelegate incompatibility, Android emulator GPS setup
+- **[MOBILE_BEST_PRACTICES.md](MOBILE_BEST_PRACTICES.md)** — Design patterns, performance optimization, accessibility, dark mode
+- [Capacitor Documentation](https://capacitorjs.com/docs) — Official Capacitor guides
+- [TanStack Start SPA Mode](https://tanstack.com/router/latest/docs/framework/react/start/spa-mode) — Hybrid SSR/SPA architecture

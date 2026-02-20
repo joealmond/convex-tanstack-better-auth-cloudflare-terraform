@@ -113,7 +113,7 @@ export class UserRepository {
 }
 
 // Usage in a Convex function
-export const getUser = query({
+export const getUser = publicQuery({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const repo = new UserRepository(ctx)
@@ -219,7 +219,7 @@ export class MockEmailService implements IEmailService {
 }
 
 // Usage in mutations
-export const registerUser = mutation({
+export const registerUser = authMutation({
   handler: async (ctx, args) => {
     // ... create user ...
 
@@ -308,7 +308,7 @@ export class QueryFactory<T extends TableNames> {
 }
 
 // Usage
-export const listMessages = query({
+export const listMessages = publicQuery({
   args: { cursor: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const factory = new QueryFactory(ctx, 'messages')
@@ -372,7 +372,7 @@ export function withRateLimit<Args, Output>(
 }
 
 // Usage
-export const sendMessage = mutation({
+export const sendMessage = authMutation({
   args: { content: v.string() },
   handler: withRateLimit(
     async (ctx, args) => {
@@ -395,6 +395,72 @@ export const sendMessage = mutation({
 - ✅ Composable (stack multiple decorators)
 - ✅ Reusable across many functions
 
+## Convex Component Patterns
+
+### Scalable Aggregates (`@convex-dev/aggregate`)
+
+**Purpose**: Keep track of sums and counts in a denormalized, scalable way without scanning tables.
+
+**When to use**: Whenever you need a `count` or a `sum` of records (e.g. number of users, votes cast, followers) instead of `db.query(...).collect().length`.
+
+#### Example: Track Vote Counts
+
+```typescript
+// convex/aggregates.ts
+import { TableAggregate } from '@convex-dev/aggregate'
+
+export const votesAggregate = new TableAggregate(components.votesAggregate, {
+  sortKey: (doc) => doc.productId,
+})
+
+// Usage in mutation
+export const castVote = authMutation({
+  handler: async (ctx, args) => {
+    const voteId = await ctx.db.insert('votes', args)
+    const newVote = await ctx.db.get(voteId)
+    if (newVote) await votesAggregate.insert(ctx, newVote)
+  },
+})
+
+// Usage in query (Fast O(log n))
+export const getVoteCount = publicQuery({
+  handler: async (ctx, args) => {
+    return await votesAggregate.count(ctx, { prefix: [args.productId] })
+  },
+})
+```
+
+### Async Triggers (Side Effects)
+
+**Purpose**: Decouple slow or complex gamification, notification, and profile progression logic from main CRUD mutations.
+
+**When to use**: When an action (like `createProduct`) has multiple side effects (e.g., award points, send email, trigger AI) that shouldn't block the UI response.
+
+#### Example: `sideEffects.ts`
+
+```typescript
+// convex/sideEffects.ts
+import { internalMutation } from './lib/customFunctions'
+
+export const onVoteCast = internalMutation({
+  args: { userId: v.id('users') },
+  handler: async (ctx, args) => {
+    // 1. Give points
+    // 2. Update streak
+    // 3. Check badges
+  },
+})
+
+// Usage in main mutation
+export const castVote = authMutation({
+  handler: async (ctx, args) => {
+    // ... insert vote
+    // Trigger side effects asynchronously
+    await ctx.scheduler.runAfter(0, internal.sideEffects.onVoteCast, { userId: args.userId })
+  },
+})
+```
+
 ---
 
 ## Modularity Principles
@@ -406,7 +472,7 @@ Each module should have ONE reason to change.
 **❌ Bad** - God object doing everything:
 
 ```typescript
-export const userMutation = mutation({
+export const userMutation = authMutation({
   handler: async (ctx, args) => {
     // Validate input
     // Create user
@@ -421,7 +487,7 @@ export const userMutation = mutation({
 **✅ Good** - Separate concerns:
 
 ```typescript
-export const registerUser = mutation({
+export const registerUser = authMutation({
   handler: async (ctx, args) => {
     const validation = new ValidationService()
     const userRepo = new UserRepository(ctx)
@@ -648,37 +714,28 @@ export const Route = createFileRoute('/dashboard')({
 
 ### Backend Error Handling
 
+All custom function wrappers from `lib/customFunctions.ts` include a **global exception filter** that:
+
+1. Logs errors via `console.error` (visible in Convex dashboard logs)
+2. Normalizes all errors to `ConvexError` for safe client transport
+
+For domain-specific errors, use `ConvexError` directly:
+
 ```typescript
-// convex/lib/errors/errorHandler.ts
-export function handleError(error: unknown): never {
-  if (error instanceof AuthenticationError) {
-    throw new Error('Please sign in to continue')
-  }
+import { ConvexError } from 'convex/values'
+import { authMutation } from './lib/customFunctions'
 
-  if (error instanceof AuthorizationError) {
-    throw new Error('You do not have permission for this action')
-  }
-
-  if (error instanceof ValidationError) {
-    throw new Error(`Validation failed: ${error.message}`)
-  }
-
-  // Log unexpected errors (use Sentry in production)
-  console.error('Unexpected error:', error)
-  throw new Error('An unexpected error occurred')
-}
-
-// Usage
-export const myMutation = mutation({
+export const myMutation = authMutation({
   handler: async (ctx, args) => {
-    try {
-      // Your logic
-    } catch (error) {
-      handleError(error)
-    }
+    const item = await ctx.db.get(args.id)
+    if (!item) throw new ConvexError('Item not found')
+    if (item.userId !== ctx.userId) throw new ConvexError('Not authorized')
+    // ... mutation logic
   },
 })
 ```
+
+The global exception filter in `customFunctions.ts` catches any unhandled errors automatically — you don't need manual try/catch in every handler.
 
 ### Frontend Error Handling
 
@@ -707,8 +764,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo)
-    // Send to error tracking service (Sentry, etc.)
+    logger.error('Error caught by boundary', error, { componentStack: errorInfo.componentStack })
+    // Dispatched to Sentry automatically in production
   }
 
   render() {
@@ -802,7 +859,7 @@ The Cloudflare Vite plugin automatically adds `nodejs_compat`. If you also speci
 
 ```jsonc
 {
-  "compatibility_flags": ["nodejs_compat_v2"]
+  "compatibility_flags": ["nodejs_compat_v2"],
 }
 ```
 
@@ -877,8 +934,8 @@ const serverEnvSchema = z.object({
 export const env = envSchema.parse(import.meta.env)
 
 // Auto-derive SITE_URL from CONVEX_URL if not set
-export const convexSiteUrl = env.VITE_CONVEX_SITE_URL
-  ?? env.VITE_CONVEX_URL.replace('.cloud', '.site')
+export const convexSiteUrl =
+  env.VITE_CONVEX_SITE_URL ?? env.VITE_CONVEX_URL.replace('.cloud', '.site')
 ```
 
 ---
@@ -913,18 +970,22 @@ Migrate anonymous data on sign-up:
 
 ```typescript
 // convex/votes.ts
-export const migrateAnonymousVotes = mutation({
+export const migrateAnonymousVotes = authMutation({
   args: { anonymousId: v.string() },
   handler: async (ctx, { anonymousId }) => {
-    const user = await requireAuth(ctx)
+    // ctx.user and ctx.userId are auto-injected
     const anonVotes = await ctx.db
       .query('votes')
-      .withIndex('by_anonymous_id', q => q.eq('anonymousId', anonymousId))
+      .withIndex('by_anonymous_id', (q) => q.eq('anonymousId', anonymousId))
       .collect()
     for (const vote of anonVotes) {
-      await ctx.db.patch(vote._id, { userId: user._id, anonymousId: undefined, isAnonymous: false })
+      await ctx.db.patch(vote._id, {
+        userId: ctx.userId,
+        anonymousId: undefined,
+        isAnonymous: false,
+      })
     }
-  }
+  },
 })
 ```
 
@@ -934,18 +995,24 @@ export const migrateAnonymousVotes = mutation({
 // src/hooks/use-geolocation.ts
 export function useGeolocation() {
   const [state, setState] = useState<{
-    loading: boolean; error: string | null
+    loading: boolean
+    error: string | null
     coords: { latitude: number; longitude: number } | null
   }>({ loading: false, error: null, coords: null })
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setState(s => ({ ...s, error: 'Geolocation not supported' }))
+      setState((s) => ({ ...s, error: 'Geolocation not supported' }))
       return
     }
-    setState(s => ({ ...s, loading: true, error: null }))
+    setState((s) => ({ ...s, loading: true, error: null }))
     navigator.geolocation.getCurrentPosition(
-      (pos) => setState({ loading: false, error: null, coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude } }),
+      (pos) =>
+        setState({
+          loading: false,
+          error: null,
+          coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+        }),
       (err) => setState({ loading: false, error: err.message, coords: null }),
       { enableHighAccuracy: true, timeout: 10000 }
     )

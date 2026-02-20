@@ -34,10 +34,10 @@ This template includes comprehensive two-layer rate limiting to protect your app
 Apply rate limiting to any mutation using the middleware decorator:
 
 ```typescript
-import { mutation } from './_generated/server'
+import { authMutation } from './lib/customFunctions'
 import { withRateLimit } from './lib/middleware/withRateLimit'
 
-export const sendMessage = mutation({
+export const sendMessage = authMutation({
   args: { content: v.string() },
   handler: withRateLimit(
     async (ctx, args, user) => {
@@ -65,14 +65,14 @@ import {
 } from './lib/middleware/withRateLimit'
 
 // Standard limit for API calls
-export const getData = mutation({
+export const getData = authMutation({
   handler: withStandardRateLimit(async (ctx, args, user) => {
     // Your logic here
   }),
 })
 
 // Strict limit for expensive operations
-export const sendEmail = mutation({
+export const sendEmail = authMutation({
   handler: withStrictRateLimit(async (ctx, args, user) => {
     // Send email logic
   }),
@@ -120,7 +120,7 @@ The middleware automatically detects user roles from Better Auth.
 Rate limit by something other than user ID:
 
 ```typescript
-export const mutation = mutation({
+export const myMutation = authMutation({
   handler: withRateLimit(
     async (ctx, args, user) => {
       // Your logic

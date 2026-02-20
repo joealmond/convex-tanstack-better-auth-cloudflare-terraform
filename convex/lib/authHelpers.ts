@@ -6,22 +6,36 @@
  *
  * ## Quick Start
  *
- * ```ts
- * import { requireAuth, requireAdmin } from './lib/authHelpers'
+ * Prefer the custom function wrappers from `customFunctions.ts` which auto-inject
+ * `ctx.user` and `ctx.userId`:
  *
- * // Require authentication
- * export const myMutation = mutation({
+ * ```ts
+ * import { authMutation, adminMutation } from './lib/customFunctions'
+ *
+ * // Authenticated — ctx.user and ctx.userId are auto-injected
+ * export const myMutation = authMutation({
  *   handler: async (ctx) => {
- *     const user = await requireAuth(ctx)  // Throws if not logged in
- *     // user is guaranteed to exist here
+ *     console.log(ctx.user.email, ctx.userId)
  *   },
  * })
  *
- * // Require admin role
- * export const adminOnly = mutation({
+ * // Admin only — ctx.user is guaranteed admin
+ * export const adminOnly = adminMutation({
  *   handler: async (ctx) => {
- *     const user = await requireAdmin(ctx)  // Throws if not admin
  *     // Only admins reach this point
+ *   },
+ * })
+ * ```
+ *
+ * For optional auth in public functions, use the helpers directly:
+ *
+ * ```ts
+ * import { publicQuery } from './lib/customFunctions'
+ * import { getAuthUserSafe } from './lib/authHelpers'
+ *
+ * export const optionalAuth = publicQuery({
+ *   handler: async (ctx) => {
+ *     const user = await getAuthUserSafe(ctx) // null if not logged in
  *   },
  * })
  * ```

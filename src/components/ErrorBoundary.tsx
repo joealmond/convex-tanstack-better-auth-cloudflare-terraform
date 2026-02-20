@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
+import { logger } from '@/lib/logger'
 
 interface Props {
   children: ReactNode
@@ -12,13 +13,13 @@ interface State {
 
 /**
  * Error Boundary component that catches JavaScript errors in child component tree.
- * 
+ *
  * Usage:
  * ```tsx
  * <ErrorBoundary>
  *   <YourComponent />
  * </ErrorBoundary>
- * 
+ *
  * // With custom fallback:
  * <ErrorBoundary fallback={<div>Something went wrong</div>}>
  *   <YourComponent />
@@ -36,15 +37,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log to console in development
-    console.error('ErrorBoundary caught an error:', error, errorInfo)
-
-    // Report to Sentry if available (will be initialized in start.tsx)
-    if (typeof window !== 'undefined' && (window as any).__SENTRY__) {
-      import('@sentry/react').then((Sentry) => {
-        Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } })
-      })
-    }
+    // Log via centralized logger (dispatches to Sentry in production)
+    logger.error('ErrorBoundary caught an error', error, {
+      componentStack: errorInfo.componentStack ?? undefined,
+    })
   }
 
   handleRetry = () => {
@@ -67,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-muted-foreground mb-4">
               An unexpected error occurred. Please try again.
             </p>
-            
+
             {/* Show error details in development */}
             {import.meta.env.DEV && this.state.error && (
               <details className="mb-4 text-left">

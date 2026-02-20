@@ -78,14 +78,16 @@ refactor: extract message list into component
 
 ### Convex Functions
 
-- Always validate args with Convex validators
-- Use `requireAuth()` / `requireAdmin()` from `lib/authHelpers.ts`
+- Always validate args with Convex validators (`v.string()`, `v.number()`) — NOT Zod
+- Use custom wrappers from `lib/customFunctions.ts` (`authQuery`, `authMutation`, `adminMutation`, `publicQuery`, etc.) — NEVER raw `query`/`mutation` from `_generated/server`
+- Use `ConvexError` (from `convex/values`) for user-facing errors — NOT raw `Error`
 - Keep mutations focused — one responsibility per function
 
 ### Frontend
 
 - Functional components with hooks
 - Use `cn()` from `@/lib/cn` for conditional classNames
+- Use `logger` from `@/lib/logger` for logging — NOT raw `console.error`/`console.warn`
 - Use Tailwind design tokens — avoid arbitrary values like `text-[#ff0000]`
 
 ## Project Structure

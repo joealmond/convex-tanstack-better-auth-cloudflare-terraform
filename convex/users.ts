@@ -26,7 +26,7 @@
  * Option 2: Use Better Auth's admin plugin (requires additional setup)
  */
 
-import { query } from './_generated/server'
+import { publicQuery } from './lib/customFunctions'
 import { getAuthUserSafe, isAdmin as checkIsAdmin } from './lib/authHelpers'
 
 /**
@@ -34,7 +34,7 @@ import { getAuthUserSafe, isAdmin as checkIsAdmin } from './lib/authHelpers'
  *
  * @returns The user object or null if not authenticated
  */
-export const current = query({
+export const current = publicQuery({
   args: {},
   handler: async (ctx) => {
     return await getAuthUserSafe(ctx)
@@ -50,7 +50,7 @@ export const current = query({
  *
  * @returns true if user is an admin, false otherwise
  */
-export const isAdmin = query({
+export const isAdmin = publicQuery({
   args: {},
   handler: async (ctx) => {
     const user = await getAuthUserSafe(ctx)

@@ -77,12 +77,12 @@ function isAdmin(user: AuthUser): boolean {
 ### Require Authentication
 
 ```ts
-import { requireAuth } from './lib/authHelpers'
+import { authMutation } from './lib/customFunctions'
 
-export const myMutation = mutation({
+export const myMutation = authMutation({
   handler: async (ctx) => {
-    const user = await requireAuth(ctx) // Throws if not logged in
-    // user.email, user.name, user._id are available
+    // ctx.user and ctx.userId are auto-injected
+    // ctx.user.email, ctx.user.name, ctx.userId are available
   },
 })
 ```
@@ -90,11 +90,11 @@ export const myMutation = mutation({
 ### Require Admin
 
 ```ts
-import { requireAdmin } from './lib/authHelpers'
+import { adminMutation } from './lib/customFunctions'
 
-export const adminOnlyMutation = mutation({
+export const adminOnlyMutation = adminMutation({
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx) // Throws if not admin
+    // ctx.user is guaranteed to be an admin
     // Only admins can reach this code
   },
 })
@@ -103,11 +103,12 @@ export const adminOnlyMutation = mutation({
 ### Check Admin Without Throwing
 
 ```ts
-import { getAuthUser, isAdmin } from './lib/authHelpers'
+import { publicQuery } from './lib/customFunctions'
+import { getAuthUserSafe, isAdmin } from './lib/authHelpers'
 
-export const myQuery = query({
+export const myQuery = publicQuery({
   handler: async (ctx) => {
-    const user = await getAuthUser(ctx)
+    const user = await getAuthUserSafe(ctx)
     if (user && isAdmin(user)) {
       // User is admin - show extra data
     }
@@ -244,13 +245,13 @@ function AdminFeature() {
 
 ### Protecting Mutations
 
-Always use `requireAdmin` for sensitive operations:
+Always use `adminMutation` for sensitive operations:
 
 ```ts
-export const deleteUser = mutation({
+export const deleteUser = adminMutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx) // 🔒 Only admins
+    // 🔒 ctx.user is guaranteed admin by wrapper
     // Delete user data (messages, files, etc.)
   },
 })
@@ -273,7 +274,7 @@ if (!isCurrentUserAdmin) {
 
 ### Frontend Security Note
 
-Frontend checks (`useAdmin`) are for **UX only**. Always enforce permissions on the backend with `requireAdmin`.
+Frontend checks (`useAdmin`) are for **UX only**. Always enforce permissions on the backend using `authMutation`/`adminMutation` wrappers from `lib/customFunctions.ts`.
 
 ---
 

@@ -142,18 +142,22 @@ npx playwright install
 
 ### Sentry (Error Tracking)
 
-```bash
-npm install @sentry/react
-```
+**Already integrated** — Sentry is built into `src/lib/logger.ts` and initialized in `src/router.tsx`.
 
-```tsx
-import * as Sentry from '@sentry/react'
+1. `@sentry/react` is already an optional dependency in `package.json`
+2. Set `VITE_SENTRY_DSN` in your `.env.local` to enable:
+   ```bash
+   VITE_SENTRY_DSN=https://your-key@sentry.io/your-project
+   ```
+3. Use the logger instead of calling Sentry directly:
 
-Sentry.init({
-  dsn: 'YOUR_SENTRY_DSN',
-  environment: import.meta.env.VITE_APP_ENV,
-})
-```
+   ```ts
+   import { logger } from '@/lib/logger'
+
+   logger.error('Upload failed', error, { fileId: 'abc' })
+   // Dev: formatted console output
+   // Prod: automatically dispatched to Sentry
+   ```
 
 ### PostHog (Analytics)
 
@@ -164,6 +168,8 @@ npm install posthog-js
 ---
 
 ## Convex Extensions
+
+- [Recommended Convex Components Guide](CONVEX_COMPONENTS.md) - A definitive list of officially supported components like Stripe, Resend, and Geospatial that act as drop-in backend extensions.
 
 ### Cron Jobs (Scheduled Tasks)
 
@@ -229,6 +235,209 @@ const count = await counter.count(ctx, 'product:123:votes')
 ### Capacitor (Web → Native)
 
 Convert the web app to native iOS/Android by wrapping with Capacitor. See [MOBILE.md](MOBILE.md) for the full guide.
+
+---
+
+## Offline Support
+
+Add offline capabilities to your Convex + TanStack Start app. Since Convex uses WebSockets for real-time sync, offline support requires a different approach than traditional REST apps.
+
+### Phase 1: Service Worker (App Shell Caching)
+
+Create a manual service worker — do NOT use `vite-plugin-pwa` (it conflicts with TanStack Start's SSR build).
+
+```bash
+# No npm install needed — manual service worker
+```
+
+Create `public/sw.js`:
+
+```js
+const CACHE = 'app-shell-v1'
+const STATIC = ['/', '/manifest.json']
+
+// Install — pre-cache app shell
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(STATIC)))
+  self.skipWaiting()
+})
+
+// Fetch — network-first for HTML, stale-while-revalidate for assets
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url)
+
+  // NEVER cache Convex WebSocket or API requests
+  if (url.pathname.startsWith('/api/') || url.protocol === 'wss:') return
+
+  // Stale-while-revalidate for static assets
+  if (/\.(js|css|png|jpg|svg|woff2?)$/.test(url.pathname)) {
+    e.respondWith(
+      caches.match(e.request).then((cached) => {
+        const fresh = fetch(e.request).then((res) => {
+          const clone = res.clone()
+          caches.open(CACHE).then((c) => c.put(e.request, clone))
+          return res
+        })
+        return cached || fresh
+      })
+    )
+    return
+  }
+
+  // Network-first for HTML
+  if (e.request.headers.get('accept')?.includes('text/html')) {
+    e.respondWith(fetch(e.request).catch(() => caches.match('/') || new Response('Offline')))
+  }
+})
+```
+
+Register in your root layout:
+
+```tsx
+// src/hooks/use-online-status.ts
+import { useState, useEffect, useCallback } from 'react'
+
+export function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  )
+  useEffect(() => {
+    const on = () => setIsOnline(true)
+    const off = () => setIsOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+    }
+  }, [])
+  return { isOnline }
+}
+
+export function useServiceWorker() {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    }
+  }, [])
+}
+```
+
+### Phase 2: Offline Action Queue (IndexedDB)
+
+For apps that need to queue mutations while offline and replay them on reconnect:
+
+```bash
+npm install idb-keyval
+```
+
+```ts
+// src/lib/offline-queue.ts
+import { get, set, del, keys } from 'idb-keyval'
+
+type QueuedAction = {
+  id: string
+  type: string // e.g. 'vote', 'addProduct'
+  payload: Record<string, unknown>
+  createdAt: number
+  retryCount: number
+}
+
+const prefix = 'offline-action:'
+const queueKey = (id: string) => `${prefix}${id}`
+
+export async function enqueue(type: string, payload: Record<string, unknown>) {
+  const action: QueuedAction = {
+    id: crypto.randomUUID(),
+    type,
+    payload,
+    createdAt: Date.now(),
+    retryCount: 0,
+  }
+  await set(queueKey(action.id), action)
+  window.dispatchEvent(new CustomEvent('offline-queue-change'))
+  return action
+}
+
+export async function flush(executor: (action: QueuedAction) => Promise<void>) {
+  const allKeys = await keys()
+  const actionKeys = allKeys.filter((k) => String(k).startsWith(prefix))
+  let success = 0,
+    failed = 0
+
+  for (const key of actionKeys) {
+    const action = await get<QueuedAction>(key)
+    if (!action || action.retryCount >= 3) {
+      failed++
+      continue
+    }
+    try {
+      await executor(action)
+      await del(key)
+      success++
+    } catch {
+      action.retryCount++
+      await set(key, action)
+      failed++
+    }
+  }
+  window.dispatchEvent(new CustomEvent('offline-queue-change'))
+  return { success, failed }
+}
+```
+
+Create a `SyncManager` component to auto-flush on reconnect:
+
+```tsx
+// src/components/SyncManager.tsx
+import { useEffect, useRef } from 'react'
+import { useMutation } from 'convex/react'
+import { api } from '@convex/_generated/api'
+import { useOnlineStatus } from '@/hooks/use-online-status'
+import { getAll, flush } from '@/lib/offline-queue'
+import { toast } from 'sonner'
+
+export function SyncManager() {
+  const { isOnline } = useOnlineStatus()
+  const isSyncing = useRef(false)
+  // Add your Convex mutations here
+  const castVote = useMutation(api.votes.cast)
+
+  useEffect(() => {
+    if (!isOnline || isSyncing.current) return
+    const sync = async () => {
+      const actions = await getAll()
+      if (actions.length === 0) return
+      isSyncing.current = true
+      toast.info(`Syncing ${actions.length} offline actions...`)
+      await flush(async (action) => {
+        switch (action.type) {
+          case 'vote':
+            await castVote(action.payload)
+            break
+          // Add more cases as needed
+        }
+      })
+      toast.success('All changes synced!')
+      isSyncing.current = false
+    }
+    sync()
+  }, [isOnline, castVote])
+
+  return null
+}
+```
+
+### Key Considerations for Convex
+
+| Concern                 | Recommendation                                               |
+| ----------------------- | ------------------------------------------------------------ |
+| **Convex queries**      | Don't cache — they use WebSocket and are real-time by nature |
+| **Convex mutations**    | Queue offline, replay on reconnect via `SyncManager`         |
+| **Image uploads**       | Cannot work offline (requires Convex storage) — disable UI   |
+| **Conflict resolution** | Convex is last-write-wins — offline queue replays in order   |
+| **Service worker**      | Use manual `public/sw.js` — NOT `vite-plugin-pwa`            |
+| **SSR safety**          | Wrap all `navigator`/`window` calls in `useEffect`           |
 
 ---
 
@@ -377,27 +586,24 @@ For GDPR compliance and user data management, implement these patterns in your C
 
 ```ts
 // convex/gdpr.ts
-import { query } from './_generated/server'
-import { requireAuth } from './lib/authHelpers'
+import { authQuery } from './lib/customFunctions'
 
-export const exportMyData = query({
+export const exportMyData = authQuery({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx)
-
-    // Collect all user data
+    // ctx.user and ctx.userId are auto-injected
     const messages = await ctx.db
       .query('messages')
-      .filter((q) => q.eq(q.field('authorId'), user._id))
+      .filter((q) => q.eq(q.field('authorId'), ctx.userId))
       .collect()
 
     const files = await ctx.db
       .query('files')
-      .filter((q) => q.eq(q.field('uploadedBy'), user._id))
+      .filter((q) => q.eq(q.field('uploadedBy'), ctx.userId))
       .collect()
 
     return {
-      user: { id: user._id, name: user.name, email: user.email },
+      user: { id: ctx.userId, name: ctx.user.name, email: ctx.user.email },
       messages,
       files,
       exportedAt: new Date().toISOString(),
@@ -410,18 +616,17 @@ export const exportMyData = query({
 
 ```ts
 // convex/gdpr.ts
-import { mutation } from './_generated/server'
-import { requireAuth } from './lib/authHelpers'
+import { authMutation } from './lib/customFunctions'
 
-export const deleteMyData = mutation({
+export const deleteMyData = authMutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx)
+    // ctx.user and ctx.userId are auto-injected
 
     // Delete messages
     const messages = await ctx.db
       .query('messages')
-      .filter((q) => q.eq(q.field('authorId'), user._id))
+      .filter((q) => q.eq(q.field('authorId'), ctx.userId))
       .collect()
     for (const msg of messages) {
       await ctx.db.delete(msg._id)
@@ -430,7 +635,7 @@ export const deleteMyData = mutation({
     // Delete files (also remove from storage)
     const files = await ctx.db
       .query('files')
-      .filter((q) => q.eq(q.field('uploadedBy'), user._id))
+      .filter((q) => q.eq(q.field('uploadedBy'), ctx.userId))
       .collect()
     for (const file of files) {
       await ctx.storage.delete(file.storageId)
@@ -523,18 +728,19 @@ These are recommended in `.vscode/extensions.json`:
 
 Features evaluated for this template. Items marked ✅ are included; others are optional additions.
 
-| Feature | Status | Notes |
-|---------|--------|-------|
+| Feature              | Status          | Notes                                                                                      |
+| -------------------- | --------------- | ------------------------------------------------------------------------------------------ |
 | shadcn/ui components | ⚠️ Not included | Template has `cn()` utility but no pre-built components. Add with `npx shadcn@latest init` |
-| Testing (Vitest) | ✅ Included | `vitest` + `happy-dom` + `@testing-library/react` |
-| Toast notifications | ⚠️ Suggested | Add `sonner` — easy setup, commonly needed |
-| Protected routes | ✅ Included | `_authenticated.tsx` layout pattern |
-| Form handling | ⚠️ Suggested | `react-hook-form` + `@hookform/resolvers` + `zod` |
-| 404/Error routes | ✅ Included | `NotFound` component + `defaultNotFoundComponent` |
-| i18n | ⚠️ Suggested | Static JSON imports pattern (see Architecture doc) |
-| Database seeding | ⚠️ Suggested | `npx convex run seed:seedData` |
-| Rate limiting | ✅ Included | `@convex-dev/rate-limiter` with token bucket |
-| Charts | ⚠️ Optional | `recharts` for data visualization |
+| Testing (Vitest)     | ✅ Included     | `vitest` + `happy-dom` + `@testing-library/react`                                          |
+| Toast notifications  | ⚠️ Suggested    | Add `sonner` — easy setup, commonly needed                                                 |
+| Protected routes     | ✅ Included     | `_authenticated.tsx` layout pattern                                                        |
+| Form handling        | ⚠️ Suggested    | `react-hook-form` + `@hookform/resolvers` + `zod`                                          |
+| 404/Error routes     | ✅ Included     | `NotFound` component + `defaultNotFoundComponent`                                          |
+| i18n                 | ⚠️ Suggested    | Static JSON imports pattern (see Architecture doc)                                         |
+| Database seeding     | ⚠️ Suggested    | `npx convex run seed:seedData`                                                             |
+| Rate limiting        | ✅ Included     | `@convex-dev/rate-limiter` with token bucket                                               |
+| Charts               | ⚠️ Optional     | `recharts` for data visualization                                                          |
+| Offline              | ⚠️ Suggested    | Manual service worker + `idb-keyval` for offline queue                                     |
 
 ---
 
