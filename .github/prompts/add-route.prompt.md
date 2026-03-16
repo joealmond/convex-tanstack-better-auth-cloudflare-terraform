@@ -43,14 +43,15 @@ function ExamplePage() {
 ```
 
 ### Protected Route
-Location: `src/routes/_authed/{path}.tsx`
+Location: `src/routes/_authenticated/{path}.tsx`
 
 ```typescript
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "@convex/_generated/api";
 
-export const Route = createFileRoute("/_authed/dashboard")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
   head: () => ({
     meta: [{ title: "Dashboard | My App" }],
@@ -58,11 +59,9 @@ export const Route = createFileRoute("/_authed/dashboard")({
 });
 
 function DashboardPage() {
-  const items = useQuery(api.items.list);
-
-  if (!items) {
-    return <div className="animate-pulse">Loading...</div>;
-  }
+  const { data: items } = useSuspenseQuery(
+    convexQuery(api.items.list, {})
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -78,7 +77,8 @@ Location: `src/routes/{parent}/$paramName.tsx`
 
 ```typescript
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "@convex/_generated/api";
 
 export const Route = createFileRoute("/products/$productId")({
@@ -87,9 +87,9 @@ export const Route = createFileRoute("/products/$productId")({
 
 function ProductPage() {
   const { productId } = Route.useParams();
-  const product = useQuery(api.products.get, { id: productId });
-
-  if (!product) return <div>Loading...</div>;
+  const { data: product } = useSuspenseQuery(
+    convexQuery(api.products.get, { id: productId })
+  );
 
   return (
     <div>
@@ -101,11 +101,12 @@ function ProductPage() {
 
 ## Checklist
 
-- [ ] File in correct location (`src/routes/` or `src/routes/_authed/`)
+- [ ] File in correct location (`src/routes/` or `src/routes/_authenticated/`)
 - [ ] Route path matches file location
 - [ ] SEO meta tags in `head()`
-- [ ] Loading state handled for async data
-- [ ] Run `npm run generate:routes` if types outdated
+- [ ] Uses `useSuspenseQuery` + `convexQuery()` for data (NOT raw `useQuery`)
+- [ ] SSR routes use `loader` with `ensureQueryData`
+- [ ] Run `npm run generate:routes` after adding new routes
 
 ## File Naming Rules
 
@@ -115,4 +116,4 @@ function ProductPage() {
 | `/about` | `src/routes/about.tsx` |
 | `/products` | `src/routes/products/index.tsx` |
 | `/products/:id` | `src/routes/products/$id.tsx` |
-| `/dashboard` (protected) | `src/routes/_authed/dashboard.tsx` |
+| `/dashboard` (protected) | `src/routes/_authenticated/dashboard.tsx` |

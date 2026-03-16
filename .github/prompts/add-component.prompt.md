@@ -38,7 +38,8 @@ export function ComponentName({ title, children }: ComponentNameProps) {
 
 ### Component with Convex Query
 ```typescript
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "@convex/_generated/api";
 import { Id } from "@convex/_generated/dataModel";
 
@@ -47,13 +48,9 @@ interface ItemCardProps {
 }
 
 export function ItemCard({ itemId }: ItemCardProps) {
-  const item = useQuery(api.items.get, { id: itemId });
-
-  if (!item) {
-    return (
-      <div className="animate-pulse rounded-lg bg-gray-100 h-24" />
-    );
-  }
+  const { data: item } = useSuspenseQuery(
+    convexQuery(api.items.get, { id: itemId })
+  );
 
   return (
     <div className="rounded-lg border border-gray-200 p-4">
@@ -67,18 +64,17 @@ export function ItemCard({ itemId }: ItemCardProps) {
 ### Component with Convex Mutation
 ```typescript
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useConvexMutation } from "@convex-dev/react-query";
 import { api } from "@convex/_generated/api";
 
 export function CreateItemForm() {
   const [name, setName] = useState("");
-  const createItem = useMutation(api.items.create);
+  const { mutate: createItem } = useConvexMutation(api.items.create);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    
-    await createItem({ name });
+    createItem({ name });
     setName("");
   };
 
@@ -104,21 +100,14 @@ export function CreateItemForm() {
 
 ### List Component
 ```typescript
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "@convex/_generated/api";
 
 export function ItemList() {
-  const items = useQuery(api.items.list);
-
-  if (!items) {
-    return (
-      <div className="space-y-2">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="animate-pulse rounded bg-gray-100 h-16" />
-        ))}
-      </div>
-    );
-  }
+  const { data: items } = useSuspenseQuery(
+    convexQuery(api.items.list, {})
+  );
 
   if (items.length === 0) {
     return (
@@ -144,7 +133,8 @@ export function ItemList() {
 
 - [ ] File location: `src/components/{ComponentName}.tsx`
 - [ ] PascalCase naming
-- [ ] Loading state for async data
+- [ ] Uses `useSuspenseQuery` + `convexQuery()` for data (NOT raw `useQuery`)
+- [ ] Uses `useConvexMutation` for mutations
 - [ ] Empty state for lists
 - [ ] Props interface defined
 - [ ] Accessible (semantic HTML, ARIA if needed)
