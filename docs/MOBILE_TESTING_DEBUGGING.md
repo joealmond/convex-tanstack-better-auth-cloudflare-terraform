@@ -259,6 +259,46 @@ Mapbox enables these by default — no need to opt in unless you previously disa
 
 **Fix**: Set mock location via Extended Controls (see above). Emulators have no GPS hardware — this is **expected behavior**.
 
+### Camera Overlay Buttons Unresponsive (Native)
+
+**Symptoms**: Camera preview visible, but shutter/cancel/skip buttons don't respond to taps.
+
+**Cause**: Radix Dialog `modal={true}` adds the `inert` HTML attribute to all `document.body` siblings. If your camera overlay is portaled to `document.body`, it becomes a sibling of the Dialog portal and is marked `inert`.
+
+**Fix**: Use `modal={false}` on the Dialog when displaying native camera overlays. Never switch `modal` while the dialog is open.
+
+### Frozen Camera Image After Close
+
+**Symptoms**: Camera dialog closes but the camera preview layer stays on screen (frozen, no controls).
+
+**Cause**: `stopCamera()` called without `await`. The native `AVCaptureSession.stopRunning()` is async — if not awaited, the preview layer isn't removed before the WebView restores opacity.
+
+**Fix**: Always `await stopCamera()` before dialog close. Add a 120ms delay after the stop for UIKit main-thread cleanup.
+
+### Camera Restarts After Submitting
+
+**Symptoms**: After completing the flow and closing the dialog, the camera briefly flashes on screen.
+
+**Cause**: `resetDialog()` or error handler sets step back to the camera step. React batches `setOpen(false)` + `setStep('camera')` in one frame, briefly remounting the camera component.
+
+**Fix**: Never set step to the camera-mounting value during close/reset. Only set it in the dialog's open handler.
+
+### White Flash When Opening Camera
+
+**Symptoms**: Brief white/cream flash visible before camera feed appears.
+
+**Cause**: App background color visible for ~100ms before WebView becomes transparent.
+
+**Fix**: Two-phase CSS. Apply `camera-starting` class (black background) *before* dialog mounts. Switch to `camera-running` (transparent) *after* native camera starts.
+
+### `FigCaptureSourceRemote err=-17281` Crash (iOS)
+
+**Symptoms**: App crashes when stopping camera, especially after multiple start/stop cycles.
+
+**Cause**: `capacitor-camera-view` v2.0.0 bug — `stopSession()` resolves the JS promise before `captureSession.stopRunning()` completes.
+
+**Fix**: Update to `capacitor-camera-view` v2.0.2+.
+
 ---
 
 ## Testing Checklists

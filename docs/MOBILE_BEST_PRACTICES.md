@@ -422,6 +422,94 @@ export async function initPushNotifications() {
 
 ---
 
+## Native Plugin Lifecycle Patterns
+
+When integrating native plugins (camera, audio, AR) that run behind the WebView, follow these patterns learned from production:
+
+### Async Cancellation Guard
+
+Native plugin start sequences are multi-step async chains. If a component unmounts mid-chain, orphaned native resources leak. Use a ref-based guard:
+
+```tsx
+const cancelledRef = useRef(false)
+
+const startPlugin = async () => {
+  cancelledRef.current = false
+  
+  const plugin = await import('your-capacitor-plugin')
+  if (cancelledRef.current) return
+  
+  await plugin.requestPermissions()
+  if (cancelledRef.current) { /* cleanup */ return }
+  
+  await plugin.start({ ... })
+  if (cancelledRef.current) { await plugin.stop(); return }
+}
+
+useEffect(() => () => { cancelledRef.current = true }, [])
+```
+
+**Why**: Dynamic imports, permission dialogs, and native initialization each take 50-500ms. A user can easily navigate away mid-chain.
+
+### Portal UI Outside Dialogs
+
+Full-screen native overlays (camera, AR) rendered via `createPortal(ui, document.body)` interact poorly with Radix Dialog:
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Buttons unresponsive | `modal={true}` adds `inert` to body siblings | Use `modal={false}` on native |
+| Dialog auto-closes on tap | Portal taps = "interact outside" | `onInteractOutside` with `preventDefault()` |
+| Content scrolls behind overlay | `modal={false}` has no scroll lock | Manual `overflow: hidden` on body |
+| Dialog re-mounts on prop change | Switching `modal` while open | Keep `modal` as a constant value |
+
+### Two-Phase WebView Transparency
+
+When rendering native content **behind** a transparent WebView:
+
+1. **Phase 1** (`camera-starting`): Set `background: #000` — hides the app's normal background (prevents white flash)
+2. **Phase 2** (`camera-running`): Set `background: transparent` — native layer now visible through WebView
+
+Apply Phase 1 *before* mounting the component. Switch to Phase 2 *after* the native plugin finishes starting.
+
+### await Stop Before Navigation
+
+Native plugins that render behind the WebView need explicit cleanup:
+
+```tsx
+// ❌ Fire-and-forget — native preview layer stays attached
+stopCamera()
+onClose()
+
+// ✅ Always await with delay for UIKit cleanup
+await stopCamera()
+await new Promise(r => setTimeout(r, 120))
+onClose()
+```
+
+The 120ms delay accounts for iOS main-thread cleanup (removing `videoPreviewLayer`, restoring `webView.isOpaque`).
+
+### Step/State Transitions
+
+When a native plugin starts on component mount and stops on unmount, **never set state back to the step that mounts it** during close/cleanup:
+
+```tsx
+// ❌ React may batch close + step-change, briefly remounting the plugin
+setOpen(false)
+setStep('camera')  // CameraWizard re-mounts for 1 frame!
+
+// ✅ Set the mounting step only in the open handler
+const handleOpen = () => {
+  setStep('camera')
+  setOpen(true)
+}
+const handleClose = () => {
+  setOpen(false)
+  // step stays at current value — safe
+}
+```
+
+---
+
 ## Deep Linking
 
 Enable links like `https://yourapp.com/product/oat-milk` to open directly in the native app:

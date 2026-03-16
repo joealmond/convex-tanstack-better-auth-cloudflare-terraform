@@ -370,6 +370,57 @@ Convex native storage works great for most apps. For larger-scale needs, conside
 
 For most template users, Convex native storage is the right choice. Switch to R2 if you're already on Cloudflare and need cheaper storage at scale.
 
+### Cloudflare R2 Mobile (iOS Capacitor) Walkaround
+
+If you use Cloudflare R2 with Capacitor iOS, direct client-side uploads using AWS SDK or presigned URLs will fail due to CORS. WKWebView uses the `capacitor://localhost` scheme which S3/R2 endpoints often reject. Furthermore, using `@aws-sdk/client-s3` inside a Convex Edge function causes `DOMParser is not defined` crashes.
+
+**The Solution:** Use a server-side `fetch` proxy.
+
+```typescript
+// convex/r2.ts (Edge Runtime)
+import { action } from './_generated/server'
+import { v } from 'convex/values'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner' // Import ONLY presigner
+
+export const uploadToR2 = action({
+  args: { base64Data: v.string(), contentType: v.string() },
+  handler: async (ctx, args) => {
+    // 1. Initialize S3 client just for signing the URL (No DOMParser required)
+    const s3 = new S3Client({
+      region: 'auto',
+      endpoint: process.env.R2_ENDPOINT, 
+      forcePathStyle: true, // Required for Cloudflare R2!
+      credentials: { /* ... */ }
+    })
+    
+    // 2. Decode base64 to binary using Web APIs (No Node.js Buffer needed)
+    const binaryString = atob(args.base64Data)
+    const binaryData = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) binaryData[i] = binaryString.charCodeAt(i)
+
+    // 3. Generate Pre-signed URL
+    const command = new PutObjectCommand({ Bucket: process.env.R2_BUCKET, Key: 'file.jpg' })
+    const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
+
+    // 4. Force Path-style URL rewrite to prevent Cloudflare 404s
+    const urlObj = new URL(signedUrl)
+    if (urlObj.hostname.startsWith(`${process.env.R2_BUCKET}.`)) {
+      urlObj.hostname = urlObj.hostname.replace(`${process.env.R2_BUCKET}.`, '')
+      urlObj.pathname = `/${process.env.R2_BUCKET}${urlObj.pathname}`
+    }
+
+    // 5. Fetch from Convex Server! Completely bypasses iOS CORS and AWS DOMParser crash
+    const response = await fetch(urlObj.toString(), {
+      method: "PUT", headers: { "Content-Type": args.contentType }, body: binaryData
+    })
+
+    if (!response.ok) throw new Error(await response.text())
+    return { url: `${process.env.R2_PUBLIC_URL}/file.jpg` }
+  }
+})
+```
+
 ## Examples
 
 See working examples in:

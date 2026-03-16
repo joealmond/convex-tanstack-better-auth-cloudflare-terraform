@@ -224,6 +224,122 @@ npm install @capacitor/share
 
 ---
 
+## Advanced: Native Camera Overlay
+
+If you need a **native camera preview** (not the basic `@capacitor/camera` photo picker), use a plugin like [`capacitor-camera-view`](https://github.com/nicksenger/capacitor-camera-view) v2.0.2+ which renders an AVFoundation camera **behind** the WebView.
+
+### Architecture
+
+```
+┌──────────────────────────────┐
+│  Native Layer                │  ← AVCaptureVideoPreviewLayer (camera feed)
+├──────────────────────────────┤
+│  WKWebView (transparent)     │  ← Made transparent via CSS
+│  ┌────────────────────────┐  │
+│  │  .camera-overlay        │  │  ← Your React UI (portaled to document.body)
+│  │  (shutter, controls)    │  │
+│  └────────────────────────┘  │
+└──────────────────────────────┘
+```
+
+### WebView Transparency (Two-Phase)
+
+To avoid a white flash when opening the camera, use two CSS classes:
+
+```css
+/* Phase 1: Black screen while camera initializes */
+body.camera-starting {
+  background: #000 !important;
+}
+body.camera-starting > * {
+  visibility: hidden !important;
+}
+
+/* Phase 2: Transparent for camera feed */
+body.camera-running {
+  background: transparent !important;
+}
+body.camera-running > * {
+  visibility: hidden !important;
+}
+
+/* Only camera overlay stays visible */
+body.camera-running .camera-overlay,
+body.camera-starting .camera-overlay {
+  visibility: visible !important;
+}
+```
+
+Sequence: app UI → `camera-starting` (black) → `camera-running` (transparent + camera feed)
+
+### Radix Dialog + Portal Interaction
+
+If your camera overlay is rendered inside a Radix Dialog, you must handle three issues:
+
+1. **`modal={false}` on native** — Radix Dialog's `modal={true}` adds the `inert` attribute to all `document.body` siblings. Since the camera overlay is portaled to `document.body`, it becomes a sibling and all buttons stop working. Use `modal={false}` on native platforms.
+
+2. **Prevent dismiss on overlay taps** — Taps on the portaled overlay count as "interact outside" the DialogContent:
+   ```tsx
+   <DialogContent
+     onInteractOutside={(e) => { if (cameraActive) e.preventDefault() }}
+     onPointerDownOutside={(e) => { if (cameraActive) e.preventDefault() }}
+     onEscapeKeyDown={(e) => { if (cameraActive) e.preventDefault() }}
+   >
+   ```
+
+3. **Manual scroll lock** — `modal={false}` disables Radix's scroll lock. Add `document.body.style.overflow = 'hidden'` in a `useEffect` when the camera is active.
+
+> **Important**: Never switch the `modal` prop while the Dialog is open — Radix will re-mount the entire dialog tree.
+
+### Async Plugin Lifecycle Guard
+
+Native camera start is a multi-step async chain (dynamic import → permissions → listener → native start). Use a `cancelledRef` to prevent orphaned resources if the component unmounts mid-start:
+
+```tsx
+const cancelledRef = useRef(false)
+
+const startCamera = async () => {
+  cancelledRef.current = false
+  const { CameraView } = await import('capacitor-camera-view')
+  if (cancelledRef.current) return  // Unmounted during import
+
+  await CameraView.requestPermissions()
+  if (cancelledRef.current) { /* cleanup */ return }
+
+  await CameraView.start({ ... })
+  if (cancelledRef.current) { await CameraView.stop(); return }
+}
+
+// Cleanup on unmount
+useEffect(() => () => { cancelledRef.current = true }, [])
+```
+
+### Stop Camera with Delay
+
+Always `await stopCamera()` before closing dialogs or navigating. Add a 120ms post-stop delay — the plugin's JS promise resolves before UIKit's main-thread cleanup (removing the preview layer) finishes:
+
+```tsx
+const stopCamera = async () => {
+  await CameraView.stop()
+  await new Promise(r => setTimeout(r, 120))  // UIKit cleanup
+}
+```
+
+### `captureSample()` vs `capture()`
+
+| Method | API | Speed | Use Case |
+|--------|-----|-------|----------|
+| `captureSample({ quality: 90 })` | Video frame grab | ~50ms | Multi-photo flows |
+| `capture()` | Full hardware pipeline | ~300-500ms | Single high-quality photo |
+
+For multi-photo wizards, always use `captureSample()`. The `capture()` method triggers autofocus/autoexposure settling and hardware ISP, which is slow and crash-prone when called repeatedly.
+
+### Plugin Version
+
+**Must use v2.0.2+** of `capacitor-camera-view`. v2.0.0 had a bug where `stopSession()` resolved the JS promise before `captureSession.stopRunning()` completed on the iOS background queue, causing `FigCaptureSourceRemote err=-17281` crashes.
+
+---
+
 ## Known Issues & Workarounds
 
 ### Android Gradle Plugin 9.x+ ProGuard Error
