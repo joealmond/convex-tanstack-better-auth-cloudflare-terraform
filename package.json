@@ -20,11 +20,12 @@
     "format": "prettier --write .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
-    "generate:routes": "npx @tanstack/router-cli generate",
+    "generate:routes": "node -e \"const{getConfig:g,Generator:G}=require('@tanstack/router-generator');new G({config:g({},process.cwd()),root:process.cwd()}).run()\"",
+    "sync:wrangler-config": "node scripts/generate-wrangler-config.mjs",
     "convex:push": "npx convex dev --once",
     "convex:deploy": "npx convex deploy --yes",
-    "deploy:preview": "npm run convex:push && npm run build:preview && wrangler deploy --env preview",
-    "deploy:prod": "npm run convex:deploy && npm run build:prod && wrangler deploy --env production",
+    "deploy:preview": "npm run convex:push && npm run build:preview && npm run sync:wrangler-config && wrangler deploy --config dist/server/wrangler.json",
+    "deploy:prod": "npm run convex:deploy && npm run build:prod && npm run sync:wrangler-config && wrangler deploy --config dist/server/wrangler.json",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"
   },
   "dependencies": {

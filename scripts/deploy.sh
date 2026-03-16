@@ -22,8 +22,20 @@ if [ ! -f .env.local ]; then
   exit 1
 fi
 
-# Load environment variables
-export $(grep -v '^#' .env.local | xargs)
+# Load environment variables (handles quoted values safely)
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%%#*}"           # strip comments
+  line="$(echo "$line" | xargs 2>/dev/null)" # trim whitespace
+  [[ -z "$line" ]] && continue
+  if [[ "$line" == *=* ]]; then
+    key="${line%%=*}"
+    value="${line#*=}"
+    # Strip surrounding quotes
+    value="${value#\"}" ; value="${value%\"}"
+    value="${value#\'}" ; value="${value%\'}"
+    export "$key=$value"
+  fi
+done < .env.local
 
 # Validate required env vars
 if [ -z "$VITE_CONVEX_URL" ]; then
@@ -32,18 +44,24 @@ if [ -z "$VITE_CONVEX_URL" ]; then
 fi
 
 # Parse arguments
-ENVIRONMENT=${1:-production}
+ENVIRONMENT=${1:-preview}
+
+# Validate environment
+if [[ "$ENVIRONMENT" != "preview" && "$ENVIRONMENT" != "production" ]]; then
+  echo -e "${RED}Invalid environment: ${ENVIRONMENT}. Must be 'preview' or 'production'.${NC}"
+  exit 1
+fi
 
 echo ""
 echo -e "📦 Environment: ${YELLOW}${ENVIRONMENT}${NC}"
 echo ""
 
 # Step 1: Install dependencies
-echo -e "${GREEN}Step 1/4: Installing dependencies...${NC}"
+echo -e "${GREEN}Step 1/5: Installing dependencies...${NC}"
 npm ci
 
 # Step 2: Deploy Convex
-echo -e "${GREEN}Step 2/4: Deploying Convex backend...${NC}"
+echo -e "${GREEN}Step 2/5: Deploying Convex backend...${NC}"
 if [ "$ENVIRONMENT" = "production" ]; then
   npx convex deploy --yes
 else
@@ -51,16 +69,20 @@ else
 fi
 
 # Step 3: Build frontend
-echo -e "${GREEN}Step 3/4: Building frontend...${NC}"
+echo -e "${GREEN}Step 3/5: Building frontend...${NC}"
 if [ "$ENVIRONMENT" = "production" ]; then
   CLOUDFLARE_ENV=production npm run build:prod
 else
   CLOUDFLARE_ENV=preview npm run build:preview
 fi
 
-# Step 4: Deploy to Cloudflare
-echo -e "${GREEN}Step 4/4: Deploying to Cloudflare Workers...${NC}"
-npx wrangler deploy --env "$ENVIRONMENT"
+# Step 4: Generate Wrangler config
+echo -e "${GREEN}Step 4/5: Generating Wrangler deploy config...${NC}"
+npm run sync:wrangler-config
+
+# Step 5: Deploy to Cloudflare
+echo -e "${GREEN}Step 5/5: Deploying to Cloudflare Workers...${NC}"
+npx wrangler deploy --config dist/server/wrangler.json
 
 echo ""
 echo -e "${GREEN}✅ Deployment complete!${NC}"

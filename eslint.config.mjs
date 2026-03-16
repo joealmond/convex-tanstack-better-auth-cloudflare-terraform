@@ -15,6 +15,16 @@ export default tseslint.config(
     ],
   },
   {
+    // Node globals for .mjs scripts
+    files: ['scripts/**/*.mjs', '*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'warn',

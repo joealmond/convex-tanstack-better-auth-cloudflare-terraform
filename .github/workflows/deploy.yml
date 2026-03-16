@@ -1,7 +1,10 @@
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: ['CI']
+    types:
+      - completed
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -15,7 +18,8 @@ on:
           - production
 
 env:
-  ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+  ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'preview' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   # Convex hosting: 'cloud' or 'self-hosted'
   CONVEX_HOSTING: ${{ vars.CONVEX_HOSTING || 'cloud' }}
   # Deploy target: 'cloudflare', 'vercel', or 'netlify'
@@ -25,10 +29,13 @@ jobs:
   deploy:
     name: Deploy Application
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -39,6 +46,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate routes
+        run: npm run generate:routes
+
       # ========================================
       # Deploy Convex Backend - Cloud
       # ========================================
@@ -46,13 +56,13 @@ jobs:
         if: env.CONVEX_HOSTING == 'cloud' && env.ENVIRONMENT == 'production'
         run: npx convex deploy --yes
         env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_PROD || secrets.CONVEX_DEPLOY_KEY }}
 
       - name: Push Convex (Cloud - Preview)
         if: env.CONVEX_HOSTING == 'cloud' && env.ENVIRONMENT == 'preview'
         run: npx convex dev --once --typecheck=disable
         env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_PREVIEW || secrets.CONVEX_DEPLOY_KEY }}
 
       # ========================================
       # Deploy Convex Backend - Self-hosted
@@ -67,7 +77,7 @@ jobs:
         if: env.CONVEX_HOSTING == 'self-hosted' && env.ENVIRONMENT == 'preview'
         run: npx convex dev --once --typecheck=disable --url ${{ secrets.CONVEX_URL }}
         env:
-          CONVEX_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY }}
+          CONVEX_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY_PREVIEW || secrets.CONVEX_ADMIN_KEY }}
 
       # ========================================
       # Build Frontend
@@ -91,13 +101,17 @@ jobs:
       # ========================================
       # Deploy to Cloudflare Workers
       # ========================================
+      - name: Generate Wrangler deploy config
+        if: env.DEPLOY_TARGET == 'cloudflare'
+        run: npm run sync:wrangler-config
+
       - name: Deploy to Cloudflare Workers
         if: env.DEPLOY_TARGET == 'cloudflare'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env ${{ env.ENVIRONMENT }}
+          command: deploy --config dist/server/wrangler.json
 
       # ========================================
       # Deploy to Vercel

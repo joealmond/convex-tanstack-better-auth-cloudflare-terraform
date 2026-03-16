@@ -96,16 +96,17 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ### Available Scripts
 
-| Script                    | Description                            |
-| ------------------------- | -------------------------------------- |
-| `npm run dev`             | Start dev server (Vite + Convex)       |
-| `npm run build`           | Build for production                   |
-| `npm run preview`         | Preview production build with Wrangler |
-| `npm run typecheck`       | Run TypeScript checks                  |
-| `npm run lint`            | Run ESLint                             |
-| `npm run generate:routes` | Regenerate TanStack Router route tree  |
-| `npm run deploy:preview`  | Deploy to preview environment          |
-| `npm run deploy:prod`     | Deploy to production                   |
+| Script                    | Description                                |
+| ------------------------- | ------------------------------------------ |
+| `npm run dev`             | Start dev server (Vite + Convex)           |
+| `npm run build`           | Build for production                       |
+| `npm run preview`         | Preview production build with Wrangler     |
+| `npm run typecheck`       | Run TypeScript checks                      |
+| `npm run lint`            | Run ESLint                                 |
+| `npm run generate:routes` | Regenerate TanStack Router route tree      |
+| `npm run deploy:preview`  | Deploy to preview environment              |
+| `npm run deploy:prod`     | Deploy to production                       |
+| `npm run sync:wrangler-config` | Generate Wrangler deploy config from build |
 
 ---
 
@@ -113,12 +114,13 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ### Environment Variables
 
-| Variable               | Description                             |
-| ---------------------- | --------------------------------------- |
-| `VITE_CONVEX_URL`      | Convex deployment URL                   |
-| `BETTER_AUTH_SECRET`   | Auth secret (`openssl rand -base64 32`) |
-| `GOOGLE_CLIENT_ID`     | Google OAuth client ID                  |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth secret                     |
+| Variable               | Description                               |
+| ---------------------- | ----------------------------------------- |
+| `VITE_CONVEX_URL`      | Convex deployment URL (`.convex.cloud`)   |
+| `VITE_CONVEX_SITE_URL` | Convex HTTP URL (`.convex.site`)          |
+| `BETTER_AUTH_SECRET`   | Auth secret (`openssl rand -base64 32`)   |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID                    |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth secret                       |
 
 ### Cloudflare Workers
 
@@ -139,12 +141,29 @@ Key settings in `wrangler.jsonc`:
 ### Local Deploy
 
 ```bash
-./scripts/deploy.sh production
+./scripts/deploy.sh preview     # deploy preview (default)
+./scripts/deploy.sh production  # deploy production
 ```
 
 ### GitHub Actions (Automatic)
 
-Configure via repository variables:
+Pushing to `main` triggers CI. On success, the Deploy workflow auto-deploys to **preview**.
+
+To deploy to **production**, manually trigger the Deploy workflow with `environment=production`.
+
+**Required GitHub Secrets** (for Cloudflare):
+
+| Secret                   | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`   | Cloudflare API token (Workers Edit)      |
+| `CLOUDFLARE_ACCOUNT_ID`  | Cloudflare account ID                    |
+| `VITE_CONVEX_URL`        | Convex URL for preview builds            |
+| `VITE_CONVEX_SITE_URL`   | Convex site URL for preview builds       |
+| `CONVEX_DEPLOY_KEY`      | Convex deploy key (shared or per-env)    |
+
+See [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) for the full bootstrap guide.
+
+**Optional Repository Variables:**
 
 | Variable         | Options                           | Default      |
 | ---------------- | --------------------------------- | ------------ |
@@ -179,6 +198,8 @@ terraform init && terraform apply
 | Topic                     | Link                                                           |
 | ------------------------- | -------------------------------------------------------------- |
 | **Architecture Guide**    | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                   |
+| **Preview Checklist** ⚡  | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) |
+| **Production Checklist**  | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
 | **Rate Limiting** ⚡      | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                 |
 | **Email with Resend** ⚡  | [docs/EMAIL_WITH_RESEND.md](docs/EMAIL_WITH_RESEND.md)         |
 | **Stripe Payments**       | [docs/STRIPE_PAYMENTS.md](docs/STRIPE_PAYMENTS.md)             |

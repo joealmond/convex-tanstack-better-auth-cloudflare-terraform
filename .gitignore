@@ -41,6 +41,7 @@ coverage/
 
 # Wrangler
 .wrangler/
+.wrangler.deploy.jsonc
 
 # Generated route tree
 src/routeTree.gen.ts
