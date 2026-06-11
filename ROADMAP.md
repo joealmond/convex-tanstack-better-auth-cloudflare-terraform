@@ -10,23 +10,23 @@
 
 Ship nothing new; remove everything that signals "personal project".
 
-- [ ] Delete internal artifacts: `docs/CODE_REVIEW_FINDINGS.md`, `docs/CODE_REVIEW_PLAN.md`, `docs/MOBILE_OLD.md`
-- [ ] Merge duplicates: `AI_INTEGRATION.md` + `AI_INTEGRATIONS.md` → one file
-- [ ] Remove legacy schema fields (`createdAt` "kept for backward compatibility" — a template has no legacy data)
-- [ ] Fix README placeholders (`git clone <this-repo>`)
-- [ ] Decide name + tagline. Current repo name is 6 words long; package.json says `convex-tanstack-cloudflare`. Pick one short, brandable name (this becomes the CLI name too)
-- [ ] Align `package.json` name/description with the repo
+- [x] Delete internal artifacts: `docs/CODE_REVIEW_FINDINGS.md`, `docs/CODE_REVIEW_PLAN.md`, `docs/MOBILE_OLD.md`
+- [x] Merge duplicates: `AI_INTEGRATION.md` + `AI_INTEGRATIONS.md` → one file
+- [x] Remove legacy schema fields (`createdAt` "kept for backward compatibility" — a template has no legacy data)
+- [x] Fix README placeholders (`git clone <this-repo>`)
+- [x] Decide name + tagline. Current repo name is 6 words long; package.json says `convex-tanstack-cloudflare`. Pick one short, brandable name (this becomes the CLI name too)
+- [x] Align `package.json` name/description with the repo
 
 ## Phase 1 — First impression (week 1)
 
 A developer decides in ~10 seconds on the README.
 
-- [ ] **Hero section first**: logo/banner image, one-line pitch, badges (CI status, license, PRs-welcome, Convex/TanStack versions), then a screenshot or GIF of the running app — *before* any philosophy text
-- [ ] Replace ASCII architecture diagram with **Mermaid** (GitHub renders it natively)
+- [x] **Hero section first**: logo/banner image, one-line pitch, badges (CI status, license, PRs-welcome, Convex/TanStack versions), then a screenshot or GIF of the running app — *before* any philosophy text
+- [x] Replace ASCII architecture diagram with **Mermaid** (GitHub renders it natively)
 - [ ] **Deploy a live demo** and link it at the top — single biggest attractiveness win
 - [ ] Enable GitHub "Use this template" button; add repo social preview image, topics/tags
 - [ ] Add community files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue/PR templates, enable Discussions
-- [ ] Cut the 26-file docs table in the README to ~6 curated links; move the rest to a docs index page
+- [x] Cut the 26-file docs table in the README to ~6 curated links; move the rest to a docs index page
 
 ## Phase 2 — Zero-friction onboarding (week 2)
 
