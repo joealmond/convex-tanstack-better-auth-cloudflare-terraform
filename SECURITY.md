@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-As a starter template, only the latest version on the `main` branch receives security fixes.
+As a template repository, only the latest version on the `main` branch receives security fixes.
 
 | Version | Supported          |
 | ------- | ------------------ |
