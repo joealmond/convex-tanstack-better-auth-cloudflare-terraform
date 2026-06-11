@@ -8,8 +8,6 @@ export default defineSchema({
     content: v.string(),
     authorId: v.optional(v.string()),
     authorName: v.optional(v.string()),
-    // Legacy field — kept optional for backward compatibility with existing data
-    createdAt: v.optional(v.number()),
   }),
 
   // File uploads example
@@ -19,7 +17,5 @@ export default defineSchema({
     type: v.string(),
     size: v.number(),
     uploadedBy: v.optional(v.string()),
-    // Legacy field — kept optional for backward compatibility with existing data
-    createdAt: v.optional(v.number()),
   }).index('by_uploader', ['uploadedBy']),
 })
