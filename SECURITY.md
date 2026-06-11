@@ -16,7 +16,7 @@ If you discover a security vulnerability in this template, please report it priv
 
 Include as much detail as possible:
 - A description of the vulnerability and its potential impact
-- Steps to reproduce or proof-of-concept code
+- Steps to reproduce (if known)
 - Any suggested fixes or mitigations
 
 You can expect an acknowledgement within **48 hours** and a status update within **7 days**.
