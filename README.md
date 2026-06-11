@@ -1,6 +1,23 @@
-# Convex + TanStack Start + Cloudflare Workers
+<div align="center">
 
-A modern, production-ready full-stack template.
+# ⚡ convex-tanstack-cloudflare
+
+**The real-time edge starter — TanStack Start + Convex + Better Auth + Cloudflare Workers.**
+
+Real-time data sync, edge SSR, self-hosted auth, Terraform IaC, rate limiting, and RBAC — production-ready out of the box.
+
+[![CI](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml/badge.svg)](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![TanStack Start](https://img.shields.io/badge/TanStack-Start-orange)](https://tanstack.com/start/latest)
+[![Convex](https://img.shields.io/badge/Convex-realtime-red)](https://convex.dev)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-f38020)](https://workers.cloudflare.com)
+
+[Quick Start](#quick-start) · [Architecture](#architecture-flow) · [Deployment](#deployment) · [Docs](docs/README.md)
+
+</div>
+
+---
 
 ## Philosophy
 
@@ -25,41 +42,21 @@ This template embodies **opinionated simplicity**:
 
 ### Architecture Flow
 
-```
-┌─────────────────────┐          ┌──────────────────────────┐          ┌─────────────────────────┐
-│   User (Browser)    │          │  Cloudflare Workers      │          │   Convex (Backend)      │
-│                     │          │       (Edge)             │          │                         │
-└─────────────────────┘          └──────────────────────────┘          └─────────────────────────┘
-          │                                   │                                     │
-          │  1. Initial Request               │                                     │
-          │──────────────────────────────────>│                                     │
-          │                                   │                                     │
-          │                                   │  2. SSR: Fetch Data (Queries)       │
-          │                                   │────────────────────────────────────>│
-          │                                   │                                     │
-          │                                   │                                     │  ┌──────────┐
-          │                                   │  3. Return Data                     │  │ Database │
-          │                                   │<────────────────────────────────────│<─┤          │
-          │                                   │                                     │  │  + Auth  │
-          │  4. HTML + JS Bundle              │                                     │  └──────────┘
-          │<──────────────────────────────────│                                     │
-          │                                   │                                     │
-          │                                   │                                     │
-          │  5. Client Hydration              │                                     │
-          │     (TanStack Router)             │                                     │
-          │                                   │                                     │
-          │  6. WebSocket Connection (Real-time Subscriptions)                      │
-          │────────────────────────────────────────────────────────────────────────>│
-          │                                   │                                     │
-          │  7. Live Updates (Mutations, Auth Events)                               │
-          │<────────────────────────────────────────────────────────────────────────│
-          │                                   │                                     │
-          │  8. User Actions (Mutations)      │                                     │
-          │────────────────────────────────────────────────────────────────────────>│
-          │                                   │                                     │
-          │  9. Optimistic UI + Confirmation  │                                     │
-          │<────────────────────────────────────────────────────────────────────────│
-          │                                   │                                     │
+```mermaid
+sequenceDiagram
+    participant U as User (Browser)
+    participant CF as Cloudflare Workers (Edge)
+    participant CX as Convex (Backend + Auth)
+
+    U->>CF: 1. Initial request
+    CF->>CX: 2. SSR — fetch data (queries)
+    CX-->>CF: 3. Return data
+    CF-->>U: 4. HTML + JS bundle
+    Note over U: 5. Client hydration (TanStack Router)
+    U->>CX: 6. WebSocket connection (real-time subscriptions)
+    CX-->>U: 7. Live updates (mutations, auth events)
+    U->>CX: 8. User actions (mutations)
+    CX-->>U: 9. Optimistic UI + confirmation
 ```
 
 **Key Points:**
@@ -75,7 +72,8 @@ This template embodies **opinionated simplicity**:
 
 ```bash
 # 1. Clone & install
-git clone <this-repo> && cd convex-tanstack-cloudflare
+git clone https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git
+cd convex-tanstack-better-auth-cloudflare-terraform
 npm install
 
 # 2. Configure Vite environment
@@ -195,33 +193,18 @@ terraform init && terraform apply
 
 ## Documentation
 
-| Topic                     | Link                                                           |
-| ------------------------- | -------------------------------------------------------------- |
-| **Architecture Guide**    | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                   |
-| **Preview Checklist** ⚡  | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) |
-| **Production Checklist**  | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
-| **Rate Limiting** ⚡      | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                 |
-| **Email with Resend** ⚡  | [docs/EMAIL_WITH_RESEND.md](docs/EMAIL_WITH_RESEND.md)         |
-| **Stripe Payments**       | [docs/STRIPE_PAYMENTS.md](docs/STRIPE_PAYMENTS.md)             |
-| **AI Integration**        | [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md)               |
-| **File Uploads**          | [docs/FILE_UPLOADS.md](docs/FILE_UPLOADS.md)                   |
-| **RBAC & Permissions**    | [docs/RBAC.md](docs/RBAC.md)                                   |
-| **AI Guidelines**         | [docs/AI_GUIDELINES.md](docs/AI_GUIDELINES.md)                 |
-| **Cloudflare Features**   | [docs/CLOUDFLARE_FEATURES.md](docs/CLOUDFLARE_FEATURES.md)     |
-| **AI & Integrations**     | [docs/AI_INTEGRATIONS.md](docs/AI_INTEGRATIONS.md)             |
-| **CI/CD Options**         | [docs/CI_CD_OPTIONS.md](docs/CI_CD_OPTIONS.md)                 |
-| **Optional Features**     | [docs/OPTIONAL_FEATURES.md](docs/OPTIONAL_FEATURES.md)         |
-| **Clerk Auth Setup**      | [docs/CLERK_SETUP.md](docs/CLERK_SETUP.md)                     |
-| **Vercel Deploy**         | [docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md)                   |
-| **Netlify Deploy**        | [docs/NETLIFY_SETUP.md](docs/NETLIFY_SETUP.md)                 |
-| **Mobile (Capacitor)**    | [docs/MOBILE.md](docs/MOBILE.md)                               |
-| **Mobile Best Practices** | [docs/MOBILE_BEST_PRACTICES.md](docs/MOBILE_BEST_PRACTICES.md) |
-| **Future Roadmap**        | [docs/FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)               |
-| **Contributing**          | [CONTRIBUTING.md](CONTRIBUTING.md)                             |
-| **Changelog**             | [CHANGELOG.md](CHANGELOG.md)                                   |
-| **Terraform**             | [infrastructure/README.md](infrastructure/README.md)           |
+| Topic                    | Link                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| **Architecture Guide**   | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                       |
+| **Preview Checklist** ⚡ | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md)               |
+| **Production Checklist** | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
+| **Rate Limiting** ⚡     | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                                     |
+| **RBAC & Permissions**   | [docs/RBAC.md](docs/RBAC.md)                                                       |
+| **Mobile (Capacitor)**   | [docs/MOBILE.md](docs/MOBILE.md)                                                   |
 
 ⚡ = Production-ready implementations included
+
+**📚 [Full docs index →](docs/README.md)** — deployment targets, payments, email, AI, CI/CD options, and more.
 
 ### External Docs
 

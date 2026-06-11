@@ -1,7 +1,7 @@
 {
   "name": "convex-tanstack-cloudflare",
   "version": "0.1.0",
-  "description": "Production-ready template: TanStack Start + Convex + Cloudflare Workers + Better Auth",
+  "description": "The real-time edge starter — TanStack Start + Convex + Better Auth + Cloudflare Workers, with Terraform IaC, rate limiting, and RBAC built in",
   "private": true,
   "type": "module",
   "engines": {
