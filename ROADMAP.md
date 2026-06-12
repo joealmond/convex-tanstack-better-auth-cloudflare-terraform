@@ -10,7 +10,7 @@
 
 Ship nothing new; remove everything that signals "personal project".
 
-- [ ] Delete internal artifacts: `docs/CODE_REVIEW_FINDINGS.md`, `docs/CODE_REVIEW_PLAN.md`, `docs/MOBILE_OLD.md`
+- [x] Delete internal artifacts: `docs/CODE_REVIEW_FINDINGS.md`, `docs/CODE_REVIEW_PLAN.md`, `docs/MOBILE_OLD.md`
 - [ ] Merge duplicates: `AI_INTEGRATION.md` + `AI_INTEGRATIONS.md` → one file
 - [ ] Remove legacy schema fields (`createdAt` "kept for backward compatibility" — a template has no legacy data)
 - [ ] Fix README placeholders (`git clone <this-repo>`)
