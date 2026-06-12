@@ -208,7 +208,6 @@ terraform init && terraform apply
 | **RBAC & Permissions**    | [docs/RBAC.md](docs/RBAC.md)                                   |
 | **AI Guidelines**         | [docs/AI_GUIDELINES.md](docs/AI_GUIDELINES.md)                 |
 | **Cloudflare Features**   | [docs/CLOUDFLARE_FEATURES.md](docs/CLOUDFLARE_FEATURES.md)     |
-| **AI & Integrations**     | [docs/AI_INTEGRATIONS.md](docs/AI_INTEGRATIONS.md)             |
 | **CI/CD Options**         | [docs/CI_CD_OPTIONS.md](docs/CI_CD_OPTIONS.md)                 |
 | **Optional Features**     | [docs/OPTIONAL_FEATURES.md](docs/OPTIONAL_FEATURES.md)         |
 | **Clerk Auth Setup**      | [docs/CLERK_SETUP.md](docs/CLERK_SETUP.md)                     |

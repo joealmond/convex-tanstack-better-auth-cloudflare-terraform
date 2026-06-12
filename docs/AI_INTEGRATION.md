@@ -189,6 +189,55 @@ export const chatClaude = action({
 })
 ```
 
+## Other AI Providers
+
+### Google AI (Gemini)
+
+```bash
+npm install @google/generative-ai
+```
+
+```typescript
+'use node'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY!)
+
+export const chatGemini = action({
+  args: { message: v.string() },
+  handler: async (_ctx, args) => {
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+    const result = await model.generateContent(args.message)
+
+    return { response: result.response.text() }
+  },
+})
+```
+
+### Replicate
+
+```bash
+npm install replicate
+```
+
+```typescript
+'use node'
+import Replicate from 'replicate'
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+})
+
+export const generateImage = action({
+  args: { prompt: v.string() },
+  handler: async (_ctx, args) => {
+    return await replicate.run('stability-ai/sdxl:latest', {
+      input: { prompt: args.prompt },
+    })
+  },
+})
+```
+
 ## RAG (Retrieval-Augmented Generation)
 
 Use Convex vector search for RAG:
@@ -303,3 +352,18 @@ See also:
 - [OpenAI Platform Docs](https://platform.openai.com/docs)
 - [Anthropic Docs](https://docs.anthropic.com)
 - [Convex Vector Search](https://docs.convex.dev/vector-search)
+
+## Related Integrations
+
+Use Convex built-ins first for queue-like AI workflows:
+
+- **Recurring jobs**: Convex crons are a good fit for scheduled summaries, cleanup, and batch enrichment.
+- **One-off jobs**: Convex scheduled functions work well for deferred AI tasks such as follow-up generation or retries.
+- **Cloudflare Queues**: Use when work needs to cross Worker boundaries or integrate with non-Convex consumers.
+
+Dedicated docs cover common adjacent services:
+
+- **Email**: [EMAIL_WITH_RESEND.md](EMAIL_WITH_RESEND.md)
+- **Payments**: [STRIPE_PAYMENTS.md](STRIPE_PAYMENTS.md)
+- **File storage**: [FILE_UPLOADS.md](FILE_UPLOADS.md) and [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md)
+- **AI usage guidance**: [AI_GUIDELINES.md](AI_GUIDELINES.md)
