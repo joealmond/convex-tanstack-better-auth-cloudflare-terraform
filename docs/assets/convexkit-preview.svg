@@ -9,7 +9,7 @@
   <text x="136" y="92" fill="#f8fafc" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24" font-weight="800">Hello Convex + Cloudflare</text>
   <text x="844" y="90" fill="#cbd5e1" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="17" font-weight="600">Files</text>
   <rect x="914" y="66" width="230" height="38" rx="8" fill="#14b8a6"/>
-  <text x="950" y="91" fill="#052e2b" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="800">Sign in with Google</text>
+  <text x="964" y="91" fill="#052e2b" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="800">Anonymous demo</text>
   <rect x="310" y="162" width="660" height="392" rx="14" fill="#ffffff" stroke="#d8e2e7"/>
   <g transform="translate(342 198)">
     <rect x="0" y="0" width="596" height="72" rx="12" fill="#f1f5f9"/>

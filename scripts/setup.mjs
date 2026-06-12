@@ -94,6 +94,7 @@ SITE_URL=${values.SITE_URL}
 # --------------- Google OAuth (optional) ---------------
 GOOGLE_CLIENT_ID=${values.GOOGLE_CLIENT_ID}
 GOOGLE_CLIENT_SECRET=${values.GOOGLE_CLIENT_SECRET}
+VITE_GOOGLE_AUTH_ENABLED=${values.VITE_GOOGLE_AUTH_ENABLED}
 
 # --------------- Cloudflare (optional deploy) ---------------
 CLOUDFLARE_API_TOKEN=${values.CLOUDFLARE_API_TOKEN}
@@ -152,6 +153,7 @@ try {
     SITE_URL: await prompt('App URL', defaults.SITE_URL || 'http://localhost:3000'),
     GOOGLE_CLIENT_ID: '',
     GOOGLE_CLIENT_SECRET: '',
+    VITE_GOOGLE_AUTH_ENABLED: 'false',
     CLOUDFLARE_API_TOKEN: realValue(defaults.CLOUDFLARE_API_TOKEN),
     CLOUDFLARE_ACCOUNT_ID: realValue(defaults.CLOUDFLARE_ACCOUNT_ID),
     CUSTOM_DOMAIN: defaults.CUSTOM_DOMAIN || '',
@@ -166,6 +168,8 @@ try {
       'Google client secret',
       defaults.GOOGLE_CLIENT_SECRET || ''
     )
+    values.VITE_GOOGLE_AUTH_ENABLED =
+      values.GOOGLE_CLIENT_ID && values.GOOGLE_CLIENT_SECRET ? 'true' : 'false'
   }
 
   const contents = serializeEnv(values)

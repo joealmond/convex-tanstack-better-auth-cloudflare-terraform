@@ -11,11 +11,11 @@ import type { DataModel } from './_generated/dataModel'
 // Environment Variable Helpers
 // =============================================================================
 
-const REQUIRED_ENV_VARS = ['SITE_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] as const
+const REQUIRED_ENV_VARS = ['SITE_URL'] as const
 
 /**
  * Check for missing env vars and log a helpful warning.
- * Returns placeholder values if missing to allow push to succeed.
+ * Google OAuth is optional so anonymous demo features work out of the box.
  */
 function getEnvConfig() {
   const siteUrl = process.env.SITE_URL
@@ -30,11 +30,16 @@ function getEnvConfig() {
     )
   }
 
+  const hasGoogleConfig = Boolean(googleClientId && googleClientSecret)
+  if (!hasGoogleConfig) {
+    console.warn('ℹ️  Google OAuth is not configured. Anonymous demo features remain available.')
+  }
+
   return {
     siteUrl: siteUrl || 'https://placeholder.convex.site',
-    googleClientId: googleClientId || 'placeholder-client-id',
-    googleClientSecret: googleClientSecret || 'placeholder-client-secret',
-    isConfigured: missing.length === 0,
+    googleClientId,
+    googleClientSecret,
+    hasGoogleConfig,
   }
 }
 
@@ -49,13 +54,14 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     baseURL: envConfig.siteUrl,
     database: authComponent.adapter(ctx),
-    // Google OAuth
-    socialProviders: {
-      google: {
-        clientId: envConfig.googleClientId,
-        clientSecret: envConfig.googleClientSecret,
-      },
-    },
+    socialProviders: envConfig.hasGoogleConfig
+      ? {
+          google: {
+            clientId: envConfig.googleClientId!,
+            clientSecret: envConfig.googleClientSecret!,
+          },
+        }
+      : {},
     plugins: [convex({ authConfig })],
   })
 }

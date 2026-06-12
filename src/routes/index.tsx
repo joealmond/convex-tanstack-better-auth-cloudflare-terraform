@@ -3,6 +3,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery, useConvexMutation } from '@convex-dev/react-query'
 import { api } from '@convex/_generated/api'
 import { useSession, signIn, signOut } from '@/lib/auth-client'
+import { isGoogleAuthEnabled } from '@/lib/env'
 import { useAdmin } from '@/hooks/use-admin'
 import { formatRelativeTime } from '@/lib/utils'
 import { MessageSquare, Send, LogIn, LogOut, User, Loader2, Trash2, Shield } from 'lucide-react'
@@ -87,13 +88,15 @@ function HomePageContent() {
           </div>
 
           <nav className="flex items-center gap-4">
-            <Link
-              to="/files"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              preload="intent"
-            >
-              Files
-            </Link>
+            {isGoogleAuthEnabled && (
+              <Link
+                to="/files"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                preload="intent"
+              >
+                Files
+              </Link>
+            )}
 
             {isSessionLoading ? (
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -125,7 +128,7 @@ function HomePageContent() {
                   Sign Out
                 </button>
               </div>
-            ) : (
+            ) : isGoogleAuthEnabled ? (
               <button
                 onClick={handleSignIn}
                 className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -133,6 +136,8 @@ function HomePageContent() {
                 <LogIn className="w-4 h-4" />
                 Sign in with Google
               </button>
+            ) : (
+              <span className="text-sm text-muted-foreground">Anonymous demo</span>
             )}
           </nav>
         </div>
@@ -218,7 +223,7 @@ function HomePageContent() {
         <div className="mt-8 p-4 rounded-lg bg-muted/50 border border-border">
           <h2 className="font-semibold mb-2">✨ What's working here:</h2>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>✅ Real-time Convex database + Better Auth (Google OAuth)</li>
+            <li>✅ Real-time Convex database + Better Auth-ready sessions</li>
             <li>✅ Anonymous & authenticated messaging with rate limiting</li>
             <li>✅ SSR with TanStack Start + React Query</li>
             <li>✅ RBAC, protected routes, toast notifications (Sonner)</li>
@@ -226,8 +231,8 @@ function HomePageContent() {
             <li>✅ Vitest testing suite, Tailwind CSS, Cloudflare Workers</li>
           </ul>
           <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
-            💡 <strong>Sign in to show your name</strong> — anonymous messages appear as
-            "Anonymous". <strong>Become Admin:</strong> Add your email to{' '}
+            💡 Anonymous messages work out of the box. Enable Google OAuth in setup to show
+            authenticated names. <strong>Become Admin:</strong> Add your email to{' '}
             <code className="text-primary">ADMIN_EMAILS</code> in{' '}
             <code className="text-primary">convex/lib/config.ts</code>.
           </p>

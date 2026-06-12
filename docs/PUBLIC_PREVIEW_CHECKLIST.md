@@ -33,8 +33,9 @@ VITE_CONVEX_URL=https://your-preview-deployment.convex.cloud
 VITE_CONVEX_SITE_URL=https://your-preview-deployment.convex.site
 BETTER_AUTH_SECRET=your-generated-secret
 SITE_URL=https://<project>-preview.<your-workers-subdomain>.workers.dev
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
+VITE_GOOGLE_AUTH_ENABLED=false
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 CLOUDFLARE_API_TOKEN=...
 CLOUDFLARE_ACCOUNT_ID=...
 CLOUDFLARE_WORKERS_SUBDOMAIN=your-workers-subdomain
@@ -61,13 +62,17 @@ Otherwise, manually create the Cloudflare Worker via wrangler or the dashboard.
 ```bash
 npx convex env set SITE_URL "$SITE_URL"
 npx convex env set BETTER_AUTH_SECRET "$BETTER_AUTH_SECRET"
+# Optional, only when Google OAuth is enabled:
 npx convex env set GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
 npx convex env set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
 ```
 
-## 5. Configure Google OAuth for preview
+## 5. Optionally configure Google OAuth for preview
 
-Add this authorized redirect URI in Google Cloud:
+Google OAuth is optional. The public demo works with anonymous realtime messages when `VITE_GOOGLE_AUTH_ENABLED=false`.
+
+If you enable Google OAuth, set `VITE_GOOGLE_AUTH_ENABLED=true`, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then add this authorized redirect URI in Google Cloud:
+
 
 ```text
 https://<project>-preview.<your-workers-subdomain>.workers.dev/api/auth/callback/google
@@ -86,7 +91,8 @@ Run:
 ## 7. Smoke-test before inviting users
 
 - Open the `workers.dev` preview URL in a private window
-- Sign in with Google
+- Send an anonymous realtime message
+- If Google OAuth is enabled, sign in with Google
 - Confirm new users see expected post-login flow
 - Confirm protected routes redirect unauthenticated users
 
@@ -116,4 +122,4 @@ When you are ready to stop using `workers.dev`:
 2. Configure the custom domain in your Terraform config or Wrangler settings.
 3. Set `SITE_URL` to the new domain.
 4. Re-deploy.
-5. Update Google OAuth redirect URI to match the new domain.
+5. If Google OAuth is enabled, update its redirect URI to match the new domain.

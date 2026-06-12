@@ -24,8 +24,9 @@ VITE_CONVEX_URL=https://your-production-deployment.convex.cloud
 VITE_CONVEX_SITE_URL=https://your-production-deployment.convex.site
 BETTER_AUTH_SECRET=your-production-secret
 SITE_URL=https://your-production-domain.com
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
+VITE_GOOGLE_AUTH_ENABLED=false
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 CLOUDFLARE_API_TOKEN=...
 CLOUDFLARE_ACCOUNT_ID=...
 CUSTOM_DOMAIN=your-production-domain.com
@@ -52,13 +53,17 @@ Otherwise, configure the production Worker via wrangler or the Cloudflare dashbo
 ```bash
 npx convex env set SITE_URL "$SITE_URL"
 npx convex env set BETTER_AUTH_SECRET "$BETTER_AUTH_SECRET"
+# Optional, only when Google OAuth is enabled:
 npx convex env set GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
 npx convex env set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
 ```
 
-## 5. Configure Google OAuth for production
+## 5. Optionally configure Google OAuth for production
 
-Add this authorized redirect URI in Google Cloud:
+Google OAuth is optional. The app can launch with anonymous realtime messaging when `VITE_GOOGLE_AUTH_ENABLED=false`.
+
+If you enable Google OAuth, set `VITE_GOOGLE_AUTH_ENABLED=true`, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then add this authorized redirect URI in Google Cloud:
+
 
 ```text
 https://your-production-domain.com/api/auth/callback/google
@@ -94,13 +99,14 @@ GitHub Actions path:
 After deploy, verify:
 
 - the app home page loads on the production domain
-- Google sign-in works
+- Anonymous realtime messages work
+- Google sign-in works if OAuth is enabled
 - protected routes redirect unauthenticated users
 - the Convex health endpoint responds with `200`
 
 ## 9. Cutover notes
 
 - Keep preview and production secrets separate.
-- Do not reuse preview OAuth redirect URLs in production.
+- Do not reuse preview OAuth redirect URLs in production when OAuth is enabled.
 - Do not point production at the preview Convex deployment.
 - Prefer doing one final manual production smoke check before inviting real users.

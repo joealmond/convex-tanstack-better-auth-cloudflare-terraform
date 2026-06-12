@@ -116,9 +116,10 @@ Open [http://localhost:3000](http://localhost:3000)
 | ---------------------- | ----------------------------------------- |
 | `VITE_CONVEX_URL`      | Convex deployment URL (`.convex.cloud`)   |
 | `VITE_CONVEX_SITE_URL` | Convex HTTP URL (`.convex.site`)          |
+| `VITE_GOOGLE_AUTH_ENABLED` | Show Google OAuth sign-in UI (`false` by default) |
 | `BETTER_AUTH_SECRET`   | Auth secret (`openssl rand -base64 32`)   |
-| `GOOGLE_CLIENT_ID`     | Google OAuth client ID                    |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth secret                       |
+| `GOOGLE_CLIENT_ID`     | Optional Google OAuth client ID           |
+| `GOOGLE_CLIENT_SECRET` | Optional Google OAuth secret              |
 
 ### Cloudflare Workers
 

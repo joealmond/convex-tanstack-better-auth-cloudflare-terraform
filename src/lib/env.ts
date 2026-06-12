@@ -32,6 +32,12 @@ const envSchema = z.object({
     .default('development')
     .describe('Application environment'),
 
+  // Google OAuth is optional. Anonymous demo features work without it.
+  VITE_GOOGLE_AUTH_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .describe('Whether to show Google OAuth sign-in UI'),
+
   // Sentry DSN for error tracking (optional — omit to disable Sentry)
   VITE_SENTRY_DSN: z
     .string()
@@ -51,6 +57,7 @@ function getEnv(): Env {
     VITE_CONVEX_URL: import.meta.env.VITE_CONVEX_URL,
     VITE_CONVEX_SITE_URL: import.meta.env.VITE_CONVEX_SITE_URL,
     VITE_APP_ENV: import.meta.env.VITE_APP_ENV,
+    VITE_GOOGLE_AUTH_ENABLED: import.meta.env.VITE_GOOGLE_AUTH_ENABLED,
     VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
   })
 
@@ -71,3 +78,4 @@ export const env = getEnv()
 export const isDev = env.VITE_APP_ENV === 'development'
 export const isPreview = env.VITE_APP_ENV === 'preview'
 export const isProd = env.VITE_APP_ENV === 'production'
+export const isGoogleAuthEnabled = env.VITE_GOOGLE_AUTH_ENABLED === 'true'
