@@ -16,7 +16,7 @@ variable "cloudflare_account_id" {
 variable "worker_name" {
   description = "Name of the Cloudflare Worker"
   type        = string
-  default     = "convex-tanstack-cf-production"
+  default     = "convexkit-production"
 }
 
 # =============================================================================

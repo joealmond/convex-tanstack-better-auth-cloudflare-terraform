@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "convex-tanstack-cloudflare",
+  "name": "convexkit",
   "compatibility_date": "2026-02-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
@@ -12,13 +12,13 @@
   },
   "env": {
     "preview": {
-      "name": "convex-tanstack-cf-preview",
+      "name": "convexkit-preview",
       "vars": {
         "APP_ENV": "preview",
       },
     },
     "production": {
-      "name": "convex-tanstack-cf-production",
+      "name": "convexkit-production",
       "vars": {
         "APP_ENV": "production",
       },

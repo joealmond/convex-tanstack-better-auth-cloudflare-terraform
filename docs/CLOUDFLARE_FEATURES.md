@@ -143,7 +143,7 @@ export default {
   "r2_buckets": [
     {
       "binding": "R2_BUCKET",
-      "bucket_name": "convex-tanstack-cf-production-storage"
+      "bucket_name": "convexkit-production-storage"
     }
   ]
 }

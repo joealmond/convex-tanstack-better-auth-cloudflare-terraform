@@ -11,7 +11,7 @@ terraform {
   # Uncomment for remote state management
   # backend "s3" {
   #   bucket = "your-terraform-state"
-  #   key    = "convex-tanstack-cloudflare/terraform.tfstate"
+  #   key    = "convexkit/terraform.tfstate"
   #   region = "us-east-1"
   # }
 }

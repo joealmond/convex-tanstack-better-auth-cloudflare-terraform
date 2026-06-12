@@ -6,7 +6,7 @@
 # =============================================================================
 cloudflare_api_token  = ""  # From https://dash.cloudflare.com/profile/api-tokens
 cloudflare_account_id = ""  # From Cloudflare dashboard
-worker_name           = "convex-tanstack-cf-production"
+worker_name           = "convexkit-production"
 
 # =============================================================================
 # Required - Convex

@@ -14,8 +14,8 @@ Ship nothing new; remove everything that signals "personal project".
 - [x] Merge duplicates: `AI_INTEGRATION.md` + `AI_INTEGRATIONS.md` → one file
 - [x] Remove legacy schema fields (`createdAt` "kept for backward compatibility" — a template has no legacy data)
 - [x] Fix README placeholders (`git clone <this-repo>`)
-- [ ] Decide name + tagline. Current repo name is 6 words long; package.json says `convex-tanstack-cloudflare`. Pick one short, brandable name (this becomes the CLI name too)
-- [ ] Align `package.json` name/description with the repo
+- [x] Decide name + tagline. Current repo name is 6 words long; package.json says `convex-tanstack-cloudflare`. Pick one short, brandable name (this becomes the CLI name too)
+- [x] Align `package.json` name/description with the repo
 
 ## Phase 1 — First impression (week 1)
 

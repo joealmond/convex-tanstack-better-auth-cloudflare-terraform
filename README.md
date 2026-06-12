@@ -1,6 +1,6 @@
-# Convex + TanStack Start + Cloudflare Workers
+# ConvexKit
 
-A modern, production-ready full-stack template.
+The edge-ready starter kit for TanStack Start, Convex, Better Auth, and Cloudflare Workers.
 
 ## Philosophy
 

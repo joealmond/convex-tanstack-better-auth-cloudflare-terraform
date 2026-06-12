@@ -1,7 +1,7 @@
 {
-  "name": "convex-tanstack-cloudflare",
+  "name": "convexkit",
   "version": "0.1.0",
-  "description": "Production-ready template: TanStack Start + Convex + Cloudflare Workers + Better Auth",
+  "description": "Edge-ready starter kit for TanStack Start, Convex, Better Auth, and Cloudflare Workers",
   "private": true,
   "type": "module",
   "engines": {
