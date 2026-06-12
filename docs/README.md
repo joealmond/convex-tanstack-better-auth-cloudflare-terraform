@@ -20,6 +20,7 @@ Use this index when you need details beyond the README quick start.
 | Topic | Link |
 | --- | --- |
 | Rate limiting | [RATE_LIMITING.md](RATE_LIMITING.md) |
+| Feature examples | [EXAMPLES.md](EXAMPLES.md) |
 | RBAC and permissions | [RBAC.md](RBAC.md) |
 | File uploads | [FILE_UPLOADS.md](FILE_UPLOADS.md) |
 | Email with Resend | [EMAIL_WITH_RESEND.md](EMAIL_WITH_RESEND.md) |

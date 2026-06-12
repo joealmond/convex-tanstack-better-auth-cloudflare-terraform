@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   Bot,
+  ClipboardCheck,
   CreditCard,
   FileArchive,
-  LockKeyhole,
   MessageSquare,
   Shield,
   SquareCheckBig,
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/examples')({
   component: ExamplesPage,
 })
 
-type ExampleHref = '/examples/chat' | '/examples/files' | '/examples/admin'
+type ExampleHref = '/examples/chat' | '/examples/files' | '/examples/admin' | '/examples/forms'
 
 type Example = {
   title: string
@@ -49,10 +49,10 @@ const examples: Example[] = [
   },
   {
     title: 'Forms',
-    description: 'React Hook Form and Zod patterns ready to surface as a dedicated example.',
-    status: 'In code',
-    href: null,
-    icon: LockKeyhole,
+    description: 'React Hook Form and Zod validation with field-level errors and submit states.',
+    status: 'Available',
+    href: '/examples/forms',
+    icon: ClipboardCheck,
   },
   {
     title: 'Todos',
