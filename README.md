@@ -2,6 +2,26 @@
 
 The edge-ready starter kit for TanStack Start, Convex, Better Auth, and Cloudflare Workers.
 
+![ConvexKit banner](docs/assets/convexkit-banner.svg)
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-0f172a.svg)](LICENSE)
+[![CI](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml/badge.svg)](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-2563eb.svg)](CONTRIBUTING.md)
+![Node >=22](https://img.shields.io/badge/node-%3E%3D22-14b8a6.svg)
+![Convex](https://img.shields.io/badge/Convex-1.31.7-111827.svg)
+![TanStack Start](https://img.shields.io/badge/TanStack_Start-1.159.0-ef4444.svg)
+![Better Auth](https://img.shields.io/badge/Better_Auth-1.4.9-7c3aed.svg)
+![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-ready-f97316.svg)
+
+```bash
+git clone https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git
+cd convex-tanstack-better-auth-cloudflare-terraform
+npm install
+npm run dev
+```
+
+![ConvexKit app preview](docs/assets/convexkit-preview.svg)
+
 ## Philosophy
 
 This template embodies **opinionated simplicity**:
