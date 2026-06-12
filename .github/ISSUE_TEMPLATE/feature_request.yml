@@ -1,0 +1,42 @@
+name: Feature Request
+description: Suggest an improvement or new template example.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem should this solve?
+      placeholder: Developers using this starter need...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the change you would like to see.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - App example
+        - Convex backend
+        - Auth
+        - Cloudflare deploy
+        - Terraform
+        - Documentation
+        - Testing
+        - CLI scaffolder
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches, packages, or examples worth considering?
+    validations:
+      required: false

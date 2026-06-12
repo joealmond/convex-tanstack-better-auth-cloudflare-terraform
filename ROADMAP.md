@@ -25,7 +25,8 @@ A developer decides in ~10 seconds on the README.
 - [x] Replace ASCII architecture diagram with **Mermaid** (GitHub renders it natively)
 - [ ] **Deploy a live demo** and link it at the top — single biggest attractiveness win
 - [ ] Enable GitHub "Use this template" button; add repo social preview image, topics/tags
-- [ ] Add community files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue/PR templates, enable Discussions
+- [x] Add community files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue/PR templates
+- [ ] Enable GitHub Discussions
 - [x] Cut the 26-file docs table in the README to ~6 curated links; move the rest to a docs index page
 
 ## Phase 2 — Zero-friction onboarding (week 2)

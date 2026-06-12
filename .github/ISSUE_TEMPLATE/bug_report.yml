@@ -1,0 +1,49 @@
+name: Bug Report
+description: Report something that is broken or behaving unexpectedly.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Clear reproduction steps help us fix issues faster.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+      placeholder: The app does X, but I expected Y.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest set of steps that triggers the issue.
+      placeholder: |
+        1. Run `npm run dev`
+        2. Open ...
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include anything relevant about your setup.
+      value: |
+        - OS:
+        - Node:
+        - Browser:
+        - Convex deployment:
+        - Deploy target:
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste error output, stack traces, screenshots, or workflow links.
+      render: shell
+    validations:
+      required: false

@@ -14,8 +14,8 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ```bash
 # 1. Fork and clone the repository
-git clone https://github.com/YOUR_USERNAME/convex-tanstack-cloudflare.git
-cd convex-tanstack-cloudflare
+git clone https://github.com/YOUR_USERNAME/convex-tanstack-better-auth-cloudflare-terraform.git
+cd convex-tanstack-better-auth-cloudflare-terraform
 
 # 2. Install dependencies
 npm install
