@@ -75,7 +75,8 @@ This template embodies **opinionated simplicity**:
 
 ```bash
 # 1. Clone & install
-git clone <this-repo> && cd convex-tanstack-cloudflare
+git clone https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git
+cd convex-tanstack-better-auth-cloudflare-terraform
 npm install
 
 # 2. Configure Vite environment
