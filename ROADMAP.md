@@ -46,7 +46,7 @@ Multiple small, isolated examples — each is one route + one Convex module + a 
 - [x] **Realtime chat** (exists — polish, move under examples)
 - [ ] **Todos**: optimistic updates + cursor pagination + TanStack Table list view
 - [x] **File uploads** (exists — polish)
-- [ ] **Admin / RBAC panel** (exists — polish, showcase impersonation)
+- [x] **Admin / RBAC panel** (exists — polish, showcase impersonation)
 - [ ] **Forms**: react-hook-form + Zod (exists as ExampleForm — finish and surface)
 - [ ] **AI streaming**: one Convex action streaming an LLM response to the UI
 - [ ] **Stripe billing**: turn `docs/STRIPE_PAYMENTS.md` into working code (checkout + webhook)

@@ -15,7 +15,7 @@ export const Route = createFileRoute('/examples')({
   component: ExamplesPage,
 })
 
-type ExampleHref = '/examples/chat' | '/examples/files' | '/dashboard'
+type ExampleHref = '/examples/chat' | '/examples/files' | '/examples/admin'
 
 type Example = {
   title: string
@@ -44,7 +44,7 @@ const examples: Example[] = [
     title: 'Admin / RBAC',
     description: 'Admin-only controls, protected routes, and impersonation-ready app structure.',
     status: 'Available with auth',
-    href: '/dashboard',
+    href: '/examples/admin',
     icon: Shield,
   },
   {
