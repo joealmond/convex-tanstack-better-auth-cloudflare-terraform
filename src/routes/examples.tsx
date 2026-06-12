@@ -15,7 +15,7 @@ export const Route = createFileRoute('/examples')({
   component: ExamplesPage,
 })
 
-type ExampleHref = '/examples/chat' | '/files' | '/dashboard'
+type ExampleHref = '/examples/chat' | '/examples/files' | '/dashboard'
 
 type Example = {
   title: string
@@ -37,7 +37,7 @@ const examples: Example[] = [
     title: 'File Uploads',
     description: 'Convex storage uploads with metadata, download URLs, and owner-only deletion.',
     status: 'Available with auth',
-    href: '/files',
+    href: '/examples/files',
     icon: FileArchive,
   },
   {
