@@ -22,7 +22,7 @@ Ship nothing new; remove everything that signals "personal project".
 A developer decides in ~10 seconds on the README.
 
 - [x] **Hero section first**: logo/banner image, one-line pitch, badges (CI status, license, PRs-welcome, Convex/TanStack versions), then a screenshot or GIF of the running app — *before* any philosophy text
-- [ ] Replace ASCII architecture diagram with **Mermaid** (GitHub renders it natively)
+- [x] Replace ASCII architecture diagram with **Mermaid** (GitHub renders it natively)
 - [ ] **Deploy a live demo** and link it at the top — single biggest attractiveness win
 - [ ] Enable GitHub "Use this template" button; add repo social preview image, topics/tags
 - [ ] Add community files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue/PR templates, enable Discussions

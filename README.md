@@ -45,41 +45,24 @@ This template embodies **opinionated simplicity**:
 
 ### Architecture Flow
 
-```
-┌─────────────────────┐          ┌──────────────────────────┐          ┌─────────────────────────┐
-│   User (Browser)    │          │  Cloudflare Workers      │          │   Convex (Backend)      │
-│                     │          │       (Edge)             │          │                         │
-└─────────────────────┘          └──────────────────────────┘          └─────────────────────────┘
-          │                                   │                                     │
-          │  1. Initial Request               │                                     │
-          │──────────────────────────────────>│                                     │
-          │                                   │                                     │
-          │                                   │  2. SSR: Fetch Data (Queries)       │
-          │                                   │────────────────────────────────────>│
-          │                                   │                                     │
-          │                                   │                                     │  ┌──────────┐
-          │                                   │  3. Return Data                     │  │ Database │
-          │                                   │<────────────────────────────────────│<─┤          │
-          │                                   │                                     │  │  + Auth  │
-          │  4. HTML + JS Bundle              │                                     │  └──────────┘
-          │<──────────────────────────────────│                                     │
-          │                                   │                                     │
-          │                                   │                                     │
-          │  5. Client Hydration              │                                     │
-          │     (TanStack Router)             │                                     │
-          │                                   │                                     │
-          │  6. WebSocket Connection (Real-time Subscriptions)                      │
-          │────────────────────────────────────────────────────────────────────────>│
-          │                                   │                                     │
-          │  7. Live Updates (Mutations, Auth Events)                               │
-          │<────────────────────────────────────────────────────────────────────────│
-          │                                   │                                     │
-          │  8. User Actions (Mutations)      │                                     │
-          │────────────────────────────────────────────────────────────────────────>│
-          │                                   │                                     │
-          │  9. Optimistic UI + Confirmation  │                                     │
-          │<────────────────────────────────────────────────────────────────────────│
-          │                                   │                                     │
+```mermaid
+sequenceDiagram
+    participant User as User (Browser)
+    participant Edge as Cloudflare Workers (Edge)
+    participant Convex as Convex Backend
+    participant DB as Database + Auth
+
+    User->>Edge: 1. Initial request
+    Edge->>Convex: 2. SSR fetch data (queries)
+    Convex->>DB: Read data and session state
+    DB-->>Convex: 3. Return data
+    Convex-->>Edge: Query results
+    Edge-->>User: 4. HTML + JS bundle
+    User->>User: 5. Client hydration (TanStack Router)
+    User->>Convex: 6. WebSocket connection (real-time subscriptions)
+    Convex-->>User: 7. Live updates (mutations, auth events)
+    User->>Convex: 8. User actions (mutations)
+    Convex-->>User: 9. Optimistic UI + confirmation
 ```
 
 **Key Points:**
