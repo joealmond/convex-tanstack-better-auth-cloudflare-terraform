@@ -204,6 +204,7 @@ terraform init && terraform apply
 | **Production Checklist** | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
 | **Rate Limiting** ⚡ | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md) |
 | **Feature Guides** | [docs/README.md#features](docs/README.md#features) |
+| **Troubleshooting** | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
 
 ⚡ = Production-ready implementations included
 
@@ -224,6 +225,7 @@ terraform init && terraform apply
 
 | Issue                    | Solution                                                                   |
 | ------------------------ | -------------------------------------------------------------------------- |
+| Dependencies missing     | Run `npm install` or `npm ci`; see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
 | Convex types missing     | Run `npx convex login` then `npx convex dev`                               |
 | Workers build fails      | Check `nodejs_compat` in `wrangler.jsonc`                                  |
 | Auth not persisting      | Verify `SITE_URL` matches your app URL                                     |

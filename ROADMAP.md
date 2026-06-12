@@ -36,7 +36,7 @@ First `npm run dev` must work with **zero accounts configured** except Convex.
 - [x] `npm run setup` wizard: creates `.env.local`, generates `BETTER_AUTH_SECRET`, sets Convex env vars, optionally walks through Google OAuth
 - [x] Make Google OAuth **optional**: email/password (or anonymous) auth works out of the box so the demo runs without any OAuth credentials
 - [x] Devcontainer + Codespaces config (one-click cloud dev)
-- [ ] Troubleshooting doc generated from real first-run failures
+- [x] Troubleshooting doc generated from real first-run failures
 
 ## Phase 3 — Feature examples (weeks 3–4)
 

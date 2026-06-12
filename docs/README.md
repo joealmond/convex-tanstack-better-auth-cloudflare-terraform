@@ -11,6 +11,7 @@ Use this index when you need details beyond the README quick start.
 | Production deployment checklist | [PRODUCTION_DEPLOYMENT_CHECKLIST.md](PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
 | Cloudflare features | [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md) |
 | Codespaces and devcontainers | [CODESPACES.md](CODESPACES.md) |
+| Troubleshooting | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | CI/CD options | [CI_CD_OPTIONS.md](CI_CD_OPTIONS.md) |
 | Optional features | [OPTIONAL_FEATURES.md](OPTIONAL_FEATURES.md) |
 
