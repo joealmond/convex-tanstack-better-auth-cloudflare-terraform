@@ -43,7 +43,7 @@ First `npm run dev` must work with **zero accounts configured** except Convex.
 Multiple small, isolated examples — each is one route + one Convex module + a doc section, individually deletable.
 
 - [x] `/examples` route group with an index page listing all examples
-- [ ] **Realtime chat** (exists — polish, move under examples)
+- [x] **Realtime chat** (exists — polish, move under examples)
 - [ ] **Todos**: optimistic updates + cursor pagination + TanStack Table list view
 - [ ] **File uploads** (exists — polish)
 - [ ] **Admin / RBAC panel** (exists — polish, showcase impersonation)

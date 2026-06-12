@@ -15,7 +15,7 @@ export const Route = createFileRoute('/examples')({
   component: ExamplesPage,
 })
 
-type ExampleHref = '/' | '/files' | '/dashboard'
+type ExampleHref = '/examples/chat' | '/files' | '/dashboard'
 
 type Example = {
   title: string
@@ -30,7 +30,7 @@ const examples: Example[] = [
     title: 'Realtime Chat',
     description: 'Public realtime messages with anonymous posting, auth-aware names, and rate limits.',
     status: 'Available',
-    href: '/',
+    href: '/examples/chat',
     icon: MessageSquare,
   },
   {

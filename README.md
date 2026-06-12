@@ -92,7 +92,8 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000)
 
 Prefer cloud dev? See [Codespaces and devcontainers](docs/CODESPACES.md).
-Explore the included examples at [http://localhost:3000/examples](http://localhost:3000/examples).
+Explore the included examples at [http://localhost:3000/examples](http://localhost:3000/examples),
+including realtime chat at [http://localhost:3000/examples/chat](http://localhost:3000/examples/chat).
 
 ### Available Scripts
 
