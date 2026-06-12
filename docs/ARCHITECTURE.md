@@ -291,7 +291,7 @@ export class QueryFactory<T extends TableNames> {
 
     return this.ctx.db
       .query(this.table)
-      .filter((q) => q.gte(q.field('createdAt'), sevenDaysAgo))
+      .filter((q) => q.gte(q.field('_creationTime'), sevenDaysAgo))
       .order('desc')
       .take(limit)
   }
