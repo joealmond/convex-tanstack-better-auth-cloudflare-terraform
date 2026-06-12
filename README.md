@@ -91,6 +91,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+Prefer cloud dev? See [Codespaces and devcontainers](docs/CODESPACES.md).
+
 ### Available Scripts
 
 | Script                    | Description                                |

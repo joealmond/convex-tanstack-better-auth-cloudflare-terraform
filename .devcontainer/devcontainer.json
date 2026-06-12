@@ -1,0 +1,29 @@
+{
+  "name": "ConvexKit",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "npm ci && npm run setup -- --dry-run --yes",
+  "forwardPorts": [3000, 3210],
+  "portsAttributes": {
+    "3000": {
+      "label": "TanStack Start",
+      "onAutoForward": "notify"
+    },
+    "3210": {
+      "label": "Convex dev",
+      "onAutoForward": "silent"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-containers"
+      ]
+    }
+  }
+}
