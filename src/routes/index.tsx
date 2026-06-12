@@ -88,6 +88,13 @@ function HomePageContent() {
           </div>
 
           <nav className="flex items-center gap-4">
+            <Link
+              to="/examples"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              preload="intent"
+            >
+              Examples
+            </Link>
             {isGoogleAuthEnabled && (
               <Link
                 to="/files"
