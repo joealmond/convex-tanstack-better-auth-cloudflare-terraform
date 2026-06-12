@@ -83,16 +83,9 @@ cd convex-tanstack-better-auth-cloudflare-terraform
 npm install
 
 # 2. Configure Vite environment
-cp .env.example .env.local
-# Edit .env.local with your Convex URL
+npm run setup
 
-# 3. Set Convex backend environment variables
-npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-npx convex env set SITE_URL "https://your-project.convex.site"
-npx convex env set GOOGLE_CLIENT_ID "your-google-client-id"
-npx convex env set GOOGLE_CLIENT_SECRET "your-google-client-secret"
-
-# 4. Start development (Convex + Vite concurrently)
+# 3. Start development (Convex + Vite concurrently)
 npm run dev
 ```
 
@@ -103,6 +96,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | Script                    | Description                                |
 | ------------------------- | ------------------------------------------ |
 | `npm run dev`             | Start dev server (Vite + Convex)           |
+| `npm run setup`           | Create `.env.local` and optionally set Convex env vars |
 | `npm run build`           | Build for production                       |
 | `npm run preview`         | Preview production build with Wrangler     |
 | `npm run typecheck`       | Run TypeScript checks                      |

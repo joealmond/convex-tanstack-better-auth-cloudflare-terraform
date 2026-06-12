@@ -8,6 +8,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "concurrently -r \"npm:dev:web\" \"npm:dev:convex\"",
     "dev:web": "vite dev",
     "dev:convex": "npx convex dev",
