@@ -47,6 +47,11 @@ docs: update RBAC setup instructions
 refactor: extract message list into component
 ```
 
+Release Please uses these commit messages to keep `CHANGELOG.md`, `package.json`,
+and GitHub releases in sync. Use `feat:` for minor releases, `fix:` for patch
+releases, and add `!` or a `BREAKING CHANGE:` footer when a change needs a major
+version bump.
+
 ### Pull Request Process
 
 1. Create a feature branch from `main`
@@ -61,6 +66,12 @@ refactor: extract message list into component
 
 4. Open a PR with a clear description of what changed and why
 5. Reference any related issues
+
+## Releases
+
+Releases are automated with Release Please. When conventional commits land on
+`main`, the `Release Please` workflow opens or updates a release PR. Merging that
+PR tags the release, updates `CHANGELOG.md`, and creates the GitHub release.
 
 ## Code Standards
 

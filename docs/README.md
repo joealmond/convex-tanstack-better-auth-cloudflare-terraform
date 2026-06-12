@@ -14,6 +14,7 @@ Use this index when you need details beyond the README quick start.
 | Troubleshooting | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | CI/CD options | [CI_CD_OPTIONS.md](CI_CD_OPTIONS.md) |
 | Optional features | [OPTIONAL_FEATURES.md](OPTIONAL_FEATURES.md) |
+| Release process | [../CONTRIBUTING.md#releases](../CONTRIBUTING.md#releases) |
 
 ## Features
 

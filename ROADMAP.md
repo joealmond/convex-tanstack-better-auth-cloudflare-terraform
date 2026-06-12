@@ -58,7 +58,7 @@ Multiple small, isolated examples — each is one route + one Convex module + a 
 - [ ] `convex-test` unit tests for every Convex function (currently 2 test files total)
 - [ ] Playwright e2e smoke test: sign up → send message → upload file
 - [ ] Remove `--passWithNoTests`; add coverage + CI badges
-- [ ] Versioned releases with changesets/release-please; keep CHANGELOG automated
+- [x] Versioned releases with changesets/release-please; keep CHANGELOG automated
 - [ ] Renovate (or keep Dependabot) with auto-merge for patch updates
 
 ## Phase 5 — Distribution: the CLI (weeks 6–8)
