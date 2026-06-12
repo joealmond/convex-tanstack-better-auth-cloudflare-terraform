@@ -73,6 +73,12 @@ Releases are automated with Release Please. When conventional commits land on
 `main`, the `Release Please` workflow opens or updates a release PR. Merging that
 PR tags the release, updates `CHANGELOG.md`, and creates the GitHub release.
 
+## Dependency Updates
+
+Dependabot checks npm packages weekly and GitHub Actions monthly. Patch-version
+Dependabot PRs automatically enable squash auto-merge after the required checks
+pass; minor and major updates stay open for review.
+
 ## Code Standards
 
 ### TypeScript
