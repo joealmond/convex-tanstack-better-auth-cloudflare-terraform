@@ -199,30 +199,14 @@ terraform init && terraform apply
 
 ## Documentation
 
-| Topic                     | Link                                                           |
-| ------------------------- | -------------------------------------------------------------- |
-| **Architecture Guide**    | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                   |
-| **Preview Checklist** ⚡  | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) |
-| **Production Checklist**  | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
-| **Rate Limiting** ⚡      | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                 |
-| **Email with Resend** ⚡  | [docs/EMAIL_WITH_RESEND.md](docs/EMAIL_WITH_RESEND.md)         |
-| **Stripe Payments**       | [docs/STRIPE_PAYMENTS.md](docs/STRIPE_PAYMENTS.md)             |
-| **AI Integration**        | [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md)               |
-| **File Uploads**          | [docs/FILE_UPLOADS.md](docs/FILE_UPLOADS.md)                   |
-| **RBAC & Permissions**    | [docs/RBAC.md](docs/RBAC.md)                                   |
-| **AI Guidelines**         | [docs/AI_GUIDELINES.md](docs/AI_GUIDELINES.md)                 |
-| **Cloudflare Features**   | [docs/CLOUDFLARE_FEATURES.md](docs/CLOUDFLARE_FEATURES.md)     |
-| **CI/CD Options**         | [docs/CI_CD_OPTIONS.md](docs/CI_CD_OPTIONS.md)                 |
-| **Optional Features**     | [docs/OPTIONAL_FEATURES.md](docs/OPTIONAL_FEATURES.md)         |
-| **Clerk Auth Setup**      | [docs/CLERK_SETUP.md](docs/CLERK_SETUP.md)                     |
-| **Vercel Deploy**         | [docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md)                   |
-| **Netlify Deploy**        | [docs/NETLIFY_SETUP.md](docs/NETLIFY_SETUP.md)                 |
-| **Mobile (Capacitor)**    | [docs/MOBILE.md](docs/MOBILE.md)                               |
-| **Mobile Best Practices** | [docs/MOBILE_BEST_PRACTICES.md](docs/MOBILE_BEST_PRACTICES.md) |
-| **Future Roadmap**        | [docs/FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)               |
-| **Contributing**          | [CONTRIBUTING.md](CONTRIBUTING.md)                             |
-| **Changelog**             | [CHANGELOG.md](CHANGELOG.md)                                   |
-| **Terraform**             | [infrastructure/README.md](infrastructure/README.md)           |
+| Topic | Link |
+| --- | --- |
+| **Docs Index** | [docs/README.md](docs/README.md) |
+| **Architecture Guide** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| **Preview Checklist** ⚡ | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) |
+| **Production Checklist** | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
+| **Rate Limiting** ⚡ | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md) |
+| **Feature Guides** | [docs/README.md#features](docs/README.md#features) |
 
 ⚡ = Production-ready implementations included
 
