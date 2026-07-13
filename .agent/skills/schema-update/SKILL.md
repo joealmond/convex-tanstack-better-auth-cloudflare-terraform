@@ -10,6 +10,7 @@ Extend or modify the Convex database schema.
 ## Goal
 
 Design and implement schema changes with:
+
 - Proper Convex validators
 - Indexes for efficient queries
 - Foreign key relationships
@@ -22,12 +23,12 @@ Design and implement schema changes with:
 Schema is defined in `convex/schema.ts`:
 
 ```typescript
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema, defineTable } from 'convex/server'
+import { v } from 'convex/values'
 
 export default defineSchema({
   // Tables go here
-});
+})
 ```
 
 ### 2. Define Tables
@@ -37,12 +38,12 @@ export default defineSchema({
   items: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
-    status: v.union(v.literal("draft"), v.literal("published")),
-    userId: v.id("users"),
+    status: v.union(v.literal('draft'), v.literal('published')),
+    userId: v.id('users'),
     createdAt: v.number(),
     updatedAt: v.number(),
   }),
-});
+})
 ```
 
 ### 3. Add Indexes
@@ -60,17 +61,17 @@ items: defineTable({
 
 ### 4. Common Validators
 
-| Type | Validator | Example |
-|------|-----------|---------|
-| String | `v.string()` | `name: v.string()` |
-| Number | `v.number()` | `price: v.number()` |
-| Boolean | `v.boolean()` | `isActive: v.boolean()` |
-| Optional | `v.optional()` | `bio: v.optional(v.string())` |
-| ID | `v.id("table")` | `userId: v.id("users")` |
-| Enum | `v.union(v.literal())` | `status: v.union(v.literal("a"), v.literal("b"))` |
-| Array | `v.array()` | `tags: v.array(v.string())` |
-| Object | `v.object()` | `meta: v.object({ key: v.string() })` |
-| Union | `v.union()` | `v.union(v.string(), v.null())` |
+| Type     | Validator              | Example                                           |
+| -------- | ---------------------- | ------------------------------------------------- |
+| String   | `v.string()`           | `name: v.string()`                                |
+| Number   | `v.number()`           | `price: v.number()`                               |
+| Boolean  | `v.boolean()`          | `isActive: v.boolean()`                           |
+| Optional | `v.optional()`         | `bio: v.optional(v.string())`                     |
+| ID       | `v.id("table")`        | `userId: v.id("users")`                           |
+| Enum     | `v.union(v.literal())` | `status: v.union(v.literal("a"), v.literal("b"))` |
+| Array    | `v.array()`            | `tags: v.array(v.string())`                       |
+| Object   | `v.object()`           | `meta: v.object({ key: v.string() })`             |
+| Union    | `v.union()`            | `v.union(v.string(), v.null())`                   |
 
 ### 5. Foreign Keys Pattern
 
@@ -110,4 +111,5 @@ comments: defineTable({
 ## Examples
 
 See `examples/` directory for:
+
 - `table-with-indexes.ts` - Complete table example

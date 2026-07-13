@@ -10,6 +10,7 @@ Build React components with Convex hooks and Tailwind CSS.
 ## Goal
 
 Generate reusable, well-typed React components with:
+
 - Props interface for type safety
 - Convex hooks for data (if needed)
 - Tailwind CSS styling
@@ -41,10 +42,10 @@ import { api } from "@convex/_generated/api";
 
 export function ItemList() {
   const items = useQuery(api.items.list);
-  
+
   if (!items) return <LoadingState />;
   if (items.length === 0) return <EmptyState />;
-  
+
   return <ul>{items.map(...)}</ul>;
 }
 ```
@@ -57,11 +58,11 @@ import { api } from "@convex/_generated/api";
 
 export function CreateForm() {
   const createItem = useMutation(api.items.create);
-  
+
   const handleSubmit = async (data: FormData) => {
     await createItem({ name: data.get("name") as string });
   };
-  
+
   return <form onSubmit={handleSubmit}>...</form>;
 }
 ```
@@ -69,19 +70,20 @@ export function CreateForm() {
 ### 4. State Handling
 
 Always handle these states:
+
 - **Loading**: Show skeleton/spinner while data loads
 - **Empty**: Friendly message when no data exists
 - **Error**: Display error message (catch in mutation)
 
 ### 5. Tailwind Patterns
 
-| Element | Recommended Classes |
-|---------|---------------------|
-| Card | `rounded-lg border border-gray-200 p-4` |
-| Button (primary) | `bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700` |
-| Button (secondary) | `border border-gray-300 px-4 py-2 rounded hover:bg-gray-50` |
-| Input | `w-full rounded border px-3 py-2` |
-| Skeleton | `animate-pulse bg-gray-100 rounded` |
+| Element            | Recommended Classes                                          |
+| ------------------ | ------------------------------------------------------------ |
+| Card               | `rounded-lg border border-gray-200 p-4`                      |
+| Button (primary)   | `bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700` |
+| Button (secondary) | `border border-gray-300 px-4 py-2 rounded hover:bg-gray-50`  |
+| Input              | `w-full rounded border px-3 py-2`                            |
+| Skeleton           | `animate-pulse bg-gray-100 rounded`                          |
 
 ## Constraints
 
@@ -93,5 +95,6 @@ Always handle these states:
 ## Examples
 
 See `examples/` directory for:
+
 - `list-component.tsx` - List with loading/empty states
 - `form-component.tsx` - Form with mutation

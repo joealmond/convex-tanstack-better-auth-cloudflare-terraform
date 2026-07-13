@@ -10,6 +10,7 @@ Implement authentication and authorization patterns for this stack.
 ## Goal
 
 Secure resources with:
+
 - User authentication (logged in)
 - Ownership verification (user's own data)
 - Role-based access control (admin, user, etc.)
@@ -21,16 +22,16 @@ Secure resources with:
 Add to any protected query/mutation:
 
 ```typescript
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from '@convex-dev/auth/server'
 
 export const myFunction = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
-    
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthorized')
+
     // Now userId is available for scoping
   },
-});
+})
 ```
 
 ### 2. Ownership Verification
@@ -38,9 +39,9 @@ export const myFunction = query({
 Ensure users can only access their own resources:
 
 ```typescript
-const item = await ctx.db.get(itemId);
-if (!item) throw new Error("Not found");
-if (item.userId !== userId) throw new Error("Forbidden");
+const item = await ctx.db.get(itemId)
+if (!item) throw new Error('Not found')
+if (item.userId !== userId) throw new Error('Forbidden')
 ```
 
 ### 3. Role-Based Access (RBAC)
@@ -49,12 +50,12 @@ For admin-only functions:
 
 ```typescript
 const user = await ctx.db
-  .query("users")
-  .filter((q) => q.eq(q.field("_id"), userId))
-  .first();
+  .query('users')
+  .filter((q) => q.eq(q.field('_id'), userId))
+  .first()
 
-if (user?.role !== "admin") {
-  throw new Error("Forbidden: Admin access required");
+if (user?.role !== 'admin') {
+  throw new Error('Forbidden: Admin access required')
 }
 ```
 
@@ -80,22 +81,22 @@ import { useSession } from "@/lib/auth-client";
 
 function ProfileButton() {
   const { data: session, isPending } = useSession();
-  
+
   if (isPending) return <Skeleton />;
   if (!session) return <LoginButton />;
-  
+
   return <UserMenu user={session.user} />;
 }
 ```
 
 ## Authorization Patterns
 
-| Pattern | Use Case | Implementation |
-|---------|----------|----------------|
-| Authenticated | Any logged-in user | `getAuthUserId(ctx)` |
-| Owner | User's own data | Compare `userId` fields |
-| Role-based | Admin actions | Check `user.role` |
-| Resource-based | Item permissions | Check `item.permissions` array |
+| Pattern        | Use Case           | Implementation                 |
+| -------------- | ------------------ | ------------------------------ |
+| Authenticated  | Any logged-in user | `getAuthUserId(ctx)`           |
+| Owner          | User's own data    | Compare `userId` fields        |
+| Role-based     | Admin actions      | Check `user.role`              |
+| Resource-based | Item permissions   | Check `item.permissions` array |
 
 ## Constraints
 
@@ -107,5 +108,6 @@ function ProfileButton() {
 ## Examples
 
 See `examples/` directory for:
+
 - `protected-query.ts` - Query with user scoping
 - `rbac-check.ts` - Role-based admin access

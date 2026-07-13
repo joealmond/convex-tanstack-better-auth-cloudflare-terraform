@@ -10,6 +10,7 @@ Create a new file-based route for TanStack Start with proper structure.
 ## Goal
 
 Generate a properly configured route with:
+
 - Correct file location matching URL path
 - SEO meta tags
 - Data loading (if needed)
@@ -19,19 +20,19 @@ Generate a properly configured route with:
 
 ### 1. Determine Route Type
 
-| Type | Location | Use When |
-|------|----------|----------|
-| Public | `src/routes/{path}.tsx` | No auth needed |
+| Type      | Location                        | Use When       |
+| --------- | ------------------------------- | -------------- |
+| Public    | `src/routes/{path}.tsx`         | No auth needed |
 | Protected | `src/routes/_authed/{path}.tsx` | Requires login |
 
 ### 2. File Naming Rules
 
-| URL | File Path |
-|-----|-----------|
-| `/` | `src/routes/index.tsx` |
-| `/about` | `src/routes/about.tsx` |
-| `/products` | `src/routes/products/index.tsx` |
-| `/products/:id` | `src/routes/products/$id.tsx` |
+| URL                 | File Path                          |
+| ------------------- | ---------------------------------- |
+| `/`                 | `src/routes/index.tsx`             |
+| `/about`            | `src/routes/about.tsx`             |
+| `/products`         | `src/routes/products/index.tsx`    |
+| `/products/:id`     | `src/routes/products/$id.tsx`      |
 | `/dashboard` (auth) | `src/routes/_authed/dashboard.tsx` |
 
 ### 3. Route Structure
@@ -64,9 +65,9 @@ import { api } from "@convex/_generated/api";
 
 function PageComponent() {
   const data = useQuery(api.resource.list);
-  
+
   if (!data) return <Loading />;
-  
+
   return <div>{/* render data */}</div>;
 }
 ```
@@ -77,8 +78,8 @@ Access route params via `Route.useParams()`:
 
 ```typescript
 function ProductPage() {
-  const { productId } = Route.useParams();
-  const product = useQuery(api.products.get, { id: productId });
+  const { productId } = Route.useParams()
+  const product = useQuery(api.products.get, { id: productId })
   // ...
 }
 ```
@@ -93,5 +94,6 @@ function ProductPage() {
 ## Examples
 
 See `examples/` directory for:
+
 - `public-route.tsx` - Public page with SEO
 - `protected-route.tsx` - Auth-required page with data

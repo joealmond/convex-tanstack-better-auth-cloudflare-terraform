@@ -439,25 +439,21 @@ Instead of calling `aggregate.delete(ctx, document)` directly which might throw 
 
 ```typescript
 // convex/lib/utils.ts
-import { TableAggregate } from '@convex-dev/aggregate';
+import { TableAggregate } from '@convex-dev/aggregate'
 
 /**
  * Safely attempts to delete a document from an aggregate index.
  * Catches 'DELETE_MISSING_KEY' errors which happen if the aggregate is mysteriously out of sync,
  * preventing the entire primary user deletion mutation from failing.
  */
-export async function safeAggregateDelete(
-  ctx: any,
-  aggregate: TableAggregate<any>,
-  doc: any
-) {
+export async function safeAggregateDelete(ctx: any, aggregate: TableAggregate<any>, doc: any) {
   try {
-    await aggregate.delete(ctx, doc);
+    await aggregate.delete(ctx, doc)
   } catch (error: any) {
     if (error.message?.includes('DELETE_MISSING_KEY')) {
-      console.warn(`[Aggregate Deletion Skipped] Document already missing from aggregate index`);
+      console.warn(`[Aggregate Deletion Skipped] Document already missing from aggregate index`)
     } else {
-      throw error; // Re-throw actual errors (like network/db issues)
+      throw error // Re-throw actual errors (like network/db issues)
     }
   }
 }
@@ -467,11 +463,11 @@ export const deleteProduct = authMutation({
   args: { id: v.id('products') },
   handler: async (ctx, args) => {
     const product = await ctx.db.get(args.id)
-    if (!product) return;
-    
+    if (!product) return
+
     // Safely delete from aggregate index without blocking the main mutation
     await safeAggregateDelete(ctx, productsAggregate, product)
-    
+
     await ctx.db.delete(args.id)
   },
 })

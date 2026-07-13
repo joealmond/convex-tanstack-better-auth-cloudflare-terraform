@@ -55,12 +55,7 @@ export function getRouter() {
         })
 
         // Extract user-friendly message from ConvexError or fall back to generic
-        const errorMessage =
-          error instanceof ConvexError
-            ? String(error.data)
-            : error instanceof Error
-              ? error.message
-              : 'An unexpected error occurred'
+        const errorMessage = getErrorMessage(error)
 
         if (typeof window !== 'undefined') {
           toast.error('Action Failed', { description: errorMessage })
@@ -84,6 +79,22 @@ export function getRouter() {
   })
 
   return router
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ConvexError) {
+    if (typeof error.data === 'string') return error.data
+    if (
+      typeof error.data === 'object' &&
+      error.data !== null &&
+      'message' in error.data &&
+      typeof error.data.message === 'string'
+    ) {
+      return error.data.message
+    }
+    return 'The request could not be completed'
+  }
+  return error instanceof Error ? error.message : 'An unexpected error occurred'
 }
 
 declare module '@tanstack/react-router' {

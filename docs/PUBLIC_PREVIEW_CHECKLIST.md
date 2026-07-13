@@ -49,13 +49,16 @@ openssl rand -base64 32
 
 ## 3. Provision preview infrastructure
 
-If using Terraform:
+If using optional Terraform-managed KV, R2, Turnstile, or Web Analytics:
 
 ```bash
-DEPLOY_ENVIRONMENT=preview bash infrastructure/apply-from-env.sh
+cp infrastructure/terraform.tfvars.example infrastructure/terraform.tfvars
+terraform -chdir=infrastructure init
+terraform -chdir=infrastructure plan
+terraform -chdir=infrastructure apply
 ```
 
-Otherwise, manually create the Cloudflare Worker via wrangler or the dashboard.
+Wrangler and the Deploy workflow create the Worker. Set the preview Custom Domain through the `CLOUDFLARE_CUSTOM_DOMAIN_PREVIEW` GitHub environment variable.
 
 ## 4. Set Convex backend env vars
 
@@ -72,7 +75,6 @@ npx convex env set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
 Google OAuth is optional. The public demo works with anonymous realtime messages when `VITE_GOOGLE_AUTH_ENABLED=false`.
 
 If you enable Google OAuth, set `VITE_GOOGLE_AUTH_ENABLED=true`, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then add this authorized redirect URI in Google Cloud:
-
 
 ```text
 https://<project>-preview.<your-workers-subdomain>.workers.dev/api/auth/callback/google

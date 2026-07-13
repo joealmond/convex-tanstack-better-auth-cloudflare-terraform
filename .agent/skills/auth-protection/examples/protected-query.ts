@@ -1,6 +1,6 @@
-import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from 'convex/values'
+import { query, mutation } from './_generated/server'
+import { getAuthUserId } from '@convex-dev/auth/server'
 
 /**
  * Protected Query with User Scoping
@@ -17,26 +17,22 @@ export const getUserItems = query({
   },
   handler: async (ctx, args) => {
     // 1. Require authentication
-    const userId = await getAuthUserId(ctx);
+    const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new Error('Unauthorized')
     }
 
     // 2. Query with user filter using index
-    let query = ctx.db
-      .query("items")
-      .withIndex("by_user", (q) => q.eq("userId", userId));
+    let query = ctx.db.query('items').withIndex('by_user', (q) => q.eq('userId', userId))
 
     // 3. Apply additional filters
     if (!args.includeArchived) {
-      query = query.filter((q) =>
-        q.neq(q.field("status"), "archived")
-      );
+      query = query.filter((q) => q.neq(q.field('status'), 'archived'))
     }
 
-    return await query.collect();
+    return await query.collect()
   },
-});
+})
 
 /**
  * Protected Single Item Query
@@ -45,32 +41,32 @@ export const getUserItems = query({
  */
 export const getItemById = query({
   args: {
-    id: v.id("items"),
+    id: v.id('items'),
   },
   handler: async (ctx, { id }) => {
     // 1. Require authentication
-    const userId = await getAuthUserId(ctx);
+    const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new Error('Unauthorized')
     }
 
     // 2. Get the item
-    const item = await ctx.db.get(id);
+    const item = await ctx.db.get(id)
 
     // 3. Return null if not found (don't reveal existence)
     if (!item) {
-      return null;
+      return null
     }
 
     // 4. Verify ownership
     if (item.userId !== userId) {
       // Return null instead of "Forbidden" to not leak info
-      return null;
+      return null
     }
 
-    return item;
+    return item
   },
-});
+})
 
 /**
  * Protected Mutation with Ownership Check
@@ -79,47 +75,41 @@ export const getItemById = query({
  */
 export const updateItem = mutation({
   args: {
-    id: v.id("items"),
+    id: v.id('items'),
     name: v.optional(v.string()),
-    status: v.optional(
-      v.union(
-        v.literal("draft"),
-        v.literal("published"),
-        v.literal("archived")
-      )
-    ),
+    status: v.optional(v.union(v.literal('draft'), v.literal('published'), v.literal('archived'))),
   },
   handler: async (ctx, args) => {
     // 1. Require authentication
-    const userId = await getAuthUserId(ctx);
+    const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new Error('Unauthorized')
     }
 
     // 2. Get existing item
-    const existing = await ctx.db.get(args.id);
+    const existing = await ctx.db.get(args.id)
     if (!existing) {
-      throw new Error("Item not found");
+      throw new Error('Item not found')
     }
 
     // 3. Verify ownership - critical security check!
     if (existing.userId !== userId) {
-      throw new Error("Forbidden");
+      throw new Error('Forbidden')
     }
 
     // 4. Apply updates
     const updates: Record<string, unknown> = {
       updatedAt: Date.now(),
-    };
+    }
 
     if (args.name !== undefined) {
-      updates.name = args.name;
+      updates.name = args.name
     }
     if (args.status !== undefined) {
-      updates.status = args.status;
+      updates.status = args.status
     }
 
-    await ctx.db.patch(args.id, updates);
-    return args.id;
+    await ctx.db.patch(args.id, updates)
+    return args.id
   },
-});
+})

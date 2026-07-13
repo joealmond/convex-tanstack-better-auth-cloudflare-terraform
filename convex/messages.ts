@@ -17,6 +17,7 @@ export const list = publicQuery({
 export const send = publicMutation({
   args: {
     content: v.string(),
+    anonymousId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Content validation
@@ -28,8 +29,13 @@ export const send = publicMutation({
     const user = await getAuthUserSafe(ctx)
 
     // Rate limit: use user ID if authenticated, otherwise use a generic key
-    const rateLimitKey = user?._id || 'anonymous'
-    await rateLimiter.limit(ctx, 'sendMessage', { key: rateLimitKey })
+    if (args.anonymousId && !/^[a-zA-Z0-9_-]{16,64}$/.test(args.anonymousId)) {
+      throw new ConvexError('Invalid anonymous session identifier')
+    }
+
+    const rateLimitKey = user?._id ?? args.anonymousId ?? 'anonymous-legacy'
+    await rateLimiter.limit(ctx, 'sendMessageGlobal', { throws: true })
+    await rateLimiter.limit(ctx, 'sendMessage', { key: rateLimitKey, throws: true })
 
     return await ctx.db.insert('messages', {
       content: trimmed,

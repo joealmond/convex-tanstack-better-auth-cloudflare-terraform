@@ -7,8 +7,8 @@ dist/
 .output/
 .tanstack/
 
-# Convex
-convex/_generated/
+# Convex's generated API types are committed so a fresh checkout can typecheck
+# and build before it is connected to a deployment.
 
 # Environment files (keep .env.example)
 .env
@@ -28,7 +28,7 @@ convex/_generated/
 infrastructure/.terraform/
 infrastructure/*.tfstate
 infrastructure/*.tfstate.*
-infrastructure/.terraform.lock.hcl
+# Commit the Terraform dependency lock file for reproducible provider installs.
 infrastructure/*.tfvars
 !infrastructure/terraform.tfvars.example
 
@@ -43,5 +43,4 @@ coverage/
 .wrangler/
 .wrangler.deploy.jsonc
 
-# Generated route tree
-src/routeTree.gen.ts
+# TanStack Router's generated route tree is committed for fresh-checkout builds.

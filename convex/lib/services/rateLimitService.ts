@@ -44,6 +44,15 @@ export const RATE_LIMIT_DEFS = {
   // Message operations: 10 messages per minute, burst up to 15
   sendMessage: { kind: 'token bucket' as const, rate: 10, period: 60_000, capacity: 15 },
 
+  // Safety valve for anonymous identifier rotation and unexpected traffic spikes.
+  sendMessageGlobal: {
+    kind: 'token bucket' as const,
+    rate: 300,
+    period: 60_000,
+    capacity: 450,
+    shards: 10,
+  },
+
   // File operations: 5 uploads per minute
   uploadFile: { kind: 'token bucket' as const, rate: 5, period: 60_000, capacity: 10 },
 

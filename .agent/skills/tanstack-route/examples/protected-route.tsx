@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { createFileRoute } from '@tanstack/react-router'
+import { useQuery } from 'convex/react'
+import { api } from '@convex/_generated/api'
 
 /**
  * Protected Dashboard Page
@@ -11,20 +11,20 @@ import { api } from "@convex/_generated/api";
  * - Handles loading and empty states
  * - SEO meta tags
  */
-export const Route = createFileRoute("/_authed/dashboard")({
+export const Route = createFileRoute('/_authed/dashboard')({
   component: DashboardPage,
   head: () => ({
     meta: [
-      { title: "Dashboard | My App" },
-      { name: "description", content: "View and manage your items" },
+      { title: 'Dashboard | My App' },
+      { name: 'description', content: 'View and manage your items' },
     ],
   }),
-});
+})
 
 function DashboardPage() {
   // Reactive data subscription - auto-updates on changes
-  const items = useQuery(api.items.list);
-  const stats = useQuery(api.stats.getUserStats);
+  const items = useQuery(api.items.list)
+  const stats = useQuery(api.stats.getUserStats)
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -47,14 +47,14 @@ function DashboardPage() {
         <ItemsList items={items} />
       </section>
     </div>
-  );
+  )
 }
 
 // --- Sub-components ---
 
 interface StatsCardProps {
-  label: string;
-  value: number | undefined;
+  label: string
+  value: number | undefined
 }
 
 function StatsCard({ label, value }: StatsCardProps) {
@@ -67,18 +67,18 @@ function StatsCard({ label, value }: StatsCardProps) {
         <p className="text-2xl font-bold">{value}</p>
       )}
     </div>
-  );
+  )
 }
 
 interface Item {
-  _id: string;
-  name: string;
-  status: "draft" | "published";
-  updatedAt: number;
+  _id: string
+  name: string
+  status: 'draft' | 'published'
+  updatedAt: number
 }
 
 interface ItemsListProps {
-  items: Item[] | undefined;
+  items: Item[] | undefined
 }
 
 function ItemsList({ items }: ItemsListProps) {
@@ -87,13 +87,10 @@ function ItemsList({ items }: ItemsListProps) {
     return (
       <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
-          <div
-            key={i}
-            className="h-16 bg-gray-100 animate-pulse rounded-lg"
-          />
+          <div key={i} className="h-16 bg-gray-100 animate-pulse rounded-lg" />
         ))}
       </div>
-    );
+    )
   }
 
   // Empty state
@@ -108,7 +105,7 @@ function ItemsList({ items }: ItemsListProps) {
           Create your first item
         </a>
       </div>
-    );
+    )
   }
 
   // Items list
@@ -127,9 +124,9 @@ function ItemsList({ items }: ItemsListProps) {
           </div>
           <span
             className={`px-2 py-1 text-xs rounded ${
-              item.status === "published"
-                ? "bg-green-100 text-green-800"
-                : "bg-gray-100 text-gray-600"
+              item.status === 'published'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-gray-100 text-gray-600'
             }`}
           >
             {item.status}
@@ -137,5 +134,5 @@ function ItemsList({ items }: ItemsListProps) {
         </li>
       ))}
     </ul>
-  );
+  )
 }

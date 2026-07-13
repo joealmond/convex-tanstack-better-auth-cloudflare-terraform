@@ -34,8 +34,8 @@ function FormsExample() {
           <div className="mb-6">
             <h2 className="text-lg font-semibold">React Hook Form + Zod</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              This form validates on submit, shows field-level errors, and keeps the schema close
-              to the UI that uses it.
+              This form validates on submit, shows field-level errors, and keeps the schema close to
+              the UI that uses it.
             </p>
           </div>
           <ExampleForm

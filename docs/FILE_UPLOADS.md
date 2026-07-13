@@ -389,11 +389,13 @@ export const uploadToR2 = action({
     // 1. Initialize S3 client just for signing the URL (No DOMParser required)
     const s3 = new S3Client({
       region: 'auto',
-      endpoint: process.env.R2_ENDPOINT, 
+      endpoint: process.env.R2_ENDPOINT,
       forcePathStyle: true, // Required for Cloudflare R2!
-      credentials: { /* ... */ }
+      credentials: {
+        /* ... */
+      },
     })
-    
+
     // 2. Decode base64 to binary using Web APIs (No Node.js Buffer needed)
     const binaryString = atob(args.base64Data)
     const binaryData = new Uint8Array(binaryString.length)
@@ -412,12 +414,14 @@ export const uploadToR2 = action({
 
     // 5. Fetch from Convex Server! Completely bypasses iOS CORS and AWS DOMParser crash
     const response = await fetch(urlObj.toString(), {
-      method: "PUT", headers: { "Content-Type": args.contentType }, body: binaryData
+      method: 'PUT',
+      headers: { 'Content-Type': args.contentType },
+      body: binaryData,
     })
 
     if (!response.ok) throw new Error(await response.text())
     return { url: `${process.env.R2_PUBLIC_URL}/file.jpg` }
-  }
+  },
 })
 ```
 

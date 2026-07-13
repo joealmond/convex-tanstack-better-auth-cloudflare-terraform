@@ -1,35 +1,18 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Reporting
 
-ConvexKit is a starter template. Security fixes are applied to the `main` branch and released through normal repository updates.
+Do not open a public issue for a suspected vulnerability. Use a private GitHub security advisory when available, or send a private report to the repository owner with the affected version, reproduction steps, impact, and any proposed mitigation. Expect acknowledgement within three business days. Replace this contact process with a monitored security mailbox before launch.
 
-| Version | Supported |
-| --- | --- |
-| `main` | Yes |
-| Older forks | No |
+Security fixes target `main` and the latest release; older forks are not supported.
 
-## Reporting A Vulnerability
+## Production baseline
 
-Please do not open a public issue for suspected vulnerabilities.
+- Use GitHub environment protection for production and keep Convex, Cloudflare, OAuth, and email credentials only in their secret stores.
+- Give deployment tokens the minimum account, zone, and environment scope; rotate them after staff changes or suspected exposure.
+- Keep dependency audit, immutable GitHub Action pins, tests, typecheck, Terraform validation, and the Worker dry run blocking.
+- Keep `SITE_URL` and Better Auth `trustedOrigins` exact. Do not add wildcard origins or arbitrary proxy IP headers.
+- Preserve server-side upload metadata validation, ownership checks, quotas, bounded queries, application rate limits, and Better Auth's database-backed rate limits.
+- Review the CSP when introducing any third-party script or connection. Never loosen it globally to make one integration work.
 
-Report security concerns by emailing the repository maintainer or opening a private security advisory on GitHub if advisories are enabled for the repository.
-
-Include:
-
-- A short description of the issue
-- Steps to reproduce or a proof of concept
-- Affected files, routes, Convex functions, or deployment settings
-- Any known impact or mitigation
-
-We aim to acknowledge valid reports within 72 hours and will coordinate a fix before public disclosure when appropriate.
-
-## Security Expectations
-
-When contributing security-sensitive changes:
-
-- Keep secrets out of source control
-- Use Convex validators for all Convex function arguments
-- Use `ConvexError` for user-facing failures
-- Prefer server-side calls for third-party APIs and credentials
-- Update docs when environment variables or deployment assumptions change
+Rotate exposed secrets first, then patch and deploy; repository history is not a secret store.

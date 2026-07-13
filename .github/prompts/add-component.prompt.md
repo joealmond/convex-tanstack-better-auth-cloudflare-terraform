@@ -18,6 +18,7 @@ Create a new React component with optional Convex data integration.
 ## Templates
 
 ### Basic Component
+
 Location: `src/components/{ComponentName}.tsx`
 
 ```typescript
@@ -37,6 +38,7 @@ export function ComponentName({ title, children }: ComponentNameProps) {
 ```
 
 ### Component with Convex Query
+
 ```typescript
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
@@ -62,6 +64,7 @@ export function ItemCard({ itemId }: ItemCardProps) {
 ```
 
 ### Component with Convex Mutation
+
 ```typescript
 import { useState } from "react";
 import { useConvexMutation } from "@convex-dev/react-query";
@@ -99,6 +102,7 @@ export function CreateItemForm() {
 ```
 
 ### List Component
+
 ```typescript
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
@@ -141,10 +145,10 @@ export function ItemList() {
 
 ## Tailwind Patterns
 
-| Element | Classes |
-|---------|---------|
-| Card | `rounded-lg border border-gray-200 p-4` |
-| Button Primary | `rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700` |
-| Button Secondary | `rounded border border-gray-300 px-4 py-2 hover:bg-gray-50` |
-| Input | `w-full rounded border px-3 py-2` |
-| Loading Skeleton | `animate-pulse rounded bg-gray-100` |
+| Element          | Classes                                                      |
+| ---------------- | ------------------------------------------------------------ |
+| Card             | `rounded-lg border border-gray-200 p-4`                      |
+| Button Primary   | `rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700` |
+| Button Secondary | `rounded border border-gray-300 px-4 py-2 hover:bg-gray-50`  |
+| Input            | `w-full rounded border px-3 py-2`                            |
+| Loading Skeleton | `animate-pulse rounded bg-gray-100`                          |

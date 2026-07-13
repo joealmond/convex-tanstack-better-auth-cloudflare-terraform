@@ -2,6 +2,7 @@ import { createRootRouteWithContext, useRouteContext } from '@tanstack/react-rou
 import { Outlet, HeadContent, Scripts } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
+import type { AuthClient } from '@convex-dev/better-auth/react'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ImpersonateProvider } from '@/hooks/use-impersonate'
@@ -61,7 +62,9 @@ function RootComponent() {
   return (
     <ConvexBetterAuthProvider
       client={context.convexQueryClient.convexClient}
-      authClient={authClient}
+      // The provider's public union type cannot preserve Better Auth's plugin
+      // inference, although this client includes the required Convex plugin.
+      authClient={authClient as unknown as AuthClient}
       initialToken={context.token}
     >
       <html lang="en" suppressHydrationWarning>

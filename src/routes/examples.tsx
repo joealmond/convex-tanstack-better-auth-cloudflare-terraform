@@ -28,7 +28,8 @@ type Example = {
 const examples: Example[] = [
   {
     title: 'Realtime Chat',
-    description: 'Public realtime messages with anonymous posting, auth-aware names, and rate limits.',
+    description:
+      'Public realtime messages with anonymous posting, auth-aware names, and rate limits.',
     status: 'Available',
     href: '/examples/chat',
     icon: MessageSquare,

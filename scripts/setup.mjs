@@ -200,7 +200,9 @@ try {
     }
 
     if (!ok) {
-      console.error('\nSome Convex env vars failed to set. Re-run the commands manually after login.')
+      console.error(
+        '\nSome Convex env vars failed to set. Re-run the commands manually after login.'
+      )
       process.exitCode = 1
     }
   } else if (!dryRun) {

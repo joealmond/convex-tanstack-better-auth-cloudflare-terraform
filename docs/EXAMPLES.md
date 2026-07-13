@@ -2,12 +2,12 @@
 
 Each example is intended to stay small and removable: one route, one Convex module when needed, and a focused doc section.
 
-| Example | Route | Backend |
-| --- | --- | --- |
-| Realtime chat | `/examples/chat` | `convex/messages.ts` |
-| File uploads | `/examples/files` | `convex/files.ts` |
-| Admin / RBAC | `/examples/admin` | `convex/users.ts`, `convex/lib/authHelpers.ts` |
-| Forms | `/examples/forms` | Frontend-only |
+| Example       | Route             | Backend                                        |
+| ------------- | ----------------- | ---------------------------------------------- |
+| Realtime chat | `/examples/chat`  | `convex/messages.ts`                           |
+| File uploads  | `/examples/files` | `convex/files.ts`                              |
+| Admin / RBAC  | `/examples/admin` | `convex/users.ts`, `convex/lib/authHelpers.ts` |
+| Forms         | `/examples/forms` | Frontend-only                                  |
 
 ## Realtime Chat
 

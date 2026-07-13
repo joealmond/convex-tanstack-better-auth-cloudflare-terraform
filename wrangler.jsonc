@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "convexkit",
-  "compatibility_date": "2026-02-01",
+  "compatibility_date": "2026-07-13",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
   "assets": {
@@ -9,6 +9,8 @@
   },
   "observability": {
     "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true },
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 },
   },
   "env": {
     "preview": {
@@ -16,17 +18,22 @@
       "vars": {
         "APP_ENV": "preview",
       },
+      "observability": {
+        "enabled": true,
+        "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true },
+        "traces": { "enabled": true, "head_sampling_rate": 0.1 },
+      },
     },
     "production": {
       "name": "convexkit-production",
       "vars": {
         "APP_ENV": "production",
       },
-      // Rate limiting: 100 requests per minute per IP
-      // Requires Cloudflare Workers Paid plan
-      // Configure in Cloudflare Dashboard: Security > WAF > Rate limiting rules
-      // Example rule: If request rate exceeds 100 per minute from same IP, block for 60 seconds
-      // This comment serves as documentation - actual rate limiting is configured in the dashboard
+      "observability": {
+        "enabled": true,
+        "logs": { "enabled": true, "head_sampling_rate": 0.1, "invocation_logs": true },
+        "traces": { "enabled": true, "head_sampling_rate": 0.01 },
+      },
     },
   },
 }

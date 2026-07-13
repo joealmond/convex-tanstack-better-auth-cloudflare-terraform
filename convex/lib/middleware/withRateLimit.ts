@@ -45,7 +45,7 @@ export function withRateLimit<Args, Output>(
     const key = options?.getKey?.(ctx, args, user) ?? user._id
 
     // Check rate limit using the component
-    await rateLimiter.limit(ctx, operation, { key })
+    await rateLimiter.limit(ctx, operation, { key, throws: true })
 
     // Execute original handler
     return await handler(ctx, args, user)

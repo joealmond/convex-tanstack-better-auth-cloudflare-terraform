@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { useState } from 'react'
+import { useMutation } from 'convex/react'
+import { api } from '@convex/_generated/api'
 
 /**
  * Create Item Form Component
@@ -15,74 +15,66 @@ import { api } from "@convex/_generated/api";
 
 interface CreateItemFormProps {
   /** Called after successful creation */
-  onSuccess?: () => void;
+  onSuccess?: () => void
 }
 
 export function CreateItemForm({ onSuccess }: CreateItemFormProps) {
   // Form state
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"draft" | "published">("draft");
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [status, setStatus] = useState<'draft' | 'published'>('draft')
 
   // Submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Convex mutation
-  const createItem = useMutation(api.items.create);
+  const createItem = useMutation(api.items.create)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
 
     // Client-side validation
     if (!name.trim()) {
-      setError("Name is required");
-      return;
+      setError('Name is required')
+      return
     }
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
 
     try {
       await createItem({
         name: name.trim(),
         description: description.trim() || undefined,
         status,
-      });
+      })
 
       // Reset form on success
-      setName("");
-      setDescription("");
-      setStatus("draft");
+      setName('')
+      setDescription('')
+      setStatus('draft')
 
-      onSuccess?.();
+      onSuccess?.()
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create item"
-      );
+      setError(err instanceof Error ? err.message : 'Failed to create item')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Error Alert */}
       {error && (
-        <div
-          className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg"
-          role="alert"
-        >
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg" role="alert">
           {error}
         </div>
       )}
 
       {/* Name Field */}
       <div>
-        <label
-          htmlFor="name"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
           Name <span className="text-red-500">*</span>
         </label>
         <input
@@ -99,10 +91,7 @@ export function CreateItemForm({ onSuccess }: CreateItemFormProps) {
 
       {/* Description Field */}
       <div>
-        <label
-          htmlFor="description"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
           Description
         </label>
         <textarea
@@ -118,17 +107,15 @@ export function CreateItemForm({ onSuccess }: CreateItemFormProps) {
 
       {/* Status Field */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Status
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
         <div className="flex gap-4">
           <label className="flex items-center">
             <input
               type="radio"
               name="status"
               value="draft"
-              checked={status === "draft"}
-              onChange={() => setStatus("draft")}
+              checked={status === 'draft'}
+              onChange={() => setStatus('draft')}
               disabled={isSubmitting}
               className="mr-2"
             />
@@ -139,8 +126,8 @@ export function CreateItemForm({ onSuccess }: CreateItemFormProps) {
               type="radio"
               name="status"
               value="published"
-              checked={status === "published"}
-              onChange={() => setStatus("published")}
+              checked={status === 'published'}
+              onChange={() => setStatus('published')}
               disabled={isSubmitting}
               className="mr-2"
             />
@@ -180,16 +167,16 @@ export function CreateItemForm({ onSuccess }: CreateItemFormProps) {
               Creating...
             </span>
           ) : (
-            "Create Item"
+            'Create Item'
           )}
         </button>
         <button
           type="button"
           onClick={() => {
-            setName("");
-            setDescription("");
-            setStatus("draft");
-            setError(null);
+            setName('')
+            setDescription('')
+            setStatus('draft')
+            setError(null)
           }}
           disabled={isSubmitting}
           className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
@@ -198,5 +185,5 @@ export function CreateItemForm({ onSuccess }: CreateItemFormProps) {
         </button>
       </div>
     </form>
-  );
+  )
 }

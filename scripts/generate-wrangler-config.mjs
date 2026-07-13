@@ -31,6 +31,22 @@ if (!existsSync(viteBuildConfig)) {
 const config = JSON.parse(readFileSync(viteBuildConfig, 'utf8'))
 const env = config.vars?.APP_ENV || 'preview'
 
+// Custom Domains are Worker routes, not DNS CNAMEs to an account-ID hostname.
+// Keep the source config portable and inject the deployment-specific hostname
+// only into the generated artifact.
+const customDomain = process.env.CLOUDFLARE_CUSTOM_DOMAIN?.trim()
+if (customDomain) {
+  if (
+    !/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(customDomain)
+  ) {
+    console.error('CLOUDFLARE_CUSTOM_DOMAIN must be a bare hostname such as app.example.com.')
+    process.exit(1)
+  }
+  config.routes = [{ pattern: customDomain, custom_domain: true }]
+}
+
 // Write the (possibly unchanged) config back
 writeFileSync(viteBuildConfig, JSON.stringify(config, null, 2))
-console.log(`Verified dist/server/wrangler.json for ${env} environment`)
+console.log(
+  `Verified dist/server/wrangler.json for ${env} environment${customDomain ? ` at ${customDomain}` : ''}`
+)

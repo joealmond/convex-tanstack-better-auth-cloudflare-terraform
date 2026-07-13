@@ -18,6 +18,7 @@ Create a new file-based route for TanStack Start.
 ## Route Types
 
 ### Public Route
+
 Location: `src/routes/{path}.tsx`
 
 ```typescript
@@ -43,6 +44,7 @@ function ExamplePage() {
 ```
 
 ### Protected Route
+
 Location: `src/routes/_authenticated/{path}.tsx`
 
 ```typescript
@@ -73,6 +75,7 @@ function DashboardPage() {
 ```
 
 ### Dynamic Route (with params)
+
 Location: `src/routes/{parent}/$paramName.tsx`
 
 ```typescript
@@ -110,10 +113,10 @@ function ProductPage() {
 
 ## File Naming Rules
 
-| URL | File Path |
-|-----|-----------|
-| `/` | `src/routes/index.tsx` |
-| `/about` | `src/routes/about.tsx` |
-| `/products` | `src/routes/products/index.tsx` |
-| `/products/:id` | `src/routes/products/$id.tsx` |
+| URL                      | File Path                                 |
+| ------------------------ | ----------------------------------------- |
+| `/`                      | `src/routes/index.tsx`                    |
+| `/about`                 | `src/routes/about.tsx`                    |
+| `/products`              | `src/routes/products/index.tsx`           |
+| `/products/:id`          | `src/routes/products/$id.tsx`             |
 | `/dashboard` (protected) | `src/routes/_authenticated/dashboard.tsx` |

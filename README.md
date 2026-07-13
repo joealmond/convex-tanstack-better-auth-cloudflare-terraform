@@ -97,18 +97,18 @@ including realtime chat at [http://localhost:3000/examples/chat](http://localhos
 
 ### Available Scripts
 
-| Script                    | Description                                |
-| ------------------------- | ------------------------------------------ |
-| `npm run dev`             | Start dev server (Vite + Convex)           |
-| `npm run setup`           | Create `.env.local` and optionally set Convex env vars |
-| `npm run build`           | Build for production                       |
-| `npm run preview`         | Preview production build with Wrangler     |
-| `npm run typecheck`       | Run TypeScript checks                      |
-| `npm run lint`            | Run ESLint                                 |
-| `npm run generate:routes` | Regenerate TanStack Router route tree      |
-| `npm run deploy:preview`  | Deploy to preview environment              |
-| `npm run deploy:prod`     | Deploy to production                       |
-| `npm run sync:wrangler-config` | Generate Wrangler deploy config from build |
+| Script                         | Description                                            |
+| ------------------------------ | ------------------------------------------------------ |
+| `npm run dev`                  | Start dev server (Vite + Convex)                       |
+| `npm run setup`                | Create `.env.local` and optionally set Convex env vars |
+| `npm run build`                | Build for production                                   |
+| `npm run preview`              | Preview production build with Wrangler                 |
+| `npm run typecheck`            | Run TypeScript checks                                  |
+| `npm run lint`                 | Run ESLint                                             |
+| `npm run generate:routes`      | Regenerate TanStack Router route tree                  |
+| `npm run deploy:preview`       | Deploy to preview environment                          |
+| `npm run deploy:prod`          | Deploy to production                                   |
+| `npm run sync:wrangler-config` | Generate Wrangler deploy config from build             |
 
 ---
 
@@ -116,14 +116,14 @@ including realtime chat at [http://localhost:3000/examples/chat](http://localhos
 
 ### Environment Variables
 
-| Variable               | Description                               |
-| ---------------------- | ----------------------------------------- |
-| `VITE_CONVEX_URL`      | Convex deployment URL (`.convex.cloud`)   |
-| `VITE_CONVEX_SITE_URL` | Convex HTTP URL (`.convex.site`)          |
+| Variable                   | Description                                       |
+| -------------------------- | ------------------------------------------------- |
+| `VITE_CONVEX_URL`          | Convex deployment URL (`.convex.cloud`)           |
+| `VITE_CONVEX_SITE_URL`     | Convex HTTP URL (`.convex.site`)                  |
 | `VITE_GOOGLE_AUTH_ENABLED` | Show Google OAuth sign-in UI (`false` by default) |
-| `BETTER_AUTH_SECRET`   | Auth secret (`openssl rand -base64 32`)   |
-| `GOOGLE_CLIENT_ID`     | Optional Google OAuth client ID           |
-| `GOOGLE_CLIENT_SECRET` | Optional Google OAuth secret              |
+| `BETTER_AUTH_SECRET`       | Auth secret (`openssl rand -base64 32`)           |
+| `GOOGLE_CLIENT_ID`         | Optional Google OAuth client ID                   |
+| `GOOGLE_CLIENT_SECRET`     | Optional Google OAuth secret                      |
 
 ### Cloudflare Workers
 
@@ -132,7 +132,7 @@ Key settings in `wrangler.jsonc`:
 ```jsonc
 {
   "compatibility_flags": ["nodejs_compat"],
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2026-07-13",
   "main": "@tanstack/react-start/server-entry",
 }
 ```
@@ -156,22 +156,26 @@ To deploy to **production**, manually trigger the Deploy workflow with `environm
 
 **Required GitHub Secrets** (for Cloudflare):
 
-| Secret                   | Description                              |
-| ------------------------ | ---------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`   | Cloudflare API token (Workers Edit)      |
-| `CLOUDFLARE_ACCOUNT_ID`  | Cloudflare account ID                    |
-| `VITE_CONVEX_URL`        | Convex URL for preview builds            |
-| `VITE_CONVEX_SITE_URL`   | Convex site URL for preview builds       |
-| `CONVEX_DEPLOY_KEY`      | Convex deploy key (shared or per-env)    |
+| Secret                         | Description                            |
+| ------------------------------ | -------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`         | Cloudflare API token (Workers Edit)    |
+| `CLOUDFLARE_ACCOUNT_ID`        | Cloudflare account ID                  |
+| `VITE_CONVEX_URL_PREVIEW`      | Convex URL for preview builds          |
+| `VITE_CONVEX_SITE_URL_PREVIEW` | Convex HTTP-actions URL for preview    |
+| `CONVEX_DEPLOY_KEY_PREVIEW`    | Preview Convex deploy key              |
+| `VITE_CONVEX_URL_PROD`         | Convex URL for production builds       |
+| `VITE_CONVEX_SITE_URL_PROD`    | Convex HTTP-actions URL for production |
+| `CONVEX_DEPLOY_KEY_PROD`       | Production Convex deploy key           |
 
 See [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) for the full bootstrap guide.
 
 **Optional Repository Variables:**
 
-| Variable         | Options                           | Default      |
-| ---------------- | --------------------------------- | ------------ |
-| `DEPLOY_TARGET`  | `cloudflare`, `vercel`, `netlify` | `cloudflare` |
-| `CONVEX_HOSTING` | `cloud`, `self-hosted`            | `cloud`      |
+| Variable                           | Options                | Default |
+| ---------------------------------- | ---------------------- | ------- |
+| `CONVEX_HOSTING`                   | `cloud`, `self-hosted` | `cloud` |
+| `CLOUDFLARE_CUSTOM_DOMAIN_PREVIEW` | Preview hostname       | unset   |
+| `CLOUDFLARE_CUSTOM_DOMAIN_PROD`    | Production hostname    | unset   |
 
 ### Terraform (Infrastructure)
 
@@ -180,6 +184,8 @@ cd infrastructure
 cp terraform.tfvars.example terraform.tfvars
 terraform init && terraform apply
 ```
+
+Terraform provisions only optional account-level services. Wrangler owns and deploys the Worker and its Custom Domain.
 
 ---
 
@@ -198,15 +204,15 @@ terraform init && terraform apply
 
 ## Documentation
 
-| Topic | Link |
-| --- | --- |
-| **Docs Index** | [docs/README.md](docs/README.md) |
-| **Architecture Guide** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| **Preview Checklist** ⚡ | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) |
+| Topic                    | Link                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| **Docs Index**           | [docs/README.md](docs/README.md)                                                   |
+| **Architecture Guide**   | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                       |
+| **Preview Checklist** ⚡ | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md)               |
 | **Production Checklist** | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
-| **Rate Limiting** ⚡ | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md) |
-| **Feature Guides** | [docs/README.md#features](docs/README.md#features) |
-| **Troubleshooting** | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
+| **Rate Limiting** ⚡     | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                                     |
+| **Feature Guides**       | [docs/README.md#features](docs/README.md#features)                                 |
+| **Troubleshooting**      | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                                 |
 
 ⚡ = Production-ready implementations included
 
@@ -225,16 +231,16 @@ terraform init && terraform apply
 
 ## Troubleshooting
 
-| Issue                    | Solution                                                                   |
-| ------------------------ | -------------------------------------------------------------------------- |
+| Issue                    | Solution                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------- |
 | Dependencies missing     | Run `npm install` or `npm ci`; see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
-| Convex types missing     | Run `npx convex login` then `npx convex dev`                               |
-| Workers build fails      | Check `nodejs_compat` in `wrangler.jsonc`                                  |
-| Auth not persisting      | Verify `SITE_URL` matches your app URL                                     |
-| Missing env vars warning | Set Convex env vars: `npx convex env set SITE_URL "url"`                   |
-| Route types invalid      | Run `npm run generate:routes` to regenerate route tree                     |
-| CORS errors on auth      | Check `trustedOrigins` in `convex/auth.ts`                                 |
-| SSR QueryClient error    | Verify `ConvexProvider` and `QueryClientProvider` are in `router.tsx` Wrap |
+| Convex types missing     | Run `npx convex login` then `npx convex dev`                                          |
+| Workers build fails      | Check `nodejs_compat` in `wrangler.jsonc`                                             |
+| Auth not persisting      | Verify `SITE_URL` matches your app URL                                                |
+| Missing env vars warning | Set Convex env vars: `npx convex env set SITE_URL "url"`                              |
+| Route types invalid      | Run `npm run generate:routes` to regenerate route tree                                |
+| CORS errors on auth      | Check `trustedOrigins` in `convex/auth.ts`                                            |
+| SSR QueryClient error    | Verify `ConvexProvider` and `QueryClientProvider` are in `router.tsx` Wrap            |
 
 ---
 

@@ -4,16 +4,16 @@ This document covers CI/CD options and enhancements for the template.
 
 ## Current CI Features
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| **Lint** | ✅ | ESLint check |
-| **Type Check** | ✅ | TypeScript verification |
-| **Format Check** | ✅ | Prettier verification |
-| **Security Audit** | ✅ | npm audit (non-blocking) |
-| **Build** | ✅ | Build verification |
-| **Artifact Upload** | ✅ | 7-day retention |
-| **Concurrency Control** | ✅ | Cancels old runs |
-| **Parallel Jobs** | ✅ | Faster CI |
+| Feature                 | Status | Description              |
+| ----------------------- | ------ | ------------------------ |
+| **Lint**                | ✅     | ESLint check             |
+| **Type Check**          | ✅     | TypeScript verification  |
+| **Format Check**        | ✅     | Prettier verification    |
+| **Security Audit**      | ✅     | npm audit (non-blocking) |
+| **Build**               | ✅     | Build verification       |
+| **Artifact Upload**     | ✅     | 7-day retention          |
+| **Concurrency Control** | ✅     | Cancels old runs         |
+| **Parallel Jobs**       | ✅     | Faster CI                |
 
 ---
 
@@ -26,25 +26,25 @@ Create `.github/dependabot.yml`:
 ```yaml
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 10
     groups:
       development:
         patterns:
-          - "@types/*"
-          - "eslint*"
-          - "prettier"
-          - "typescript"
+          - '@types/*'
+          - 'eslint*'
+          - 'prettier'
+          - 'typescript'
       tanstack:
         patterns:
-          - "@tanstack/*"
+          - '@tanstack/*'
       cloudflare:
         patterns:
-          - "@cloudflare/*"
-          - "wrangler"
+          - '@cloudflare/*'
+          - 'wrangler'
 ```
 
 ### 2. CodeQL (Security Scanning)
@@ -60,7 +60,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 0 * * 0'  # Weekly
+    - cron: '0 0 * * 0' # Weekly
 
 jobs:
   analyze:
@@ -69,12 +69,12 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: typescript
-      
+
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 ```
@@ -92,12 +92,12 @@ preview-deploy:
   needs: build
   steps:
     - uses: actions/checkout@v4
-    
+
     - uses: actions/download-artifact@v4
       with:
         name: build-${{ github.sha }}
         path: dist/
-    
+
     # Cloudflare
     - name: Deploy Preview
       uses: cloudflare/wrangler-action@v3
@@ -105,7 +105,7 @@ preview-deploy:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         command: deploy --env preview
-    
+
     - name: Comment PR
       uses: actions/github-script@v7
       with:
@@ -152,30 +152,30 @@ test:
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v4
-    
+
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
         cache: 'npm'
-    
+
     - run: npm ci
-    
+
     # Generate Convex types first
     - run: npx convex dev --once --typecheck=disable
       env:
         CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-    
+
     # Unit tests
     - name: Run Vitest
       run: npm run test
-    
+
     # E2E tests
     - name: Install Playwright
       run: npx playwright install --with-deps
-    
+
     - name: Run Playwright
       run: npm run test:e2e
-    
+
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
@@ -190,13 +190,13 @@ test:
 
 ## Deploy Workflow Features
 
-| Feature | Cloudflare | Vercel | Netlify |
-|---------|------------|--------|---------|
-| Auto-deploy on push | ✅ | ✅ | ✅ |
-| Preview deploys | ✅ | ✅ | ✅ |
-| Environment selection | ✅ | ✅ | ✅ |
-| Convex Cloud support | ✅ | ✅ | ✅ |
-| Self-hosted Convex | ✅ | ✅ | ✅ |
+| Feature               | Cloudflare | Vercel | Netlify |
+| --------------------- | ---------- | ------ | ------- |
+| Auto-deploy on push   | ✅         | ✅     | ✅      |
+| Preview deploys       | ✅         | ✅     | ✅      |
+| Environment selection | ✅         | ✅     | ✅      |
+| Convex Cloud support  | ✅         | ✅     | ✅      |
+| Self-hosted Convex    | ✅         | ✅     | ✅      |
 
 ---
 
@@ -204,32 +204,32 @@ test:
 
 ### Required Secrets
 
-| Secret | All Targets | Description |
-|--------|-------------|-------------|
-| `VITE_CONVEX_URL` | ✅ | Convex preview URL |
-| `VITE_CONVEX_URL_PROD` | ✅ | Convex production URL |
+| Secret                 | All Targets | Description           |
+| ---------------------- | ----------- | --------------------- |
+| `VITE_CONVEX_URL`      | ✅          | Convex preview URL    |
+| `VITE_CONVEX_URL_PROD` | ✅          | Convex production URL |
 
 ### Cloudflare Secrets
 
-| Secret | Description |
-|--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | API token with Workers:Edit |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID |
+| Secret                  | Description                 |
+| ----------------------- | --------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | API token with Workers:Edit |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID                  |
 
 ### Vercel Secrets
 
-| Secret | Description |
-|--------|-------------|
-| `VERCEL_TOKEN` | Personal access token |
-| `VERCEL_ORG_ID` | Organization ID |
-| `VERCEL_PROJECT_ID` | Project ID |
+| Secret              | Description           |
+| ------------------- | --------------------- |
+| `VERCEL_TOKEN`      | Personal access token |
+| `VERCEL_ORG_ID`     | Organization ID       |
+| `VERCEL_PROJECT_ID` | Project ID            |
 
 ### Netlify Secrets
 
-| Secret | Description |
-|--------|-------------|
+| Secret               | Description           |
+| -------------------- | --------------------- |
 | `NETLIFY_AUTH_TOKEN` | Personal access token |
-| `NETLIFY_SITE_ID` | Site ID |
+| `NETLIFY_SITE_ID`    | Site ID               |
 
 ---
 

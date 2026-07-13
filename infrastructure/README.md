@@ -1,73 +1,12 @@
-# Terraform Infrastructure
+# Optional Cloudflare infrastructure
 
-This directory contains Terraform configuration for deploying the Cloudflare Worker and managing secrets.
+Wrangler is authoritative for the Worker, its environments, observability, bindings, and Custom Domain. Terraform intentionally manages only optional account-level KV, R2, Turnstile, and Web Analytics resources. This avoids two deployment tools overwriting the same Worker configuration.
 
-## Prerequisites
+1. Copy `terraform.tfvars.example` to the ignored `terraform.tfvars` and use a narrowly scoped Cloudflare API token.
+2. Run `terraform init`, `terraform plan`, and review the plan before `terraform apply`.
+3. If you enable KV or R2 and the application will use it, add the resulting output as a binding in `wrangler.jsonc` and regenerate Cloudflare types.
+4. If you enable Turnstile, treat its secret output as sensitive and store it in the application secret store; provisioning a widget does not enable application-side verification.
 
-1. [Terraform](https://terraform.io) installed
-2. Cloudflare account with Workers enabled
-3. Cloudflare API token with these permissions:
-   - Account: Workers Scripts:Edit
-   - Account: Account Settings:Read
-   - Zone: DNS:Edit (only if using custom domain)
+Custom Domains are configured at deployment with the `CLOUDFLARE_CUSTOM_DOMAIN_PREVIEW` and `CLOUDFLARE_CUSTOM_DOMAIN_PROD` GitHub environment variables. The build script writes a Wrangler `custom_domain` route; it does not create an invalid account-ID CNAME.
 
-## Setup
-
-### 1. Copy Example Variables
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-```
-
-### 2. Fill in Variables
-
-Edit `terraform.tfvars` with your values. Required:
-
-- `cloudflare_api_token` - [Create here](https://dash.cloudflare.com/profile/api-tokens)
-- `cloudflare_account_id` - From dashboard
-- `convex_url` - From `npx convex dev`
-- `convex_site_url` - Usually same as convex_url but with `.site`
-- `better_auth_secret` - Generate with `openssl rand -base64 32`
-- `site_url` - Your app's URL (workers.dev or custom domain)
-- `google_client_id` / `google_client_secret` - From Google Cloud Console
-
-### 3. Initialize and Apply
-
-```bash
-terraform init
-terraform plan    # Review changes
-terraform apply   # Apply changes
-```
-
-## Custom Domain (Optional)
-
-To use a custom domain instead of `*.workers.dev`:
-
-1. Add your domain to Cloudflare (if not already)
-2. Get the Zone ID from the domain's overview page
-3. Uncomment and fill in `terraform.tfvars`:
-
-```hcl
-custom_domain      = "example.com"
-custom_subdomain   = "app"        # For app.example.com, or "" for apex
-cloudflare_zone_id = "your-zone-id"
-```
-
-## What This Creates
-
-- Worker secrets (Convex URL, auth secrets, OAuth credentials)
-- (Optional) DNS record for custom domain
-- (Optional) Worker route for custom domain
-
-**Note:** This does NOT deploy the worker code itself. The worker is deployed via:
-- `npm run deploy:prod` locally
-- GitHub Actions on push to main
-- `./scripts/deploy.sh`
-
-## State Management
-
-By default, Terraform stores state locally. For production:
-
-1. Use Terraform Cloud (uncomment backend in `main.tf`)
-2. Or use S3/GCS backend
-3. Never commit `terraform.tfstate` to version control
+Commit `.terraform.lock.hcl`; never commit state, populated variable files, plans, or API tokens. Production should use a remote state backend with encryption, locking, access controls, and versioning.

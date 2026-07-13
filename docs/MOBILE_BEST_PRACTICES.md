@@ -26,23 +26,31 @@ Every phone has different dimensions, notches, and dynamic browser bars. Use mod
 
 ```css
 /* ❌ Broken on mobile — overflows behind address bar */
-.full-screen { height: 100vh; }
+.full-screen {
+  height: 100vh;
+}
 
 /* ✅ Dynamic — adjusts as address bar appears/disappears */
-.full-screen { height: 100dvh; }
+.full-screen {
+  height: 100dvh;
+}
 
 /* ✅ Small viewport — always fits even with address bar visible */
-.full-screen-safe { height: 100svh; }
+.full-screen-safe {
+  height: 100svh;
+}
 
 /* ✅ Large viewport — full height when address bar is hidden */
-.full-screen-max { height: 100lvh; }
+.full-screen-max {
+  height: 100lvh;
+}
 ```
 
-| Unit | Behavior | Best For |
-|------|----------|----------|
-| `dvh` | Adjusts dynamically as browser UI shows/hides | Full-screen layouts, modals |
+| Unit  | Behavior                                         | Best For                         |
+| ----- | ------------------------------------------------ | -------------------------------- |
+| `dvh` | Adjusts dynamically as browser UI shows/hides    | Full-screen layouts, modals      |
 | `svh` | Smallest possible viewport (address bar visible) | Content that must never overflow |
-| `lvh` | Largest possible viewport (address bar hidden) | Splash screens, immersive views |
+| `lvh` | Largest possible viewport (address bar hidden)   | Splash screens, immersive views  |
 
 ### Safe Area Insets
 
@@ -95,26 +103,38 @@ Don't target specific devices — target design breakpoints:
 
 ```css
 /* Small phones (iPhone SE, Galaxy A series) */
-@media (max-width: 374px) { /* ... compact layout */ }
+@media (max-width: 374px) {
+  /* ... compact layout */
+}
 
 /* Standard phones (iPhone 14–16, Pixel) */
-@media (min-width: 375px) and (max-width: 767px) { /* ... default mobile */ }
+@media (min-width: 375px) and (max-width: 767px) {
+  /* ... default mobile */
+}
 
 /* Small tablets / large phones in landscape */
-@media (min-width: 768px) { /* ... tablet layout */ }
+@media (min-width: 768px) {
+  /* ... tablet layout */
+}
 ```
 
 Use **container queries** for component-level responsiveness:
 
 ```css
-.product-card-container { container-type: inline-size; }
+.product-card-container {
+  container-type: inline-size;
+}
 
 @container (min-width: 300px) {
-  .product-card { flex-direction: row; }
+  .product-card {
+    flex-direction: row;
+  }
 }
 
 @container (max-width: 299px) {
-  .product-card { flex-direction: column; }
+  .product-card {
+    flex-direction: column;
+  }
 }
 ```
 
@@ -128,7 +148,12 @@ Apple requires **44×44pt** minimum, Google requires **48×48dp**. For accessibi
 
 ```css
 /* Ensure all interactive elements meet minimum size */
-button, a, [role="button"], input, select, textarea {
+button,
+a,
+[role='button'],
+input,
+select,
+textarea {
   min-height: 44px;
   min-width: 44px;
 }
@@ -176,6 +201,7 @@ Adjacent touch targets need **≥8px** gap to prevent mis-taps. Google recommend
 ```
 
 **Recommended layout pattern:**
+
 - **Top bar**: App title + minimal icons (search, settings)
 - **Content area**: Scrollable feed/list
 - **Bottom navigation**: 3–5 tab icons (Home, Search, Add, Profile)
@@ -212,17 +238,10 @@ Images are the #1 performance bottleneck on mobile. Implement a client-side pipe
 
 ```typescript
 // src/lib/image-utils.ts
-export async function optimizeImage(
-  file: File,
-  maxWidth = 1024,
-  quality = 0.8
-): Promise<Blob> {
+export async function optimizeImage(file: File, maxWidth = 1024, quality = 0.8): Promise<Blob> {
   const img = await createImageBitmap(file)
   const scale = Math.min(1, maxWidth / img.width)
-  const canvas = new OffscreenCanvas(
-    Math.round(img.width * scale),
-    Math.round(img.height * scale)
-  )
+  const canvas = new OffscreenCanvas(Math.round(img.width * scale), Math.round(img.height * scale))
   const ctx = canvas.getContext('2d')!
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
   return canvas.convertToBlob({ type: 'image/webp', quality })
@@ -234,6 +253,7 @@ const storageId = await uploadToConvex(optimized)
 ```
 
 **Impact**: A typical 4MB phone photo becomes ~200–400KB WebP. This reduces:
+
 - Upload time: **10× faster** on 3G/4G
 - Storage costs: **70–80% less** Convex storage
 - Page load: images load **3–5× faster**
@@ -268,7 +288,8 @@ function ProductCardSkeleton() {
 ```
 
 ```css
-.skeleton-image, .skeleton-text {
+.skeleton-image,
+.skeleton-text {
   background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -276,8 +297,12 @@ function ProductCardSkeleton() {
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 ```
 
@@ -285,12 +310,12 @@ function ProductCardSkeleton() {
 
 For Capacitor apps, the entire web bundle loads from disk — but smaller is still better for startup time:
 
-| Budget | Target | Tool |
-|--------|--------|------|
-| Initial JS | < 200KB gzipped | Vite's `manualChunks` |
-| Total JS | < 500KB gzipped | `rollup-plugin-visualizer` |
-| Largest image | < 100KB | WebP + resize |
-| First paint | < 1.5s | Lighthouse |
+| Budget        | Target          | Tool                       |
+| ------------- | --------------- | -------------------------- |
+| Initial JS    | < 200KB gzipped | Vite's `manualChunks`      |
+| Total JS      | < 500KB gzipped | `rollup-plugin-visualizer` |
+| Largest image | < 100KB         | WebP + resize              |
+| First paint   | < 1.5s          | Lighthouse                 |
 
 ---
 
@@ -334,9 +359,7 @@ function OfflineBanner() {
   if (isOnline) return null
 
   return (
-    <div className="offline-banner">
-      📡 You're offline — changes will sync when you reconnect
-    </div>
+    <div className="offline-banner">📡 You're offline — changes will sync when you reconnect</div>
   )
 }
 ```
@@ -347,17 +370,19 @@ Convex mutations are optimistic by default, but you can explicitly define optimi
 
 ```typescript
 // Example: optimistic vote — shows immediately, confirms via WebSocket
-const castVote = useMutation(api.votes.cast).withOptimisticUpdate(
-  (localStore, args) => {
-    const existing = localStore.getQuery(api.products.get, { id: args.productId })
-    if (existing) {
-      localStore.setQuery(api.products.get, { id: args.productId }, {
+const castVote = useMutation(api.votes.cast).withOptimisticUpdate((localStore, args) => {
+  const existing = localStore.getQuery(api.products.get, { id: args.productId })
+  if (existing) {
+    localStore.setQuery(
+      api.products.get,
+      { id: args.productId },
+      {
         ...existing,
         voteCount: existing.voteCount + 1,
-      })
-    }
+      }
+    )
   }
-)
+})
 ```
 
 ### Query Caching for Non-Reactive Data
@@ -367,8 +392,8 @@ Some data rarely changes (config, categories). Reduce WebSocket traffic:
 ```tsx
 const { data: config } = useQuery({
   ...convexQuery(api.config.get, {}),
-  staleTime: 1000 * 60 * 30,  // Cache for 30 min
-  gcTime: 1000 * 60 * 60,     // Keep in memory for 1 hour
+  staleTime: 1000 * 60 * 30, // Cache for 30 min
+  gcTime: 1000 * 60 * 60, // Keep in memory for 1 hour
 })
 ```
 
@@ -435,13 +460,13 @@ const cancelledRef = useRef(false)
 
 const startPlugin = async () => {
   cancelledRef.current = false
-  
+
   const plugin = await import('your-capacitor-plugin')
   if (cancelledRef.current) return
-  
+
   await plugin.requestPermissions()
   if (cancelledRef.current) { /* cleanup */ return }
-  
+
   await plugin.start({ ... })
   if (cancelledRef.current) { await plugin.stop(); return }
 }
@@ -455,12 +480,12 @@ useEffect(() => () => { cancelledRef.current = true }, [])
 
 Full-screen native overlays (camera, AR) rendered via `createPortal(ui, document.body)` interact poorly with Radix Dialog:
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Buttons unresponsive | `modal={true}` adds `inert` to body siblings | Use `modal={false}` on native |
-| Dialog auto-closes on tap | Portal taps = "interact outside" | `onInteractOutside` with `preventDefault()` |
-| Content scrolls behind overlay | `modal={false}` has no scroll lock | Manual `overflow: hidden` on body |
-| Dialog re-mounts on prop change | Switching `modal` while open | Keep `modal` as a constant value |
+| Issue                           | Cause                                        | Fix                                         |
+| ------------------------------- | -------------------------------------------- | ------------------------------------------- |
+| Buttons unresponsive            | `modal={true}` adds `inert` to body siblings | Use `modal={false}` on native               |
+| Dialog auto-closes on tap       | Portal taps = "interact outside"             | `onInteractOutside` with `preventDefault()` |
+| Content scrolls behind overlay  | `modal={false}` has no scroll lock           | Manual `overflow: hidden` on body           |
+| Dialog re-mounts on prop change | Switching `modal` while open                 | Keep `modal` as a constant value            |
 
 ### Two-Phase WebView Transparency
 
@@ -469,7 +494,7 @@ When rendering native content **behind** a transparent WebView:
 1. **Phase 1** (`camera-starting`): Set `background: #000` — hides the app's normal background (prevents white flash)
 2. **Phase 2** (`camera-running`): Set `background: transparent` — native layer now visible through WebView
 
-Apply Phase 1 *before* mounting the component. Switch to Phase 2 *after* the native plugin finishes starting.
+Apply Phase 1 _before_ mounting the component. Switch to Phase 2 _after_ the native plugin finishes starting.
 
 ### await Stop Before Navigation
 
@@ -482,7 +507,7 @@ onClose()
 
 // ✅ Always await with delay for UIKit cleanup
 await stopCamera()
-await new Promise(r => setTimeout(r, 120))
+await new Promise((r) => setTimeout(r, 120))
 onClose()
 ```
 
@@ -495,7 +520,7 @@ When a native plugin starts on component mount and stops on unmount, **never set
 ```tsx
 // ❌ React may batch close + step-change, briefly remounting the plugin
 setOpen(false)
-setStep('camera')  // CameraWizard re-mounts for 1 frame!
+setStep('camera') // CameraWizard re-mounts for 1 frame!
 
 // ✅ Set the mounting step only in the open handler
 const handleOpen = () => {
@@ -517,11 +542,14 @@ Enable links like `https://yourapp.com/product/oat-milk` to open directly in the
 ### iOS Universal Links
 
 1. Create `apple-app-site-association` file on your web server:
+
 ```json
 {
   "applinks": {
     "apps": [],
-    "details": [{ "appID": "TEAMID.com.yourcompany.appname", "paths": ["/product/*", "/profile/*"] }]
+    "details": [
+      { "appID": "TEAMID.com.yourcompany.appname", "paths": ["/product/*", "/profile/*"] }
+    ]
   }
 }
 ```
@@ -577,7 +605,9 @@ Respect users who prefer reduced motion:
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -595,10 +625,14 @@ Use `rem` units so text scales with system font size preferences:
 
 ```css
 /* ❌ Fixed size — ignores user's accessibility settings */
-.label { font-size: 14px; }
+.label {
+  font-size: 14px;
+}
 
 /* ✅ Scales with system font size */
-.label { font-size: 0.875rem; }
+.label {
+  font-size: 0.875rem;
+}
 ```
 
 ---
@@ -644,16 +678,17 @@ if (isDarkMode) {
 
 Test on real devices whenever possible. Minimum coverage matrix:
 
-| Category | Devices | Why |
-|----------|---------|-----|
-| **Small phone** | iPhone SE (375×667) | Smallest common viewport |
-| **Standard phone** | iPhone 15 (393×852) | Most popular size class |
-| **Large phone** | iPhone 16 Pro Max (430×932) | Largest common viewport |
-| **Android mid-range** | Pixel 7a / Samsung A54 | Most common Android tier |
-| **Android flagship** | Pixel 8 / Samsung S24 | High DPI, latest OS |
-| **Older Android** | Android 10 device | WebView compatibility |
+| Category              | Devices                     | Why                      |
+| --------------------- | --------------------------- | ------------------------ |
+| **Small phone**       | iPhone SE (375×667)         | Smallest common viewport |
+| **Standard phone**    | iPhone 15 (393×852)         | Most popular size class  |
+| **Large phone**       | iPhone 16 Pro Max (430×932) | Largest common viewport  |
+| **Android mid-range** | Pixel 7a / Samsung A54      | Most common Android tier |
+| **Android flagship**  | Pixel 8 / Samsung S24       | High DPI, latest OS      |
+| **Older Android**     | Android 10 device           | WebView compatibility    |
 
 **Testing checklist:**
+
 - [ ] Safe area insets render correctly (no content behind notch/status bar)
 - [ ] Touch targets ≥44px on all interactive elements
 - [ ] Text readable without pinch-zoom (≥16px body)
@@ -669,19 +704,19 @@ Test on real devices whenever possible. Minimum coverage matrix:
 
 ## Quick Reference
 
-| Concern | Recommendation |
-|---------|---------------|
-| Full height | Use `100dvh`, not `100vh` |
-| Safe areas | `env(safe-area-inset-*)` + `viewport-fit=cover` |
-| Touch targets | ≥44×44px with ≥8px spacing |
-| Body font | ≥16px (`1rem`) to avoid iOS auto-zoom |
-| Image format | WebP, ≤100KB, lazy loaded |
-| Animations | Honor `prefers-reduced-motion` |
-| Dark mode | `prefers-color-scheme: dark` |
-| Orientation | Lock to portrait |
-| JS budget | <200KB initial, <500KB total (gzipped) |
-| Offline | Show banner, Convex auto-reconnects |
+| Concern       | Recommendation                                  |
+| ------------- | ----------------------------------------------- |
+| Full height   | Use `100dvh`, not `100vh`                       |
+| Safe areas    | `env(safe-area-inset-*)` + `viewport-fit=cover` |
+| Touch targets | ≥44×44px with ≥8px spacing                      |
+| Body font     | ≥16px (`1rem`) to avoid iOS auto-zoom           |
+| Image format  | WebP, ≤100KB, lazy loaded                       |
+| Animations    | Honor `prefers-reduced-motion`                  |
+| Dark mode     | `prefers-color-scheme: dark`                    |
+| Orientation   | Lock to portrait                                |
+| JS budget     | <200KB initial, <500KB total (gzipped)          |
+| Offline       | Show banner, Convex auto-reconnects             |
 
 ---
 
-*Last updated: February 2026*
+_Last updated: February 2026_

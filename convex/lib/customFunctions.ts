@@ -72,14 +72,25 @@ import { ConvexError } from 'convex/values'
  * Already-wrapped `ConvexError` instances are re-thrown as-is.
  */
 function handleServerError(error: unknown, context: string): never {
-  console.error(`[Exception in ${context}]:`, error)
-
   if (error instanceof ConvexError) {
     throw error
   }
 
-  const message = error instanceof Error ? error.message : 'An unexpected error occurred'
-  throw new ConvexError(message)
+  const errorId = crypto.randomUUID()
+  console.error(
+    JSON.stringify({
+      event: 'unhandled_convex_error',
+      errorId,
+      context,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+  )
+  throw new ConvexError({
+    code: 'INTERNAL_ERROR',
+    message: 'An unexpected error occurred',
+    errorId,
+  })
 }
 
 // =============================================================================

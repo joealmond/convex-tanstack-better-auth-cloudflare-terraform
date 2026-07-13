@@ -4,12 +4,12 @@ This guide shows how to replace Better Auth with Clerk for authentication.
 
 ## Why Clerk?
 
-| Feature | Clerk | Better Auth |
-|---------|-------|-------------|
-| Pre-built UI | ✅ Polished components | ❌ Build your own |
-| Pricing | Free tier, then $0.02/MAU | Free forever |
-| Data ownership | Clerk hosts | You own (in Convex) |
-| Setup complexity | Easier | More control |
+| Feature          | Clerk                     | Better Auth         |
+| ---------------- | ------------------------- | ------------------- |
+| Pre-built UI     | ✅ Polished components    | ❌ Build your own   |
+| Pricing          | Free tier, then $0.02/MAU | Free forever        |
+| Data ownership   | Clerk hosts               | You own (in Convex) |
+| Setup complexity | Easier                    | More control        |
 
 ## Step 1: Install Clerk
 
@@ -49,15 +49,16 @@ export default {
   providers: [
     {
       domain: process.env.CLERK_JWT_ISSUER_DOMAIN,
-      applicationID: "convex",
+      applicationID: 'convex',
     },
   ],
-};
+}
 ```
 
 ## Step 5: Delete Better Auth Files
 
 Remove these files:
+
 - `convex/auth.ts`
 - `convex/convex.config.ts`
 - `src/lib/auth-client.ts`
@@ -67,13 +68,13 @@ Update `convex/http.ts` to remove Better Auth routes:
 
 ```typescript
 // convex/http.ts
-import { httpRouter } from "convex/server";
+import { httpRouter } from 'convex/server'
 
-const http = httpRouter();
+const http = httpRouter()
 
 // No auth routes needed - Clerk handles this externally
 
-export default http;
+export default http
 ```
 
 ## Step 6: Update Router
@@ -116,7 +117,7 @@ export function getRouter() {
     scrollRestoration: true,
     Wrap: ({ children }) => (
       <ClerkProvider>
-        <ConvexProviderWithClerk 
+        <ConvexProviderWithClerk
           client={convexQueryClient.convexClient}
           useAuth={useAuth}
         >

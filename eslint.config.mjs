@@ -5,14 +5,7 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: [
-      'dist/',
-      'node_modules/',
-      '.output/',
-      '.tanstack/',
-      'convex/_generated/',
-      '*.gen.ts',
-    ],
+    ignores: ['dist/', 'node_modules/', '.output/', '.tanstack/', 'convex/_generated/', '*.gen.ts'],
   },
   {
     // Node globals for .mjs scripts

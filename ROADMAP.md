@@ -21,7 +21,7 @@ Ship nothing new; remove everything that signals "personal project".
 
 A developer decides in ~10 seconds on the README.
 
-- [x] **Hero section first**: logo/banner image, one-line pitch, badges (CI status, license, PRs-welcome, Convex/TanStack versions), then a screenshot or GIF of the running app — *before* any philosophy text
+- [x] **Hero section first**: logo/banner image, one-line pitch, badges (CI status, license, PRs-welcome, Convex/TanStack versions), then a screenshot or GIF of the running app — _before_ any philosophy text
 - [x] Replace ASCII architecture diagram with **Mermaid** (GitHub renders it natively)
 - [ ] **Deploy a live demo** and link it at the top — single biggest attractiveness win
 - [ ] Enable GitHub "Use this template" button; add repo social preview image, topics/tags
@@ -89,4 +89,4 @@ This is how templates become defaults.
 2. Every advertised feature has working code, a test, and a live-demo page — not just a doc.
 3. The README sells the template in one screen: pitch → screenshot → live demo → install command.
 
-*Supersedes `docs/FUTURE_ROADMAP.md`.*
+_Supersedes `docs/FUTURE_ROADMAP.md`._

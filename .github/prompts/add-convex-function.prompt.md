@@ -20,42 +20,45 @@ Always use custom wrappers from `convex/lib/customFunctions.ts` — NEVER use ra
 ## Template
 
 ### Public Query (no auth, SSR-safe)
+
 ```typescript
-import { v } from "convex/values";
-import { publicQuery } from "./lib/customFunctions";
-import { getAuthUserSafe } from "./lib/authHelpers";
+import { v } from 'convex/values'
+import { publicQuery } from './lib/customFunctions'
+import { getAuthUserSafe } from './lib/authHelpers'
 
 export const list = publicQuery({
   args: {},
   handler: async (ctx) => {
-    const user = await getAuthUserSafe(ctx);
-    if (!user) return [];
-    return await ctx.db.query("tableName").collect();
+    const user = await getAuthUserSafe(ctx)
+    if (!user) return []
+    return await ctx.db.query('tableName').collect()
   },
-});
+})
 ```
 
 ### Authenticated Query
+
 ```typescript
-import { v } from "convex/values";
-import { authQuery } from "./lib/customFunctions";
+import { v } from 'convex/values'
+import { authQuery } from './lib/customFunctions'
 
 export const get = authQuery({
   args: {
-    id: v.id("tableName"),
+    id: v.id('tableName'),
   },
   handler: async (ctx, args) => {
     // ctx.user and ctx.userId are auto-injected
-    return await ctx.db.get(args.id);
+    return await ctx.db.get(args.id)
   },
-});
+})
 ```
 
 ### Authenticated Mutation
+
 ```typescript
-import { v } from "convex/values";
-import { ConvexError } from "convex/values";
-import { authMutation } from "./lib/customFunctions";
+import { v } from 'convex/values'
+import { ConvexError } from 'convex/values'
+import { authMutation } from './lib/customFunctions'
 
 export const create = authMutation({
   args: {
@@ -63,39 +66,40 @@ export const create = authMutation({
   },
   handler: async (ctx, args) => {
     // ctx.user and ctx.userId are guaranteed
-    if (!args.name.trim()) throw new ConvexError("Name is required");
+    if (!args.name.trim()) throw new ConvexError('Name is required')
 
-    return await ctx.db.insert("tableName", {
+    return await ctx.db.insert('tableName', {
       name: args.name,
       userId: ctx.userId,
-    });
+    })
   },
-});
+})
 ```
 
 ### Admin Mutation
+
 ```typescript
-import { v } from "convex/values";
-import { adminMutation } from "./lib/customFunctions";
+import { v } from 'convex/values'
+import { adminMutation } from './lib/customFunctions'
 
 export const deleteAny = adminMutation({
-  args: { id: v.id("tableName") },
+  args: { id: v.id('tableName') },
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.id);
+    await ctx.db.delete(args.id)
   },
-});
+})
 ```
 
 ## Available Wrappers
 
-| Wrapper | Auth | Use Case |
-|---------|------|----------|
-| `publicQuery` | None | Public reads, SSR loaders |
-| `publicMutation` | None | Anonymous writes |
-| `authQuery` | Required | Authenticated reads |
-| `authMutation` | Required | Authenticated writes |
-| `adminQuery` | Admin only | Admin dashboards |
-| `adminMutation` | Admin only | Admin operations |
+| Wrapper          | Auth       | Use Case                  |
+| ---------------- | ---------- | ------------------------- |
+| `publicQuery`    | None       | Public reads, SSR loaders |
+| `publicMutation` | None       | Anonymous writes          |
+| `authQuery`      | Required   | Authenticated reads       |
+| `authMutation`   | Required   | Authenticated writes      |
+| `adminQuery`     | Admin only | Admin dashboards          |
+| `adminMutation`  | Admin only | Admin operations          |
 
 ## Checklist
 
@@ -108,13 +112,13 @@ export const deleteAny = adminMutation({
 
 ## Common Validators
 
-| Type | Validator |
-|------|-----------|
-| String | `v.string()` |
-| Number | `v.number()` |
-| Boolean | `v.boolean()` |
-| ID Reference | `v.id("tableName")` |
-| Optional | `v.optional(v.string())` |
-| Enum | `v.union(v.literal("a"), v.literal("b"))` |
-| Array | `v.array(v.string())` |
-| Object | `v.object({ key: v.string() })` |
+| Type         | Validator                                 |
+| ------------ | ----------------------------------------- |
+| String       | `v.string()`                              |
+| Number       | `v.number()`                              |
+| Boolean      | `v.boolean()`                             |
+| ID Reference | `v.id("tableName")`                       |
+| Optional     | `v.optional(v.string())`                  |
+| Enum         | `v.union(v.literal("a"), v.literal("b"))` |
+| Array        | `v.array(v.string())`                     |
+| Object       | `v.object({ key: v.string() })`           |

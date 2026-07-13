@@ -10,6 +10,7 @@ Create a new Convex query or mutation following best practices for this stack.
 ## Goal
 
 Generate a properly typed and secured Convex function with:
+
 - Convex validators for type-safe arguments
 - Authentication check using Better Auth
 - Proper error handling
@@ -19,11 +20,11 @@ Generate a properly typed and secured Convex function with:
 
 ### 1. Determine Function Type
 
-| Type | Use When |
-|------|----------|
-| `query` | Reading data (reactive, cached) |
-| `mutation` | Writing data (insert, update, delete) |
-| `action` | External API calls, non-deterministic ops |
+| Type       | Use When                                  |
+| ---------- | ----------------------------------------- |
+| `query`    | Reading data (reactive, cached)           |
+| `mutation` | Writing data (insert, update, delete)     |
+| `action`   | External API calls, non-deterministic ops |
 
 ### 2. Define Arguments with Validators
 
@@ -45,10 +46,10 @@ args: {
 For protected functions, always check auth first:
 
 ```typescript
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from '@convex-dev/auth/server'
 
-const userId = await getAuthUserId(ctx);
-if (!userId) throw new Error("Unauthorized");
+const userId = await getAuthUserId(ctx)
+if (!userId) throw new Error('Unauthorized')
 ```
 
 ### 4. Scope Data to User
@@ -57,18 +58,20 @@ Ensure users can only access their own data:
 
 ```typescript
 // Query with user filter
-const items = await ctx.db.query("items")
-  .withIndex("by_user", (q) => q.eq("userId", userId))
-  .collect();
+const items = await ctx.db
+  .query('items')
+  .withIndex('by_user', (q) => q.eq('userId', userId))
+  .collect()
 
 // Single item ownership check
-const item = await ctx.db.get(id);
-if (item?.userId !== userId) throw new Error("Forbidden");
+const item = await ctx.db.get(id)
+if (item?.userId !== userId) throw new Error('Forbidden')
 ```
 
 ### 5. File Location
 
 Place in `convex/{domain}.ts` where domain matches the resource:
+
 - `convex/items.ts` for item functions
 - `convex/users.ts` for user functions
 
@@ -82,5 +85,6 @@ Place in `convex/{domain}.ts` where domain matches the resource:
 ## Examples
 
 See `examples/` directory for:
+
 - `query.ts` - Read operation with auth
 - `mutation.ts` - Write operation with validation

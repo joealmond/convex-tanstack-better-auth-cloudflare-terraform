@@ -4,12 +4,12 @@ This guide shows how to deploy to Netlify instead of Cloudflare Workers.
 
 ## Why Netlify?
 
-| Feature | Netlify | Cloudflare Workers |
-|---------|---------|-------------------|
-| DX | Very easy | Needs wrangler |
-| Pricing | Good free tier | Cheaper at scale |
-| Functions | Netlify Functions | Native Workers |
-| Forms | Built-in | Manual |
+| Feature   | Netlify           | Cloudflare Workers |
+| --------- | ----------------- | ------------------ |
+| DX        | Very easy         | Needs wrangler     |
+| Pricing   | Good free tier    | Cheaper at scale   |
+| Functions | Netlify Functions | Native Workers     |
+| Forms     | Built-in          | Manual             |
 
 ## Step 1: Install Netlify Plugin
 
@@ -100,6 +100,7 @@ export default defineConfig(({ mode }) => {
 ## Step 5: Remove Cloudflare Files
 
 Delete these files:
+
 - `wrangler.jsonc`
 
 ## Step 6: Set Up Netlify Project
@@ -121,6 +122,7 @@ netlify status
 ## Step 7: Configure GitHub Actions
 
 Set these repository variables:
+
 - `DEPLOY_TARGET` = `netlify`
 
 Set these repository secrets:
@@ -133,14 +135,14 @@ Set these repository secrets:
 
 Go to Netlify Dashboard → Site → Site configuration → Environment variables:
 
-| Variable | Value |
-|----------|-------|
-| `VITE_CONVEX_URL` | Your Convex URL |
-| `VITE_CONVEX_SITE_URL` | Your Convex Site URL |
-| `BETTER_AUTH_SECRET` | Your auth secret |
-| `GOOGLE_CLIENT_ID` | OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | OAuth client secret |
-| `SITE_URL` | Your Netlify deployment URL |
+| Variable               | Value                       |
+| ---------------------- | --------------------------- |
+| `VITE_CONVEX_URL`      | Your Convex URL             |
+| `VITE_CONVEX_SITE_URL` | Your Convex Site URL        |
+| `BETTER_AUTH_SECRET`   | Your auth secret            |
+| `GOOGLE_CLIENT_ID`     | OAuth client ID             |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret         |
+| `SITE_URL`             | Your Netlify deployment URL |
 
 ## Step 9: Deploy
 

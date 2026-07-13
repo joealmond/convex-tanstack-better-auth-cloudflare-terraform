@@ -53,7 +53,29 @@ export const authComponent = createClient<DataModel>(components.betterAuth)
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     baseURL: envConfig.siteUrl,
+    trustedOrigins: [envConfig.siteUrl],
     database: authComponent.adapter(ctx),
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: false,
+      minPasswordLength: 12,
+    },
+    user: {
+      deleteUser: {
+        enabled: true,
+      },
+    },
+    rateLimit: {
+      enabled: true,
+      storage: 'database',
+      window: 60,
+      max: 100,
+    },
+    advanced: {
+      ipAddress: {
+        ipAddressHeaders: ['cf-connecting-ip'],
+      },
+    },
     socialProviders: envConfig.hasGoogleConfig
       ? {
           google: {

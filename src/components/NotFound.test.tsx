@@ -1,45 +1,31 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
 
-/**
- * Example component tests using Vitest + React Testing Library
- */
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, to, ...props }: React.ComponentProps<'a'> & { to: string }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}))
+
+import { NotFound } from './NotFound'
 
 describe('NotFound Component', () => {
-  it('renders 404 text', () => {
-    // Simple render test
-    const { container } = render(
-      <div>
-        <h1>404</h1>
-        <p>Page Not Found</p>
-      </div>
-    )
+  it('renders the actual page and a home link', () => {
+    render(<NotFound />)
 
-    expect(container.textContent).toContain('404')
-    expect(container.textContent).toContain('Page Not Found')
+    expect(screen.getByRole('heading', { level: 1, name: '404' })).toBeDefined()
+    expect(screen.getByRole('heading', { level: 2, name: 'Page Not Found' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Go Home' }).getAttribute('href')).toBe('/')
   })
 
-  it('has accessible heading', () => {
-    render(
-      <div role="main">
-        <h1>404</h1>
-        <h2>Page Not Found</h2>
-      </div>
-    )
+  it('navigates back when requested', () => {
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
+    render(<NotFound />)
 
-    // Test for heading presence
-    expect(screen.getByRole('heading', { level: 1 })).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Go Back' }))
+    expect(back).toHaveBeenCalledOnce()
+    back.mockRestore()
   })
 })
-
-/**
- * For testing components with TanStack Router:
- *
- * import { createMemoryHistory, RouterProvider, createRootRoute, createRouter } from '@tanstack/react-router'
- *
- * function renderWithRouter(component: React.ReactNode) {
- *   const rootRoute = createRootRoute({ component: () => component })
- *   const router = createRouter({ routeTree: rootRoute, history: createMemoryHistory() })
- *   return render(<RouterProvider router={router} />)
- * }
- */

@@ -9,6 +9,7 @@ import { useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Id } from '@convex/_generated/dataModel'
 import { toast } from 'sonner'
+import { useConvex } from 'convex/react'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
@@ -27,8 +28,10 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
   const deleteFile = useConvexMutation(api.files.deleteFile)
 
   const [isUploading, setIsUploading] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const convex = useConvex()
 
   const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -44,7 +47,7 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
     setUploadProgress('Getting upload URL...')
 
     try {
-      const uploadUrl = await generateUploadUrl()
+      const { uploadUrl, intentId } = await generateUploadUrl()
 
       setUploadProgress('Uploading file...')
 
@@ -63,10 +66,9 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
       setUploadProgress('Saving metadata...')
 
       await saveFile({
+        intentId,
         storageId,
         name: file.name,
-        type: file.type,
-        size: file.size,
       })
 
       setUploadProgress('')
@@ -80,6 +82,24 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+    }
+  }
+
+  const handleDownload = async (id: Id<'files'>) => {
+    setDownloadingId(id)
+    try {
+      const url = await convex.query(api.files.getDownloadUrl, { id })
+      if (!url) throw new Error('Download URL unavailable')
+      const link = document.createElement('a')
+      link.href = url
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      link.click()
+    } catch (error) {
+      console.error('Download failed:', error)
+      toast.error('Failed to download file.')
+    } finally {
+      setDownloadingId(null)
     }
   }
 
@@ -184,17 +204,19 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {file.url && (
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-md hover:bg-muted transition-colors"
-                        title="Download"
-                      >
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(file._id)}
+                      disabled={downloadingId === file._id}
+                      className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+                      title="Download"
+                    >
+                      {downloadingId === file._id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
                         <Download className="w-4 h-4" />
-                      </a>
-                    )}
+                      )}
+                    </button>
                     <button
                       onClick={() => handleDelete(file._id)}
                       className="p-2 rounded-md hover:bg-destructive/10 text-destructive transition-colors"

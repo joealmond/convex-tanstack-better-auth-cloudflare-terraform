@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -13,158 +16,64 @@ concurrency:
 env:
   NODE_VERSION: '24'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  VITE_CONVEX_URL: https://example.convex.cloud
+  VITE_CONVEX_SITE_URL: https://example.convex.site
+  VITE_APP_ENV: test
 
 jobs:
-  # ============================================
-  # Code Quality Checks
-  # ============================================
-  lint:
-    name: Lint
+  validate:
+    name: Format, lint, test, typecheck, audit, and build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - run: npm ci
-      - run: npm run lint
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-  typecheck:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - run: npm ci
-      - name: Generate routes
-        run: npm run generate:routes
-      
-      - name: Generate Convex types
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY || secrets.CONVEX_DEPLOY_KEY_PREVIEW }}
+          cache: npm
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: 1.15.8
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify generated route tree is current
         run: |
-          if [[ -n "${CONVEX_DEPLOY_KEY}" ]]; then
-            npx convex dev --once --typecheck=disable
-          else
-            echo "::warning::No CONVEX_DEPLOY_KEY secret configured — Convex types cannot be generated."
-          fi
+          npm run generate:routes
+          git diff --exit-code -- src/routeTree.gen.ts
 
-      - name: Type Check
-        run: |
-          if [[ -f "convex/_generated/api.d.ts" ]]; then
-            npm run typecheck
-          else
-            echo "::warning::Skipping typecheck — Convex generated types are missing. Set CONVEX_DEPLOY_KEY secret to enable."
-          fi
-
-  format:
-    name: Format Check
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - run: npm ci
       - name: Check formatting
-        run: npx prettier --check . || true
+        run: npm run format:check
 
-  # ============================================
-  # Security Checks
-  # ============================================
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - run: npm ci
+      - name: Lint without warnings
+        run: npm run lint -- --max-warnings=0
+
+      - name: Test
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Audit dependencies
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=low
 
-  # ============================================
-  # Build Verification
-  # ============================================
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [lint, typecheck]
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - run: npm ci
-      - name: Generate routes
-        run: npm run generate:routes
-      
-      - name: Generate Convex types
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY || secrets.CONVEX_DEPLOY_KEY_PREVIEW }}
+      - name: Validate Terraform
+        working-directory: infrastructure
         run: |
-          if [[ -n "${CONVEX_DEPLOY_KEY}" ]]; then
-            npx convex dev --once --typecheck=disable
-          else
-            echo "::warning::No CONVEX_DEPLOY_KEY secret configured — Convex types cannot be generated."
-          fi
+          terraform fmt -check
+          terraform init -backend=false -lockfile=readonly
+          terraform validate
 
-      - name: Build
-        env:
-          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
-          VITE_CONVEX_SITE_URL: ${{ secrets.VITE_CONVEX_SITE_URL }}
-          VITE_APP_ENV: preview
-        run: |
-          if [[ ! -f "convex/_generated/api.d.ts" ]]; then
-            echo "::warning::Skipping build — Convex generated types are missing. Set CONVEX_DEPLOY_KEY secret to enable."
-            exit 0
-          fi
-          export VITE_CONVEX_URL="${VITE_CONVEX_URL:-https://example.convex.cloud}"
-          export VITE_CONVEX_SITE_URL="${VITE_CONVEX_SITE_URL:-https://example.convex.site}"
-          npm run build:preview
-      
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ github.sha }}
-          path: dist/
-          retention-days: 7
+      - name: Build preview bundle
+        run: npm run build:preview
 
-  # ============================================
-  # Summary
-  # ============================================
-  ci-success:
-    name: CI Success
-    runs-on: ubuntu-latest
-    needs: [lint, typecheck, format, build]
-    if: always()
-    steps:
-      - name: Check all jobs
+      - name: Validate generated Worker bundle
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" ]] || \
-             [[ "${{ needs.typecheck.result }}" != "success" ]] || \
-             [[ "${{ needs.build.result }}" != "success" ]]; then
-            echo "❌ Some checks failed"
-            exit 1
-          fi
-          echo "✅ All checks passed"
+          npm run sync:wrangler-config
+          npx wrangler deploy --dry-run --config dist/server/wrangler.json --outdir /tmp/convexkit-worker

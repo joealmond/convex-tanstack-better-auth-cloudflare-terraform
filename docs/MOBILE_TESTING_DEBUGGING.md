@@ -9,6 +9,7 @@ Platform-specific issues, testing procedures, and debugging techniques for Capac
 ### Debug vs Release Build Logging
 
 **Problem**: iOS Debug builds show verbose logs including:
+
 - Capacitor native bridge logs (`⚡️ To Native →`, `⚡️ TO JS`)
 - better-auth session tokens in console
 - SQLite debug output from `@capacitor/preferences`
@@ -39,6 +40,7 @@ Platform-specific issues, testing procedures, and debugging techniques for Capac
 **Problem**: Capacitor v8 has known compatibility issues with iOS SceneDelegate architecture (GitHub issues [#6662](https://github.com/ionic-team/capacitor/issues/6662), [#7961](https://github.com/ionic-team/capacitor/issues/7961)). If you attempt to add SceneDelegate support:
 
 **Symptoms**:
+
 - ✅ Build succeeds with no errors
 - ❌ App launches to a **black screen**
 - ❌ No error messages in console
@@ -54,6 +56,7 @@ Platform-specific issues, testing procedures, and debugging techniques for Capac
 4. **Ensure** `AppDelegate` has `var window: UIWindow?` property
 
 **Correct AppDelegate Pattern**:
+
 ```swift
 import UIKit
 import Capacitor
@@ -76,18 +79,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 ```
 
 **If You Already Added SceneDelegate**:
+
 1. In Xcode: **Product → Clean Build Folder** (Cmd+Shift+K)
 2. Delete `ios/App/DerivedData/` folder
 3. Revert `AppDelegate.swift` and `Info.plist` to traditional pattern
 4. Rebuild
 
 **UIScene Warnings Are Harmless**: You may see Xcode warnings like:
+
 ```
 UISceneConfigurationName key doesn't exist in the Info.plist
 ```
+
 These warnings **do not affect app functionality** when using AppDelegate. Ignore them.
 
 **Why This Matters**:
+
 - SceneDelegate is required for **iPadOS multi-window support**
 - Capacitor v8 predates widespread SceneDelegate adoption
 - Workaround: Wait for Capacitor v9+ (requires migration)
@@ -102,6 +109,7 @@ These warnings **do not affect app functionality** when using AppDelegate. Ignor
 **Problem**: Android emulators don't have real GPS hardware. Location features (`@capacitor/geolocation`) return `null` or timeout.
 
 **Symptoms**:
+
 - "Nearby" filters show no results
 - Map doesn't center on user location
 - Location permissions granted but `getCurrentPosition()` fails
@@ -139,10 +147,12 @@ geo fix -122.4194 37.7749
 4. Click **Play Route** to simulate user movement along the path
 
 **Verify GPS Works**:
+
 - Open Google Maps on the emulator — blue dot should appear at mock location
 - Check your app's location features — should now work correctly
 
 **Testing Checklist**:
+
 - [ ] Set mock location before testing location features
 - [ ] Grant location permissions when prompted
 - [ ] Verify coordinates are within expected range (if using "nearby" filters)
@@ -155,6 +165,7 @@ geo fix -122.4194 37.7749
 **Problem**: Pinch-to-zoom on maps is designed for touch screens. On MacBook trackpads, the gesture doesn't work as expected during development testing.
 
 **Symptoms**:
+
 - Two-finger pinch on trackpad doesn't zoom Leaflet/Mapbox maps
 - Developers assume the map is broken
 - Works perfectly on phone/tablet touch screens
@@ -165,16 +176,15 @@ geo fix -122.4194 37.7749
 
 ```tsx
 import { MapContainer, TileLayer } from 'react-leaflet'
-
-<MapContainer
+;<MapContainer
   center={[47.4979, 19.0402]}
   zoom={12}
   // Enable all zoom methods for desktop + mobile
-  scrollWheelZoom={true}     // Two-finger scroll on trackpad
-  doubleClickZoom={true}     // Double-click/tap
-  touchZoom={true}           // Pinch gesture on touch screens
-  boxZoom={true}             // Shift+drag to select area
-  keyboard={true}            // +/- keys
+  scrollWheelZoom={true} // Two-finger scroll on trackpad
+  doubleClickZoom={true} // Double-click/tap
+  touchZoom={true} // Pinch gesture on touch screens
+  boxZoom={true} // Shift+drag to select area
+  keyboard={true} // +/- keys
   className="h-full w-full"
 >
   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -183,13 +193,13 @@ import { MapContainer, TileLayer } from 'react-leaflet'
 
 ### Zoom Method Compatibility Matrix
 
-| Method | MacBook Trackpad | Mouse | Touch Screen | Notes |
-|--------|-----------------|-------|--------------|-------|
-| **scrollWheelZoom** | ✅ Two-finger scroll | ✅ Wheel | ❌ Not applicable | Best for desktop |
-| **doubleClickZoom** | ✅ Double-click | ✅ Double-click | ✅ Double-tap | Works everywhere |
-| **touchZoom** | ❌ | ❌ | ✅ Pinch gesture | Mobile-only |
-| **boxZoom** | ✅ Shift+drag | ✅ Shift+drag | ❌ | Desktop power users |
-| **keyboard** | ✅ +/- keys | ✅ +/- keys | ❌ | Accessibility |
+| Method              | MacBook Trackpad     | Mouse           | Touch Screen      | Notes               |
+| ------------------- | -------------------- | --------------- | ----------------- | ------------------- |
+| **scrollWheelZoom** | ✅ Two-finger scroll | ✅ Wheel        | ❌ Not applicable | Best for desktop    |
+| **doubleClickZoom** | ✅ Double-click      | ✅ Double-click | ✅ Double-tap     | Works everywhere    |
+| **touchZoom**       | ❌                   | ❌              | ✅ Pinch gesture  | Mobile-only         |
+| **boxZoom**         | ✅ Shift+drag        | ✅ Shift+drag   | ❌                | Desktop power users |
+| **keyboard**        | ✅ +/- keys          | ✅ +/- keys     | ❌                | Accessibility       |
 
 **Best Practice**: Enable **all zoom methods** — they're mutually exclusive by input device, so no conflicts occur.
 
@@ -219,11 +229,13 @@ Mapbox enables these by default — no need to opt in unless you previously disa
 ### App Crashes on Launch (No Logs)
 
 **Possible Causes**:
+
 1. SceneDelegate conflict (iOS) — see above
 2. Missing native plugin in `capacitor.config.ts`
 3. Invalid deep link scheme format
 
 **Debug Steps**:
+
 1. In Xcode: **Window → Devices and Simulators** → View Device Logs
 2. Filter for your app's bundle ID
 3. Look for crash reports or `EXC_BAD_ACCESS` errors
@@ -232,12 +244,14 @@ Mapbox enables these by default — no need to opt in unless you previously disa
 ### OAuth Fails Silently (No Error Message)
 
 **Possible Causes**:
+
 1. `VITE_CONVEX_SITE_URL` not set or wrong
 2. `trustedOrigins` missing Capacitor scheme
 3. Google Cloud Console redirect URI mismatch
 4. Cookie Bridge not implemented (Convex-specific)
 
 **Debug Steps**:
+
 1. Check browser console during OAuth flow (system browser, not WebView)
 2. Verify redirect URI in address bar matches Google Console config
 3. Confirm `set-cookie` header present in `/api/auth/callback/google` response
@@ -246,11 +260,13 @@ Mapbox enables these by default — no need to opt in unless you previously disa
 ### Black Screen After OAuth Redirect
 
 **Possible Causes**:
+
 1. Deep link scheme not registered in `Info.plist` / `AndroidManifest.xml`
 2. App delegate not handling deep link
 3. better-auth-capacitor not installed or misconfigured
 
 **Debug Steps**:
+
 1. Test deep link manually: `xcrun simctl openurl booted yourapp://test` (iOS)
 2. Check deep link handler fires: add `console.log` in `App.addListener('appUrlOpen', ...)`
 3. Verify scheme in `withCapacitor({ scheme: 'yourapp' })` matches manifest
@@ -289,7 +305,7 @@ Mapbox enables these by default — no need to opt in unless you previously disa
 
 **Cause**: App background color visible for ~100ms before WebView becomes transparent.
 
-**Fix**: Two-phase CSS. Apply `camera-starting` class (black background) *before* dialog mounts. Switch to `camera-running` (transparent) *after* native camera starts.
+**Fix**: Two-phase CSS. Apply `camera-starting` class (black background) _before_ dialog mounts. Switch to `camera-running` (transparent) _after_ native camera starts.
 
 ### `FigCaptureSourceRemote err=-17281` Crash (iOS)
 
@@ -337,4 +353,4 @@ Mapbox enables these by default — no need to opt in unless you previously disa
 
 ---
 
-*Last updated: February 2026*
+_Last updated: February 2026_

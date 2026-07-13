@@ -9,7 +9,7 @@ export const authClient = createAuthClient({
 })
 
 // Export commonly used hooks and utilities
-const { signIn, signOut: _signOut, useSession } = authClient
+const { signIn, signUp, signOut: _signOut, useSession } = authClient
 
 /**
  * Sign out and reload the page to reset Convex auth state.
@@ -30,4 +30,4 @@ export const signOut = (opts?: Parameters<typeof _signOut>[0]) =>
     },
   })
 
-export { signIn, useSession }
+export { signIn, signUp, useSession }

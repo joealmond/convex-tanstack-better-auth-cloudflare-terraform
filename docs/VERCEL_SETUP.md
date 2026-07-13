@@ -4,12 +4,12 @@ This guide shows how to deploy to Vercel instead of Cloudflare Workers.
 
 ## Why Vercel?
 
-| Feature | Vercel | Cloudflare Workers |
-|---------|--------|-------------------|
-| DX | Excellent, zero-config | Good, needs wrangler |
-| Pricing | Generous free tier | Very cheap at scale |
-| Edge Runtime | Edge Functions | Native Workers |
-| Ecosystem | Large | Growing |
+| Feature      | Vercel                 | Cloudflare Workers   |
+| ------------ | ---------------------- | -------------------- |
+| DX           | Excellent, zero-config | Good, needs wrangler |
+| Pricing      | Generous free tier     | Very cheap at scale  |
+| Edge Runtime | Edge Functions         | Native Workers       |
+| Ecosystem    | Large                  | Growing              |
 
 ## Step 1: Install Vercel Adapter
 
@@ -93,6 +93,7 @@ export default defineConfig(({ mode }) => {
 ## Step 5: Remove Cloudflare Files
 
 Delete these files:
+
 - `wrangler.jsonc`
 - Any Cloudflare-specific bindings
 
@@ -112,6 +113,7 @@ vercel project ls
 ## Step 7: Configure GitHub Actions
 
 Set these repository variables:
+
 - `DEPLOY_TARGET` = `vercel`
 
 Set these repository secrets:
@@ -125,14 +127,14 @@ Set these repository secrets:
 
 Go to Vercel Dashboard → Project → Settings → Environment Variables:
 
-| Variable | Value |
-|----------|-------|
-| `VITE_CONVEX_URL` | Your Convex URL |
-| `VITE_CONVEX_SITE_URL` | Your Convex Site URL |
-| `BETTER_AUTH_SECRET` | Your auth secret |
-| `GOOGLE_CLIENT_ID` | OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | OAuth client secret |
-| `SITE_URL` | Your Vercel deployment URL |
+| Variable               | Value                      |
+| ---------------------- | -------------------------- |
+| `VITE_CONVEX_URL`      | Your Convex URL            |
+| `VITE_CONVEX_SITE_URL` | Your Convex Site URL       |
+| `BETTER_AUTH_SECRET`   | Your auth secret           |
+| `GOOGLE_CLIENT_ID`     | OAuth client ID            |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret        |
+| `SITE_URL`             | Your Vercel deployment URL |
 
 ## Step 9: Deploy
 

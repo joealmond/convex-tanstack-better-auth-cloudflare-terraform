@@ -57,6 +57,7 @@
 import { authComponent } from '../auth'
 import { ADMIN_EMAILS } from './config'
 import type { QueryCtx, MutationCtx } from '../_generated/server'
+import { ConvexError } from 'convex/values'
 
 /** Context type for queries and mutations */
 type AuthContext = QueryCtx | MutationCtx
@@ -110,7 +111,7 @@ export async function getAuthUserSafe(ctx: AuthContext): Promise<AuthUser | null
 export async function requireAuth(ctx: AuthContext): Promise<AuthUser> {
   const user = await getAuthUser(ctx)
   if (!user) {
-    throw new Error('Authentication required')
+    throw new ConvexError('Authentication required')
   }
   return user
 }
@@ -144,7 +145,7 @@ export function isAdmin(user: AuthUser): boolean {
 export async function requireAdmin(ctx: AuthContext): Promise<AuthUser> {
   const user = await requireAuth(ctx)
   if (!isAdmin(user)) {
-    throw new Error('Admin access required')
+    throw new ConvexError('Admin access required')
   }
   return user
 }

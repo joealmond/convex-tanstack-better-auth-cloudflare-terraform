@@ -1,7 +1,7 @@
-import { v } from "convex/values";
-import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { Id } from "./_generated/dataModel";
+import { v } from 'convex/values'
+import { query, mutation, QueryCtx, MutationCtx } from './_generated/server'
+import { getAuthUserId } from '@convex-dev/auth/server'
+import { Id } from './_generated/dataModel'
 
 /**
  * Role-Based Access Control (RBAC) Patterns
@@ -16,45 +16,45 @@ import { Id } from "./_generated/dataModel";
 // Helper: Get authenticated user with role
 // =============================================================================
 
-type UserRole = "user" | "admin" | "moderator";
+type UserRole = 'user' | 'admin' | 'moderator'
 
 interface AuthenticatedUser {
-  _id: Id<"users">;
-  role: UserRole;
-  email?: string;
+  _id: Id<'users'>
+  role: UserRole
+  email?: string
 }
 
 async function getAuthenticatedUser(
   ctx: QueryCtx | MutationCtx
 ): Promise<AuthenticatedUser | null> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) return null;
+  const userId = await getAuthUserId(ctx)
+  if (!userId) return null
 
-  const user = await ctx.db.get(userId);
-  if (!user) return null;
+  const user = await ctx.db.get(userId)
+  if (!user) return null
 
   return {
     _id: user._id,
-    role: (user.role as UserRole) || "user",
+    role: (user.role as UserRole) || 'user',
     email: user.email,
-  };
+  }
 }
 
 async function requireRole(
   ctx: QueryCtx | MutationCtx,
   allowedRoles: UserRole[]
 ): Promise<AuthenticatedUser> {
-  const user = await getAuthenticatedUser(ctx);
+  const user = await getAuthenticatedUser(ctx)
 
   if (!user) {
-    throw new Error("Unauthorized");
+    throw new Error('Unauthorized')
   }
 
   if (!allowedRoles.includes(user.role)) {
-    throw new Error("Forbidden: Insufficient permissions");
+    throw new Error('Forbidden: Insufficient permissions')
   }
 
-  return user;
+  return user
 }
 
 // =============================================================================
@@ -70,9 +70,9 @@ export const listAllUsers = query({
   },
   handler: async (ctx, args) => {
     // Only admins can list all users
-    await requireRole(ctx, ["admin"]);
+    await requireRole(ctx, ['admin'])
 
-    const users = await ctx.db.query("users").take(args.limit || 100);
+    const users = await ctx.db.query('users').take(args.limit || 100)
 
     // Strip sensitive fields before returning
     return users.map((user) => ({
@@ -80,9 +80,9 @@ export const listAllUsers = query({
       email: user.email,
       role: user.role,
       createdAt: user._creationTime,
-    }));
+    }))
   },
-});
+})
 
 // =============================================================================
 // Admin-Only Mutation
@@ -93,34 +93,30 @@ export const listAllUsers = query({
  */
 export const updateUserRole = mutation({
   args: {
-    userId: v.id("users"),
-    newRole: v.union(
-      v.literal("user"),
-      v.literal("admin"),
-      v.literal("moderator")
-    ),
+    userId: v.id('users'),
+    newRole: v.union(v.literal('user'), v.literal('admin'), v.literal('moderator')),
   },
   handler: async (ctx, { userId, newRole }) => {
     // Only admins can change roles
-    const admin = await requireRole(ctx, ["admin"]);
+    const admin = await requireRole(ctx, ['admin'])
 
     // Prevent self-demotion (optional safety)
-    if (userId === admin._id && newRole !== "admin") {
-      throw new Error("Cannot change your own admin role");
+    if (userId === admin._id && newRole !== 'admin') {
+      throw new Error('Cannot change your own admin role')
     }
 
     // Get target user
-    const targetUser = await ctx.db.get(userId);
+    const targetUser = await ctx.db.get(userId)
     if (!targetUser) {
-      throw new Error("User not found");
+      throw new Error('User not found')
     }
 
     // Update role
-    await ctx.db.patch(userId, { role: newRole });
+    await ctx.db.patch(userId, { role: newRole })
 
-    return { success: true, userId, newRole };
+    return { success: true, userId, newRole }
   },
-});
+})
 
 // =============================================================================
 // Moderator+ Functions
@@ -131,21 +127,17 @@ export const updateUserRole = mutation({
  */
 export const moderateItem = mutation({
   args: {
-    itemId: v.id("items"),
-    action: v.union(
-      v.literal("approve"),
-      v.literal("reject"),
-      v.literal("flag")
-    ),
+    itemId: v.id('items'),
+    action: v.union(v.literal('approve'), v.literal('reject'), v.literal('flag')),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, { itemId, action, reason }) => {
     // Admins and moderators can moderate
-    const moderator = await requireRole(ctx, ["admin", "moderator"]);
+    const moderator = await requireRole(ctx, ['admin', 'moderator'])
 
-    const item = await ctx.db.get(itemId);
+    const item = await ctx.db.get(itemId)
     if (!item) {
-      throw new Error("Item not found");
+      throw new Error('Item not found')
     }
 
     // Apply moderation action
@@ -153,23 +145,23 @@ export const moderateItem = mutation({
       moderatedAt: Date.now(),
       moderatedBy: moderator._id,
       moderationAction: action,
-    };
-
-    if (action === "reject" || action === "flag") {
-      updates.moderationReason = reason || "Policy violation";
     }
 
-    if (action === "approve") {
-      updates.status = "published";
-    } else if (action === "reject") {
-      updates.status = "rejected";
+    if (action === 'reject' || action === 'flag') {
+      updates.moderationReason = reason || 'Policy violation'
     }
 
-    await ctx.db.patch(itemId, updates);
+    if (action === 'approve') {
+      updates.status = 'published'
+    } else if (action === 'reject') {
+      updates.status = 'rejected'
+    }
 
-    return { success: true, action };
+    await ctx.db.patch(itemId, updates)
+
+    return { success: true, action }
   },
-});
+})
 
 // =============================================================================
 // Role-Conditional Data
@@ -184,35 +176,35 @@ export const moderateItem = mutation({
  */
 export const getItemWithRoleVisibility = query({
   args: {
-    itemId: v.id("items"),
+    itemId: v.id('items'),
   },
   handler: async (ctx, { itemId }) => {
-    const user = await getAuthenticatedUser(ctx);
-    const item = await ctx.db.get(itemId);
+    const user = await getAuthenticatedUser(ctx)
+    const item = await ctx.db.get(itemId)
 
-    if (!item) return null;
+    if (!item) return null
 
     // Admins see everything
-    if (user?.role === "admin") {
-      return item;
+    if (user?.role === 'admin') {
+      return item
     }
 
     // Moderators see public and flagged items
-    if (user?.role === "moderator") {
-      if (item.status === "published" || item.status === "flagged") {
-        return item;
+    if (user?.role === 'moderator') {
+      if (item.status === 'published' || item.status === 'flagged') {
+        return item
       }
     }
 
     // Users see published items or their own
-    if (item.status === "published") {
-      return item;
+    if (item.status === 'published') {
+      return item
     }
 
     if (user && item.userId === user._id) {
-      return item;
+      return item
     }
 
-    return null;
+    return null
   },
-});
+})

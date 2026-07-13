@@ -40,13 +40,16 @@ openssl rand -base64 32
 
 ## 3. Provision production infrastructure
 
-If using Terraform:
+If using optional Terraform-managed KV, R2, Turnstile, or Web Analytics:
 
 ```bash
-DEPLOY_ENVIRONMENT=production bash infrastructure/apply-from-env.sh
+cp infrastructure/terraform.tfvars.example infrastructure/terraform.tfvars
+terraform -chdir=infrastructure init
+terraform -chdir=infrastructure plan
+terraform -chdir=infrastructure apply
 ```
 
-Otherwise, configure the production Worker via wrangler or the Cloudflare dashboard.
+Wrangler and the Deploy workflow own the Worker and its Custom Domain; Terraform intentionally does not.
 
 ## 4. Set Convex production env vars
 
@@ -63,7 +66,6 @@ npx convex env set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
 Google OAuth is optional. The app can launch with anonymous realtime messaging when `VITE_GOOGLE_AUTH_ENABLED=false`.
 
 If you enable Google OAuth, set `VITE_GOOGLE_AUTH_ENABLED=true`, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then add this authorized redirect URI in Google Cloud:
-
 
 ```text
 https://your-production-domain.com/api/auth/callback/google

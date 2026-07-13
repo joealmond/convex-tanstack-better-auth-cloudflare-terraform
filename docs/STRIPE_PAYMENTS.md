@@ -11,7 +11,7 @@ Integrate subscription payments and billing using Stripe with Convex.
 
 ## Quick Start
 
-###  Setup
+### Setup
 
 1. Sign up at [stripe.com](https://stripe.com)
 2. Get API keys from Dashboard → Developers → API keys
@@ -53,10 +53,12 @@ export const createCheckoutSession = action({
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{
-        price: args.priceId,
-        quantity: 1,
-      }],
+      line_items: [
+        {
+          price: args.priceId,
+          quantity: 1,
+        },
+      ],
       success_url: `${process.env.SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.SITE_URL}/pricing`,
       customer_email: identity.email,
@@ -84,7 +86,7 @@ export function PricingCard() {
     const { url } = await createCheckout.execute({
       priceId: 'price_xxxxx', // Your Stripe Price ID
     })
-    
+
     if (url) {
       window.location.href = url
     }
@@ -208,15 +210,10 @@ export const updateSubscription = internalMutation({
 export const getMySubscription = query({
   handler: async (ctx) => {
     const user = await requireAuth(ctx)
-    
+
     return await ctx.db
       .query('subscriptions')
-      .filter((q) => 
-        q.and(
-          q.eq(q.field('userId'), user._id),
-          q.eq(q.field('status'), 'active')
-        )
-      )
+      .filter((q) => q.and(q.eq(q.field('userId'), user._id), q.eq(q.field('status'), 'active')))
       .first()
   },
 })

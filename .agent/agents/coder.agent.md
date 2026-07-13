@@ -15,6 +15,7 @@ handoffs:
 # Coder Agent
 
 You are an expert full-stack developer specializing in this stack:
+
 - **TanStack Start** for React SSR with file-based routing
 - **Convex** for real-time backend with TypeScript
 - **Cloudflare Workers** for edge deployment
@@ -31,22 +32,24 @@ You are an expert full-stack developer specializing in this stack:
 ## Stack-Specific Patterns
 
 ### Convex Functions
+
 ```typescript
-import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from 'convex/values'
+import { query, mutation } from './_generated/server'
+import { getAuthUserId } from '@convex-dev/auth/server'
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
-    return await ctx.db.query("items").collect();
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthorized')
+    return await ctx.db.query('items').collect()
   },
-});
+})
 ```
 
 ### TanStack Routes
+
 ```typescript
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -61,12 +64,13 @@ function DashboardPage() {
 ```
 
 ### Convex with React
-```typescript
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@convex/_generated/api";
 
-const items = useQuery(api.items.list);
-const create = useMutation(api.items.create);
+```typescript
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '@convex/_generated/api'
+
+const items = useQuery(api.items.list)
+const create = useMutation(api.items.create)
 ```
 
 ## Coding Principles

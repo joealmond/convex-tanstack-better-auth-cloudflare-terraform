@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery, useConvexMutation } from '@convex-dev/react-query'
 import { api } from '@convex/_generated/api'
-import { useSession, signIn, signOut } from '@/lib/auth-client'
+import { authClient, useSession, signIn, signOut, signUp } from '@/lib/auth-client'
 import { isGoogleAuthEnabled } from '@/lib/env'
 import { useAdmin } from '@/hooks/use-admin'
 import { formatRelativeTime } from '@/lib/utils'
@@ -27,6 +27,7 @@ function RealtimeChatContent() {
   const sendMessage = useConvexMutation(api.messages.send)
   const deleteMessage = useConvexMutation(api.messages.remove)
   const deleteAnyMessage = useConvexMutation(api.messages.deleteAny)
+  const requestAccountDataDeletion = useConvexMutation(api.users.requestAccountDataDeletion)
   const [isSending, setIsSending] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const { isAdmin } = useAdmin()
@@ -52,7 +53,10 @@ function RealtimeChatContent() {
 
     setIsSending(true)
     try {
-      await sendMessage({ content: newMessage.trim() })
+      await sendMessage({
+        content: newMessage.trim(),
+        anonymousId: session?.user ? undefined : getAnonymousSessionId(),
+      })
       setNewMessage('')
     } catch (error) {
       console.error('Failed to send message:', error)
@@ -67,6 +71,14 @@ function RealtimeChatContent() {
 
   const handleSignOut = () => {
     signOut()
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('Permanently delete your account, uploaded files, and messages?')) return
+    await requestAccountDataDeletion({})
+    const result = await authClient.deleteUser()
+    if (result.error) throw new Error(result.error.message ?? 'Account deletion failed')
+    location.reload()
   }
 
   return (
@@ -86,7 +98,7 @@ function RealtimeChatContent() {
             >
               Examples
             </Link>
-            {isGoogleAuthEnabled && (
+            {session?.user && (
               <Link
                 to="/files"
                 className="text-muted-foreground hover:text-foreground transition-colors"
@@ -119,6 +131,13 @@ function RealtimeChatContent() {
                   )}
                 </div>
                 <button
+                  onClick={() => void handleDeleteAccount()}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Account
+                </button>
+                <button
                   onClick={handleSignOut}
                   className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
                 >
@@ -126,16 +145,8 @@ function RealtimeChatContent() {
                   Sign Out
                 </button>
               </div>
-            ) : isGoogleAuthEnabled ? (
-              <button
-                onClick={handleSignIn}
-                className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign in with Google
-              </button>
             ) : (
-              <span className="text-sm text-muted-foreground">Anonymous demo</span>
+              <EmailAuthControls onGoogleSignIn={handleSignIn} />
             )}
           </nav>
         </div>
@@ -247,6 +258,129 @@ function RealtimeChatContent() {
           </a>
         </p>
       </footer>
+    </div>
+  )
+}
+
+function getAnonymousSessionId(): string {
+  const key = 'convexkit-anonymous-id'
+  const existing = localStorage.getItem(key)
+  if (existing) return existing
+  const id = crypto.randomUUID()
+  localStorage.setItem(key, id)
+  return id
+}
+
+function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [pending, setPending] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    setPending(true)
+    setErrorMessage(null)
+    try {
+      const result =
+        mode === 'sign-up'
+          ? await signUp.email({ name: name.trim(), email: email.trim(), password })
+          : await signIn.email({ email: email.trim(), password })
+      if (result.error) throw new Error(result.error.message ?? 'Authentication failed')
+      location.reload()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Authentication failed')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        aria-expanded={open}
+      >
+        <LogIn className="w-4 h-4" />
+        Sign in
+      </button>
+      {open && (
+        <form
+          onSubmit={submit}
+          className="absolute right-0 top-12 z-50 w-80 space-y-3 rounded-lg border border-border bg-card p-4 shadow-xl"
+        >
+          <div className="flex gap-2" role="group" aria-label="Authentication mode">
+            {(['sign-in', 'sign-up'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMode(value)}
+                className={`flex-1 rounded px-2 py-1 text-sm ${mode === value ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}
+              >
+                {value === 'sign-in' ? 'Sign in' : 'Create account'}
+              </button>
+            ))}
+          </div>
+          {mode === 'sign-up' && (
+            <label className="block text-sm">
+              Name
+              <input
+                required
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                autoComplete="name"
+                className="mt-1 w-full rounded border border-input bg-background px-3 py-2"
+              />
+            </label>
+          )}
+          <label className="block text-sm">
+            Email
+            <input
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              className="mt-1 w-full rounded border border-input bg-background px-3 py-2"
+            />
+          </label>
+          <label className="block text-sm">
+            Password
+            <input
+              required
+              minLength={12}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
+              className="mt-1 w-full rounded border border-input bg-background px-3 py-2"
+            />
+          </label>
+          {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+          >
+            {pending ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}
+          </button>
+          {isGoogleAuthEnabled && (
+            <button
+              type="button"
+              onClick={onGoogleSignIn}
+              className="w-full rounded bg-secondary px-3 py-2 text-sm"
+            >
+              Continue with Google
+            </button>
+          )}
+          <p className="text-xs text-muted-foreground">Anonymous chat remains available.</p>
+        </form>
+      )}
     </div>
   )
 }

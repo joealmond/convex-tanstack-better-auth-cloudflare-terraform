@@ -1,7 +1,9 @@
 import handler from '@tanstack/react-start/server-entry'
+import { applySecurityHeaders } from './lib/security-headers'
 
 export default {
-  fetch(request: Request) {
-    return handler.fetch(request)
+  async fetch(request: Request) {
+    const response = await handler.fetch(request)
+    return applySecurityHeaders(response, request)
   },
 }

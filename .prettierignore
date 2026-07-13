@@ -3,5 +3,7 @@ dist
 .output
 .tanstack
 convex/_generated
+src/routeTree.gen.ts
 infrastructure/.terraform
 *.tfstate*
+AGENTS.md

@@ -96,9 +96,8 @@ import { isNative } from './platform'
 
 // Native: auth goes directly to Convex backend
 // Web: relative origin (SSR proxies to Convex)
-const baseURL = typeof window !== 'undefined' && isNative()
-  ? import.meta.env.VITE_CONVEX_SITE_URL
-  : undefined
+const baseURL =
+  typeof window !== 'undefined' && isNative() ? import.meta.env.VITE_CONVEX_SITE_URL : undefined
 
 export const authClient = createAuthClient({
   baseURL,
@@ -191,6 +190,7 @@ npm install @capacitor/camera
 ```
 
 **Required: iOS Privacy Descriptions** — Add to `ios/App/App/Info.plist`:
+
 ```xml
 <key>NSCameraUsageDescription</key>
 <string>This app needs camera access to take photos</string>
@@ -199,6 +199,7 @@ npm install @capacitor/camera
 ```
 
 **Required: Android Permissions** — Should be auto-configured by Capacitor, but verify in `android/app/src/main/AndroidManifest.xml`:
+
 ```xml
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
@@ -211,6 +212,7 @@ npm install @capacitor/geolocation
 ```
 
 **iOS**: Add to Info.plist:
+
 ```xml
 <key>NSLocationWhenInUseUsageDescription</key>
 <string>This app uses your location to find nearby items</string>
@@ -279,6 +281,7 @@ If your camera overlay is rendered inside a Radix Dialog, you must handle three 
 1. **`modal={false}` on native** — Radix Dialog's `modal={true}` adds the `inert` attribute to all `document.body` siblings. Since the camera overlay is portaled to `document.body`, it becomes a sibling and all buttons stop working. Use `modal={false}` on native platforms.
 
 2. **Prevent dismiss on overlay taps** — Taps on the portaled overlay count as "interact outside" the DialogContent:
+
    ```tsx
    <DialogContent
      onInteractOutside={(e) => { if (cameraActive) e.preventDefault() }}
@@ -321,16 +324,16 @@ Always `await stopCamera()` before closing dialogs or navigating. Add a 120ms po
 ```tsx
 const stopCamera = async () => {
   await CameraView.stop()
-  await new Promise(r => setTimeout(r, 120))  // UIKit cleanup
+  await new Promise((r) => setTimeout(r, 120)) // UIKit cleanup
 }
 ```
 
 ### `captureSample()` vs `capture()`
 
-| Method | API | Speed | Use Case |
-|--------|-----|-------|----------|
-| `captureSample({ quality: 90 })` | Video frame grab | ~50ms | Multi-photo flows |
-| `capture()` | Full hardware pipeline | ~300-500ms | Single high-quality photo |
+| Method                           | API                    | Speed      | Use Case                  |
+| -------------------------------- | ---------------------- | ---------- | ------------------------- |
+| `captureSample({ quality: 90 })` | Video frame grab       | ~50ms      | Multi-photo flows         |
+| `capture()`                      | Full hardware pipeline | ~300-500ms | Single high-quality photo |
 
 For multi-photo wizards, always use `captureSample()`. The `capture()` method triggers autofocus/autoexposure settling and hardware ISP, which is slow and crash-prone when called repeatedly.
 
@@ -345,11 +348,13 @@ For multi-photo wizards, always use `captureSample()`. The `capture()` method tr
 ### Android Gradle Plugin 9.x+ ProGuard Error
 
 **Problem**: Capacitor v8 plugins use deprecated `proguard-android.txt`, causing build failures with AGP 9.x+:
+
 ```
 `getDefaultProguardFile('proguard-android.txt')` is no longer supported
 ```
 
 **Fix**: Create `scripts/patch-capacitor-android.sh`:
+
 ```bash
 #!/bin/bash
 set -e
@@ -368,6 +373,7 @@ echo "✅ All Capacitor Android plugins patched"
 **Commonly affected plugins**: `@capacitor/camera`, `@capacitor/geolocation`, `@capacitor/share`, `@capacitor/haptics`, `better-auth-capacitor`, `capacitor-camera-view`. The wildcard pattern above catches all Capacitor plugins automatically.
 
 Add to `package.json`:
+
 ```json
 "scripts": {
   "postinstall": "bash scripts/patch-capacitor-android.sh"
@@ -390,6 +396,7 @@ Mobile devices have status bars, notches, and home indicators that overlap conte
 ```
 
 Also ensure the viewport meta tag includes `viewport-fit=cover`:
+
 ```html
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 ```
@@ -401,6 +408,7 @@ Most mobile-first apps should lock to portrait:
 **iOS**: In Xcode → Target → General → Deployment Info → uncheck Landscape Left and Landscape Right
 
 **Android**: In `android/app/src/main/AndroidManifest.xml`:
+
 ```xml
 <activity android:screenOrientation="portrait" ...>
 ```
@@ -420,6 +428,7 @@ npm install better-auth-capacitor @capacitor/preferences @capacitor/app
 Register a custom URL scheme (e.g., `yourapp://`):
 
 **iOS** — `ios/App/App/Info.plist`:
+
 ```xml
 <key>CFBundleURLTypes</key>
 <array>
@@ -433,6 +442,7 @@ Register a custom URL scheme (e.g., `yourapp://`):
 ```
 
 **Android** — `android/app/src/main/AndroidManifest.xml`:
+
 ```xml
 <intent-filter>
   <action android:name="android.intent.action.VIEW" />
@@ -448,11 +458,11 @@ Register a custom URL scheme (e.g., `yourapp://`):
 import { capacitor } from 'better-auth-capacitor'
 
 const auth = betterAuth({
-  baseURL: process.env.CONVEX_SITE_URL,  // NOT SITE_URL — must be the actual Convex HTTP URL
+  baseURL: process.env.CONVEX_SITE_URL, // NOT SITE_URL — must be the actual Convex HTTP URL
   trustedOrigins: [
-    'capacitor://localhost',     // iOS WebView
-    'https://localhost',         // Android WebView
-    'yourapp://',                // Deep link scheme
+    'capacitor://localhost', // iOS WebView
+    'https://localhost', // Android WebView
+    'yourapp://', // Deep link scheme
   ],
   plugins: [convex({ authConfig }), capacitor()],
 })
@@ -466,13 +476,18 @@ const auth = betterAuth({
 import { withCapacitor } from 'better-auth-capacitor/client'
 import { isNative } from '@/lib/platform'
 
-const authClient = createAuthClient(withCapacitor({
-  baseURL: isNative() ? import.meta.env.VITE_CONVEX_SITE_URL : undefined,
-  plugins: [convexClient()],
-}, {
-  scheme: 'yourapp',               // Must match Info.plist / AndroidManifest
-  storagePrefix: 'better-auth',
-}))
+const authClient = createAuthClient(
+  withCapacitor(
+    {
+      baseURL: isNative() ? import.meta.env.VITE_CONVEX_SITE_URL : undefined,
+      plugins: [convexClient()],
+    },
+    {
+      scheme: 'yourapp', // Must match Info.plist / AndroidManifest
+      storagePrefix: 'better-auth',
+    }
+  )
+)
 ```
 
 #### The Convex Cookie Bridge (`convex/http.ts`)

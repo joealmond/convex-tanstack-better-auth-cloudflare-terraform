@@ -294,9 +294,11 @@ This template supports native iOS/Android apps via Capacitor. See `docs/MOBILE.m
 ## Known Edge Cases & Workarounds
 
 ### Cloudflare R2 Mobile (iOS Capacitor)
+
 **Problem**: Direct R2 uploads from Capacitor iOS fail due to CORS (`capacitor://localhost`). Server-side uploads crash with `DOMParser is not defined` when using `@aws-sdk/client-s3` in Convex Edge.
-**Solution**: Use a server-side proxy pattern. Send base64 images to a Convex action. Generate a presigned URL using *only* `@aws-sdk/s3-request-presigner`, then use native server-side `fetch` to push the binary to R2 (`forcePathStyle: true` required).
+**Solution**: Use a server-side proxy pattern. Send base64 images to a Convex action. Generate a presigned URL using _only_ `@aws-sdk/s3-request-presigner`, then use native server-side `fetch` to push the binary to R2 (`forcePathStyle: true` required).
 
 ### Safe Aggregate Deletions (`DELETE_MISSING_KEY`)
+
 **Problem**: Deleting records via `aggregate.delete` can randomly throw `DELETE_MISSING_KEY` if indexes desync, crashing the whole mutation.
 **Solution**: Wrap `aggregate.delete` in a try/catch that specifically swallows `DELETE_MISSING_KEY` errors, allowing the primary record deletion to succeed.

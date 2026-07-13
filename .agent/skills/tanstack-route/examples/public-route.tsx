@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router'
 
 /**
  * Public About Page
@@ -8,25 +8,24 @@ import { createFileRoute } from "@tanstack/react-router";
  * - No authentication required
  * - Static content (no data loading)
  */
-export const Route = createFileRoute("/about")({
+export const Route = createFileRoute('/about')({
   component: AboutPage,
   head: () => ({
     meta: [
-      { title: "About Us | My App" },
+      { title: 'About Us | My App' },
       {
-        name: "description",
-        content:
-          "Learn about our company, mission, and the team behind the product.",
+        name: 'description',
+        content: 'Learn about our company, mission, and the team behind the product.',
       },
       // Open Graph tags for social sharing
-      { property: "og:title", content: "About Us | My App" },
+      { property: 'og:title', content: 'About Us | My App' },
       {
-        property: "og:description",
-        content: "Learn about our company and mission.",
+        property: 'og:description',
+        content: 'Learn about our company and mission.',
       },
     ],
   }),
-});
+})
 
 function AboutPage() {
   return (
@@ -35,8 +34,7 @@ function AboutPage() {
       <section className="mb-16 text-center">
         <h1 className="text-4xl font-bold mb-4">About Us</h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          We're building the future of real-time applications with modern
-          technology.
+          We're building the future of real-time applications with modern technology.
         </p>
       </section>
 
@@ -45,15 +43,15 @@ function AboutPage() {
         <div>
           <h2 className="text-2xl font-semibold mb-4">Our Mission</h2>
           <p className="text-gray-600 leading-relaxed">
-            To provide developers with the best tools for building fast,
-            reliable, and real-time applications that scale.
+            To provide developers with the best tools for building fast, reliable, and real-time
+            applications that scale.
           </p>
         </div>
         <div>
           <h2 className="text-2xl font-semibold mb-4">Our Technology</h2>
           <p className="text-gray-600 leading-relaxed">
-            Built on TanStack Start, Convex, and Cloudflare Workers for
-            edge-first performance and real-time data sync.
+            Built on TanStack Start, Convex, and Cloudflare Workers for edge-first performance and
+            real-time data sync.
           </p>
         </div>
       </section>
@@ -69,5 +67,5 @@ function AboutPage() {
         </a>
       </section>
     </div>
-  );
+  )
 }

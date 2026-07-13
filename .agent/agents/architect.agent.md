@@ -24,23 +24,25 @@ You provide architectural guidance for this full-stack application using TanStac
 ## Key Architecture Decisions
 
 ### Convex Schema Design
+
 ```typescript
 // convex/schema.ts
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema, defineTable } from 'convex/server'
+import { v } from 'convex/values'
 
 export default defineSchema({
   items: defineTable({
     name: v.string(),
-    userId: v.id("users"),
-    status: v.union(v.literal("draft"), v.literal("published")),
+    userId: v.id('users'),
+    status: v.union(v.literal('draft'), v.literal('published')),
   })
-    .index("by_user", ["userId"])
-    .index("by_status", ["status"]),
-});
+    .index('by_user', ['userId'])
+    .index('by_status', ['status']),
+})
 ```
 
 **Principles:**
+
 - Index fields you filter/sort by
 - Use `v.id("tableName")` for foreign keys
 - Prefer `v.union(v.literal(...))` over strings for enums
@@ -48,30 +50,33 @@ export default defineSchema({
 ### Auth Patterns
 
 **Protected Convex Function:**
+
 ```typescript
-const userId = await getAuthUserId(ctx);
-if (!userId) throw new Error("Unauthorized");
+const userId = await getAuthUserId(ctx)
+if (!userId) throw new Error('Unauthorized')
 ```
 
 **Role-Based Access (RBAC):**
+
 ```typescript
 // Check role in convex/lib/permissions.ts
-const user = await ctx.db.get(userId);
-if (user?.role !== "admin") throw new Error("Forbidden");
+const user = await ctx.db.get(userId)
+if (user?.role !== 'admin') throw new Error('Forbidden')
 ```
 
 **Protected Routes:**
+
 - Place under `src/routes/_authed/` directory
 - Root layout checks session and redirects
 
 ### Data Loading Strategy
 
-| Scenario | Pattern |
-|----------|---------|
-| Initial page load | SSR with `loader` |
-| Real-time updates | `useQuery(api.x.y)` |
-| User actions | `useMutation(api.x.y)` |
-| External APIs | Convex `action` with `ctx.runAction` |
+| Scenario          | Pattern                              |
+| ----------------- | ------------------------------------ |
+| Initial page load | SSR with `loader`                    |
+| Real-time updates | `useQuery(api.x.y)`                  |
+| User actions      | `useMutation(api.x.y)`               |
+| External APIs     | Convex `action` with `ctx.runAction` |
 
 ### Performance Considerations
 

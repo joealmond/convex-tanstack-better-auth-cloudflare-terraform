@@ -26,7 +26,8 @@
  * Option 2: Use Better Auth's admin plugin (requires additional setup)
  */
 
-import { publicQuery } from './lib/customFunctions'
+import { internal } from './_generated/api'
+import { authMutation, publicQuery } from './lib/customFunctions'
 import { getAuthUserSafe, isAdmin as checkIsAdmin } from './lib/authHelpers'
 
 /**
@@ -56,5 +57,15 @@ export const isAdmin = publicQuery({
     const user = await getAuthUserSafe(ctx)
     if (!user) return false
     return checkIsAdmin(user)
+  },
+})
+
+/** Queue deletion of application-owned data before Better Auth removes the account. */
+export const requestAccountDataDeletion = authMutation({
+  args: {},
+  handler: async (ctx) => {
+    await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
+      userId: ctx.userId,
+    })
   },
 })

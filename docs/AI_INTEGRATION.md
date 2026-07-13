@@ -100,7 +100,7 @@ import { api } from '@/convex/_generated/api'
 export function ChatBox() {
   const [message, setMessage] = useState('')
   const [response, setResponse] = useState('')
-  
+
   const chat = useConvexAction(api.ai.chat)
 
   const handleSend = async () => {
@@ -266,7 +266,7 @@ export const embedDocument = action({
 })
 ```
 
-### 2. Search  and Generate
+### 2. Search and Generate
 
 ```typescript
 export const ragChat = action({
@@ -306,12 +306,12 @@ export const ragChat = action({
 
 ## Model Comparison
 
-| Model | Provider | Best For | Cost |
-|-------|----------|----------|------|
-| GPT-4 | OpenAI | Complex reasoning | $$$$ |
-| GPT-3.5 Turbo | OpenAI | Fast, cheap tasks | $ |
-| Claude 3.5 Sonnet | Anthropic | Long context, coding | $$$ |
-| Claude 3 Haiku | Anthropic | Fast, simple tasks | $ |
+| Model             | Provider  | Best For             | Cost |
+| ----------------- | --------- | -------------------- | ---- |
+| GPT-4             | OpenAI    | Complex reasoning    | $$$$ |
+| GPT-3.5 Turbo     | OpenAI    | Fast, cheap tasks    | $    |
+| Claude 3.5 Sonnet | Anthropic | Long context, coding | $$$  |
+| Claude 3 Haiku    | Anthropic | Fast, simple tasks   | $    |
 
 ## Best Practices
 
@@ -349,6 +349,7 @@ export const recordUsage = internalMutation({
 ## Examples
 
 See also:
+
 - [OpenAI Platform Docs](https://platform.openai.com/docs)
 - [Anthropic Docs](https://docs.anthropic.com)
 - [Convex Vector Search](https://docs.convex.dev/vector-search)
