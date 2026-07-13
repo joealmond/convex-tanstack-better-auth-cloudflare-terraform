@@ -213,8 +213,12 @@ Terraform provisions only optional account-level services. Wrangler owns and dep
 | **Rate Limiting** ⚡     | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                                     |
 | **Feature Guides**       | [docs/README.md#features](docs/README.md#features)                                 |
 | **Troubleshooting**      | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                                 |
+| **RBAC & Permissions**   | [docs/RBAC.md](docs/RBAC.md)                                                       |
+| **Mobile (Capacitor)**   | [docs/MOBILE.md](docs/MOBILE.md)                                                   |
 
 ⚡ = Production-ready implementations included
+
+**📚 [Full docs index →](docs/README.md)** — deployment targets, payments, email, AI, CI/CD options, and more.
 
 ### External Docs
 

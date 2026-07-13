@@ -1,61 +1,60 @@
-# Documentation
+# Documentation Index
 
-Use this index when you need details beyond the README quick start.
+All extended documentation for the template, organized by topic.
 
-## Start Here
+## Core
 
-| Topic                           | Link                                                                           |
-| ------------------------------- | ------------------------------------------------------------------------------ |
-| Architecture guide              | [ARCHITECTURE.md](ARCHITECTURE.md)                                             |
-| Public preview checklist        | [PUBLIC_PREVIEW_CHECKLIST.md](PUBLIC_PREVIEW_CHECKLIST.md)                     |
-| Production deployment checklist | [PRODUCTION_DEPLOYMENT_CHECKLIST.md](PRODUCTION_DEPLOYMENT_CHECKLIST.md)       |
-| Cloudflare features             | [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md)                               |
-| Codespaces and devcontainers    | [CODESPACES.md](CODESPACES.md)                                                 |
-| Troubleshooting                 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md)                                       |
-| Production operations           | [OPERATIONS.md](OPERATIONS.md)                                                 |
-| Privacy implementation          | [PRIVACY.md](PRIVACY.md)                                                       |
-| CI/CD options                   | [CI_CD_OPTIONS.md](CI_CD_OPTIONS.md)                                           |
-| Optional features               | [OPTIONAL_FEATURES.md](OPTIONAL_FEATURES.md)                                   |
-| Release process                 | [../CONTRIBUTING.md#releases](../CONTRIBUTING.md#releases)                     |
-| Dependency updates              | [../CONTRIBUTING.md#dependency-updates](../CONTRIBUTING.md#dependency-updates) |
+| Topic              | Link                                         |
+| ------------------ | -------------------------------------------- |
+| Architecture Guide | [ARCHITECTURE.md](ARCHITECTURE.md)           |
+| Auth Solution      | [AUTH_SOLUTION.md](AUTH_SOLUTION.md)         |
+| Rate Limiting ⚡   | [RATE_LIMITING.md](RATE_LIMITING.md)         |
+| RBAC & Permissions | [RBAC.md](RBAC.md)                           |
+| File Uploads       | [FILE_UPLOADS.md](FILE_UPLOADS.md)           |
+| Convex Components  | [CONVEX_COMPONENTS.md](CONVEX_COMPONENTS.md) |
 
-## Features
+## Deployment
 
-| Topic                | Link                                         |
-| -------------------- | -------------------------------------------- |
-| Rate limiting        | [RATE_LIMITING.md](RATE_LIMITING.md)         |
-| Feature examples     | [EXAMPLES.md](EXAMPLES.md)                   |
-| RBAC and permissions | [RBAC.md](RBAC.md)                           |
-| File uploads         | [FILE_UPLOADS.md](FILE_UPLOADS.md)           |
-| Email with Resend    | [EMAIL_WITH_RESEND.md](EMAIL_WITH_RESEND.md) |
-| Stripe payments      | [STRIPE_PAYMENTS.md](STRIPE_PAYMENTS.md)     |
-| AI integration       | [AI_INTEGRATION.md](AI_INTEGRATION.md)       |
-| AI guidelines        | [AI_GUIDELINES.md](AI_GUIDELINES.md)         |
-| Convex components    | [CONVEX_COMPONENTS.md](CONVEX_COMPONENTS.md) |
+| Topic                  | Link                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| Preview Checklist ⚡   | [PUBLIC_PREVIEW_CHECKLIST.md](PUBLIC_PREVIEW_CHECKLIST.md)               |
+| Production Checklist   | [PRODUCTION_DEPLOYMENT_CHECKLIST.md](PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
+| Cloudflare Features    | [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md)                         |
+| Production Operations  | [OPERATIONS.md](OPERATIONS.md)                                           |
+| Privacy Implementation | [PRIVACY.md](PRIVACY.md)                                                 |
+| Troubleshooting        | [TROUBLESHOOTING.md](TROUBLESHOOTING.md)                                 |
+| Vercel Deploy          | [VERCEL_SETUP.md](VERCEL_SETUP.md)                                       |
+| Netlify Deploy         | [NETLIFY_SETUP.md](NETLIFY_SETUP.md)                                     |
+| CI/CD Options          | [CI_CD_OPTIONS.md](CI_CD_OPTIONS.md)                                     |
+| Terraform              | [../infrastructure/README.md](../infrastructure/README.md)               |
 
-## Auth And Deployment
+## Integrations
 
-| Topic         | Link                                                       |
-| ------------- | ---------------------------------------------------------- |
-| Auth solution | [AUTH_SOLUTION.md](AUTH_SOLUTION.md)                       |
-| Clerk setup   | [CLERK_SETUP.md](CLERK_SETUP.md)                           |
-| Vercel setup  | [VERCEL_SETUP.md](VERCEL_SETUP.md)                         |
-| Netlify setup | [NETLIFY_SETUP.md](NETLIFY_SETUP.md)                       |
-| Terraform     | [../infrastructure/README.md](../infrastructure/README.md) |
+| Topic                      | Link                                         |
+| -------------------------- | -------------------------------------------- |
+| Email with Resend ⚡       | [EMAIL_WITH_RESEND.md](EMAIL_WITH_RESEND.md) |
+| Stripe Payments            | [STRIPE_PAYMENTS.md](STRIPE_PAYMENTS.md)     |
+| AI & Advanced Integrations | [AI_INTEGRATION.md](AI_INTEGRATION.md)       |
+| Clerk Auth Setup           | [CLERK_SETUP.md](CLERK_SETUP.md)             |
+| Optional Features          | [OPTIONAL_FEATURES.md](OPTIONAL_FEATURES.md) |
 
 ## Mobile
 
-| Topic                        | Link                                                       |
-| ---------------------------- | ---------------------------------------------------------- |
-| Capacitor integration        | [MOBILE.md](MOBILE.md)                                     |
-| Mobile best practices        | [MOBILE_BEST_PRACTICES.md](MOBILE_BEST_PRACTICES.md)       |
-| Mobile testing and debugging | [MOBILE_TESTING_DEBUGGING.md](MOBILE_TESTING_DEBUGGING.md) |
+| Topic                      | Link                                                       |
+| -------------------------- | ---------------------------------------------------------- |
+| Mobile (Capacitor)         | [MOBILE.md](MOBILE.md)                                     |
+| Mobile Best Practices      | [MOBILE_BEST_PRACTICES.md](MOBILE_BEST_PRACTICES.md)       |
+| Mobile Testing & Debugging | [MOBILE_TESTING_DEBUGGING.md](MOBILE_TESTING_DEBUGGING.md) |
 
-## Project Planning
+## Project
 
-| Topic                  | Link                                     |
-| ---------------------- | ---------------------------------------- |
-| Future roadmap archive | [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md)   |
-| Current roadmap        | [../ROADMAP.md](../ROADMAP.md)           |
-| Changelog              | [../CHANGELOG.md](../CHANGELOG.md)       |
-| Contributing           | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
+| Topic                      | Link                                           |
+| -------------------------- | ---------------------------------------------- |
+| Roadmap                    | [../ROADMAP.md](../ROADMAP.md)                 |
+| AI Guidelines (for agents) | [AI_GUIDELINES.md](AI_GUIDELINES.md)           |
+| Contributing               | [../CONTRIBUTING.md](../CONTRIBUTING.md)       |
+| Changelog                  | [../CHANGELOG.md](../CHANGELOG.md)             |
+| Security Policy            | [../SECURITY.md](../SECURITY.md)               |
+| Code of Conduct            | [../CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) |
+
+⚡ = Production-ready implementations included

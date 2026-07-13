@@ -16,3 +16,5 @@ Security fixes target `main` and the latest release; older forks are not support
 - Review the CSP when introducing any third-party script or connection. Never loosen it globally to make one integration work.
 
 Rotate exposed secrets first, then patch and deploy; repository history is not a secret store.
+
+Template-owned authentication flows, Convex functions, and Cloudflare configuration are in scope. Report upstream dependency vulnerabilities to their maintainers.

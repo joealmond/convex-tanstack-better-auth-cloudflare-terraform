@@ -1,6 +1,6 @@
-# AI Integration Guide
+# AI & Advanced Integrations Guide
 
-Build AI-powered features with OpenAI, Anthropic, and Convex.
+Build AI-powered features with OpenAI, Anthropic, Google AI, and Convex — plus message queues, search, monitoring, and other advanced integrations.
 
 ## Overview
 
@@ -354,17 +354,311 @@ See also:
 - [Anthropic Docs](https://docs.anthropic.com)
 - [Convex Vector Search](https://docs.convex.dev/vector-search)
 
-## Related Integrations
+---
 
-Use Convex built-ins first for queue-like AI workflows:
+# Advanced Integrations
 
-- **Recurring jobs**: Convex crons are a good fit for scheduled summaries, cleanup, and batch enrichment.
-- **One-off jobs**: Convex scheduled functions work well for deferred AI tasks such as follow-up generation or retries.
-- **Cloudflare Queues**: Use when work needs to cross Worker boundaries or integrate with non-Convex consumers.
+The sections below cover message queues, search, email, payments, storage, monitoring, and other advanced integrations for the template.
 
-Dedicated docs cover common adjacent services:
+## Message Queues
 
-- **Email**: [EMAIL_WITH_RESEND.md](EMAIL_WITH_RESEND.md)
-- **Payments**: [STRIPE_PAYMENTS.md](STRIPE_PAYMENTS.md)
-- **File storage**: [FILE_UPLOADS.md](FILE_UPLOADS.md) and [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md)
-- **AI usage guidance**: [AI_GUIDELINES.md](AI_GUIDELINES.md)
+### Convex Crons (Built-in)
+
+Schedule recurring jobs without external services.
+
+```typescript
+// convex/crons.ts
+import { cronJobs } from 'convex/server'
+import { internal } from './_generated/api'
+
+const crons = cronJobs()
+
+// Every hour
+crons.interval('cleanup', { hours: 1 }, internal.tasks.cleanup)
+
+// Every day at midnight
+crons.cron('daily-report', '0 0 * * *', internal.reports.generate)
+
+export default crons
+```
+
+### Convex Scheduled Functions (Built-in)
+
+Schedule one-off tasks.
+
+```typescript
+// convex/tasks.ts
+import { mutation, internalMutation } from './_generated/server'
+import { internal } from './_generated/api'
+
+export const scheduleReminder = mutation({
+  args: { userId: v.id('users'), message: v.string(), delayMs: v.number() },
+  handler: async (ctx, args) => {
+    await ctx.scheduler.runAfter(args.delayMs, internal.tasks.sendReminder, {
+      userId: args.userId,
+      message: args.message,
+    })
+  },
+})
+
+export const sendReminder = internalMutation({
+  args: { userId: v.id('users'), message: v.string() },
+  handler: async (ctx, args) => {
+    // Send notification...
+  },
+})
+```
+
+### Cloudflare Queues
+
+Native to Cloudflare Workers.
+
+```jsonc
+// wrangler.jsonc
+{
+  "queues": {
+    "producers": [{ "queue": "my-queue", "binding": "MY_QUEUE" }],
+    "consumers": [{ "queue": "my-queue" }],
+  },
+}
+```
+
+```typescript
+// Worker
+export default {
+  async fetch(request, env) {
+    await env.MY_QUEUE.send({ type: 'task' })
+  },
+
+  async queue(batch, env) {
+    for (const message of batch.messages) {
+      console.log(message.body)
+      message.ack()
+    }
+  },
+}
+```
+
+### RabbitMQ (External)
+
+For complex message routing needs, `npm install amqplib`. RabbitMQ requires a separate server — consider using Convex's built-in scheduling for most use cases.
+
+## Search & Embeddings
+
+### Algolia
+
+```bash
+npm install algoliasearch
+```
+
+```typescript
+import algoliasearch from 'algoliasearch'
+
+const client = algoliasearch('APP_ID', 'API_KEY')
+const index = client.initIndex('products')
+
+// Index data
+await index.saveObjects([{ objectID: '1', name: 'Product' }])
+
+// Search
+const { hits } = await index.search('query')
+```
+
+### Typesense
+
+```bash
+npm install typesense
+```
+
+```typescript
+import Typesense from 'typesense'
+
+const client = new Typesense.Client({
+  nodes: [{ host: 'localhost', port: 8108, protocol: 'http' }],
+  apiKey: 'xyz',
+})
+
+await client.collections('products').documents().search({
+  q: 'query',
+  query_by: 'name',
+})
+```
+
+## Email
+
+### Resend
+
+See [EMAIL_WITH_RESEND.md](EMAIL_WITH_RESEND.md) for the full guide.
+
+```bash
+npm install resend
+```
+
+```typescript
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+await resend.emails.send({
+  from: 'hello@example.com',
+  to: 'user@example.com',
+  subject: 'Welcome!',
+  html: '<p>Hello!</p>',
+})
+```
+
+### React Email
+
+```bash
+npm install @react-email/components
+```
+
+```tsx
+import { Html, Button, Text } from '@react-email/components'
+
+export function WelcomeEmail({ name }) {
+  return (
+    <Html>
+      <Text>Hello {name}!</Text>
+      <Button href="https://example.com">Get Started</Button>
+    </Html>
+  )
+}
+```
+
+## Payments
+
+### Stripe
+
+See [STRIPE_PAYMENTS.md](STRIPE_PAYMENTS.md) for the full guide.
+
+```bash
+npm install stripe
+```
+
+```typescript
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+
+// Create checkout session
+const session = await stripe.checkout.sessions.create({
+  line_items: [{ price: 'price_xxx', quantity: 1 }],
+  mode: 'subscription',
+  success_url: 'https://example.com/success',
+  cancel_url: 'https://example.com/cancel',
+})
+```
+
+### Lemon Squeezy
+
+```bash
+npm install @lemonsqueezy/lemonsqueezy.js
+```
+
+```typescript
+import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js'
+
+lemonSqueezySetup({ apiKey: process.env.LEMON_SQUEEZY_API_KEY })
+
+const checkout = await createCheckout('store_id', 'variant_id', {
+  checkoutData: { email: 'user@example.com' },
+})
+```
+
+## Storage
+
+### Cloudflare R2 (Configured in Terraform)
+
+See [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md) for R2 setup.
+
+### AWS S3
+
+```bash
+npm install @aws-sdk/client-s3
+```
+
+```typescript
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+
+const s3 = new S3Client({ region: 'us-east-1' })
+
+await s3.send(
+  new PutObjectCommand({
+    Bucket: 'my-bucket',
+    Key: 'file.txt',
+    Body: 'content',
+  })
+)
+```
+
+### Uploadthing
+
+```bash
+npm install uploadthing
+```
+
+Easy file uploads with built-in UI components.
+
+## Monitoring
+
+### Sentry
+
+```bash
+npm install @sentry/react
+```
+
+```typescript
+import * as Sentry from '@sentry/react'
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: import.meta.env.VITE_APP_ENV,
+  tracesSampleRate: 0.1,
+})
+```
+
+### LogRocket
+
+```bash
+npm install logrocket
+```
+
+```typescript
+import LogRocket from 'logrocket'
+
+LogRocket.init('org/app')
+LogRocket.identify(userId, { name, email })
+```
+
+### Highlight.io
+
+```bash
+npm install @highlight-run/react
+```
+
+Open-source alternative to LogRocket.
+
+## Feature Flags
+
+- **LaunchDarkly**: `npm install launchdarkly-react-client-sdk`
+- **PostHog**: `npm install posthog-js` — includes feature flags with analytics
+- **Statsig**: `npm install @statsig/react-bindings`
+
+## CMS
+
+- **Sanity**: `npm install next-sanity @sanity/image-url`
+- **Payload CMS**: self-hosted, works with any database
+- **Contentful**: `npm install contentful`
+
+## Recommended Stack Additions
+
+| Category          | Recommended        | Why                 |
+| ----------------- | ------------------ | ------------------- |
+| **AI**            | OpenAI / Anthropic | Best models         |
+| **Vector Search** | Convex built-in    | No extra service    |
+| **Queues**        | Convex Scheduler   | Built-in, free      |
+| **Email**         | Resend             | Developer-friendly  |
+| **Payments**      | Stripe             | Industry standard   |
+| **Monitoring**    | Sentry             | Best error tracking |
+| **Analytics**     | PostHog            | Self-hostable       |

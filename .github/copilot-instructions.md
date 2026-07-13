@@ -268,6 +268,7 @@ Add their email to `ADMIN_EMAILS` in `convex/lib/config.ts`.
 - **Colors**: HEX only — no `oklch()`, `hsl()`, or `rgb()` (cross-browser consistency)
 - **Naming**: camelCase (files/vars), PascalCase (components), kebab-case (hooks)
 - **Aliases**: `@/` for `src/`, `@convex/` for `convex/`
+- **Roadmap work**: When asked to "make progress" from `ROADMAP.md` or another planning doc, complete only one small validated slice (or one tightly related cluster of items) per run instead of attempting a broad multi-file sweep
 
 ## Environment Variables
 
