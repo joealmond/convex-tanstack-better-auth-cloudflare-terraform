@@ -1,6 +1,9 @@
 import { httpRouter } from 'convex/server'
 import { httpAction } from './_generated/server'
 import { authComponent, createAuth } from './auth'
+// <convexkit:billing>
+import { webhook as stripeWebhook } from './stripe'
+// </convexkit:billing>
 
 const http = httpRouter()
 
@@ -25,5 +28,9 @@ http.route({
 
 // Register Better Auth routes
 authComponent.registerRoutes(http, createAuth)
+
+// <convexkit:billing>
+http.route({ path: '/api/stripe/webhook', method: 'POST', handler: stripeWebhook })
+// </convexkit:billing>
 
 export default http

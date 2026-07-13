@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-07-13
+
+### Added
+
+- Publish-ready `create-convexkit` scaffolder with Better Auth/Clerk, Cloudflare/Vercel/Netlify,
+  selectable examples, and optional Terraform.
+- Working Todos, AI streaming, Stripe billing, and Resend email examples.
+- shadcn-compatible Button, Card, Input, and Dialog primitives.
+- Convex integration coverage, enforced coverage thresholds, and Playwright public/authenticated
+  smoke suites.
+- VitePress documentation site with GitHub Pages deployment.
+
+### Changed
+
+- Hardened integration secrets, webhook validation/idempotency, ownership checks, rate limits,
+  pagination, and upload policies.
+- CI now validates the CLI package, documentation, browser flows, Terraform, dependency audit, and
+  production Worker bundle.
+- Example routing now uses a proper nested layout so every `/examples/*` page renders correctly.
+
+### Removed
+
+- The unused rate-limit middleware wrapper and permissive empty-test behavior.
+
 ## [0.2.0] - 2026-02-07
 
 ### Changed

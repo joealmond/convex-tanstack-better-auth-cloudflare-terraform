@@ -12,9 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ExamplesRouteImport } from './routes/examples'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExamplesIndexRouteImport } from './routes/examples.index'
+import { Route as ExamplesTodosRouteImport } from './routes/examples.todos'
 import { Route as ExamplesFormsRouteImport } from './routes/examples.forms'
 import { Route as ExamplesFilesRouteImport } from './routes/examples.files'
+import { Route as ExamplesEmailRouteImport } from './routes/examples.email'
 import { Route as ExamplesChatRouteImport } from './routes/examples.chat'
+import { Route as ExamplesBillingRouteImport } from './routes/examples.billing'
+import { Route as ExamplesAiRouteImport } from './routes/examples.ai'
 import { Route as ExamplesAdminRouteImport } from './routes/examples.admin'
 import { Route as AuthenticatedFilesRouteImport } from './routes/_authenticated/files'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -34,6 +39,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesTodosRoute = ExamplesTodosRouteImport.update({
+  id: '/todos',
+  path: '/todos',
+  getParentRoute: () => ExamplesRoute,
+} as any)
 const ExamplesFormsRoute = ExamplesFormsRouteImport.update({
   id: '/forms',
   path: '/forms',
@@ -44,9 +59,24 @@ const ExamplesFilesRoute = ExamplesFilesRouteImport.update({
   path: '/files',
   getParentRoute: () => ExamplesRoute,
 } as any)
+const ExamplesEmailRoute = ExamplesEmailRouteImport.update({
+  id: '/email',
+  path: '/email',
+  getParentRoute: () => ExamplesRoute,
+} as any)
 const ExamplesChatRoute = ExamplesChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesBillingRoute = ExamplesBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesAiRoute = ExamplesAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => ExamplesRoute,
 } as any)
 const ExamplesAdminRoute = ExamplesAdminRouteImport.update({
@@ -76,20 +106,29 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/files': typeof AuthenticatedFilesRoute
   '/examples/admin': typeof ExamplesAdminRoute
+  '/examples/ai': typeof ExamplesAiRoute
+  '/examples/billing': typeof ExamplesBillingRoute
   '/examples/chat': typeof ExamplesChatRoute
+  '/examples/email': typeof ExamplesEmailRoute
   '/examples/files': typeof ExamplesFilesRoute
   '/examples/forms': typeof ExamplesFormsRoute
+  '/examples/todos': typeof ExamplesTodosRoute
+  '/examples/': typeof ExamplesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/examples': typeof ExamplesRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/files': typeof AuthenticatedFilesRoute
   '/examples/admin': typeof ExamplesAdminRoute
+  '/examples/ai': typeof ExamplesAiRoute
+  '/examples/billing': typeof ExamplesBillingRoute
   '/examples/chat': typeof ExamplesChatRoute
+  '/examples/email': typeof ExamplesEmailRoute
   '/examples/files': typeof ExamplesFilesRoute
   '/examples/forms': typeof ExamplesFormsRoute
+  '/examples/todos': typeof ExamplesTodosRoute
+  '/examples': typeof ExamplesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -100,9 +139,14 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/files': typeof AuthenticatedFilesRoute
   '/examples/admin': typeof ExamplesAdminRoute
+  '/examples/ai': typeof ExamplesAiRoute
+  '/examples/billing': typeof ExamplesBillingRoute
   '/examples/chat': typeof ExamplesChatRoute
+  '/examples/email': typeof ExamplesEmailRoute
   '/examples/files': typeof ExamplesFilesRoute
   '/examples/forms': typeof ExamplesFormsRoute
+  '/examples/todos': typeof ExamplesTodosRoute
+  '/examples/': typeof ExamplesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -113,20 +157,29 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/files'
     | '/examples/admin'
+    | '/examples/ai'
+    | '/examples/billing'
     | '/examples/chat'
+    | '/examples/email'
     | '/examples/files'
     | '/examples/forms'
+    | '/examples/todos'
+    | '/examples/'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/examples'
     | '/dashboard'
     | '/files'
     | '/examples/admin'
+    | '/examples/ai'
+    | '/examples/billing'
     | '/examples/chat'
+    | '/examples/email'
     | '/examples/files'
     | '/examples/forms'
+    | '/examples/todos'
+    | '/examples'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -136,9 +189,14 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/files'
     | '/examples/admin'
+    | '/examples/ai'
+    | '/examples/billing'
     | '/examples/chat'
+    | '/examples/email'
     | '/examples/files'
     | '/examples/forms'
+    | '/examples/todos'
+    | '/examples/'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -172,6 +230,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/examples/': {
+      id: '/examples/'
+      path: '/'
+      fullPath: '/examples/'
+      preLoaderRoute: typeof ExamplesIndexRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/todos': {
+      id: '/examples/todos'
+      path: '/todos'
+      fullPath: '/examples/todos'
+      preLoaderRoute: typeof ExamplesTodosRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
     '/examples/forms': {
       id: '/examples/forms'
       path: '/forms'
@@ -186,11 +258,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamplesFilesRouteImport
       parentRoute: typeof ExamplesRoute
     }
+    '/examples/email': {
+      id: '/examples/email'
+      path: '/email'
+      fullPath: '/examples/email'
+      preLoaderRoute: typeof ExamplesEmailRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
     '/examples/chat': {
       id: '/examples/chat'
       path: '/chat'
       fullPath: '/examples/chat'
       preLoaderRoute: typeof ExamplesChatRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/billing': {
+      id: '/examples/billing'
+      path: '/billing'
+      fullPath: '/examples/billing'
+      preLoaderRoute: typeof ExamplesBillingRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/ai': {
+      id: '/examples/ai'
+      path: '/ai'
+      fullPath: '/examples/ai'
+      preLoaderRoute: typeof ExamplesAiRouteImport
       parentRoute: typeof ExamplesRoute
     }
     '/examples/admin': {
@@ -240,16 +333,26 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface ExamplesRouteChildren {
   ExamplesAdminRoute: typeof ExamplesAdminRoute
+  ExamplesAiRoute: typeof ExamplesAiRoute
+  ExamplesBillingRoute: typeof ExamplesBillingRoute
   ExamplesChatRoute: typeof ExamplesChatRoute
+  ExamplesEmailRoute: typeof ExamplesEmailRoute
   ExamplesFilesRoute: typeof ExamplesFilesRoute
   ExamplesFormsRoute: typeof ExamplesFormsRoute
+  ExamplesTodosRoute: typeof ExamplesTodosRoute
+  ExamplesIndexRoute: typeof ExamplesIndexRoute
 }
 
 const ExamplesRouteChildren: ExamplesRouteChildren = {
   ExamplesAdminRoute: ExamplesAdminRoute,
+  ExamplesAiRoute: ExamplesAiRoute,
+  ExamplesBillingRoute: ExamplesBillingRoute,
   ExamplesChatRoute: ExamplesChatRoute,
+  ExamplesEmailRoute: ExamplesEmailRoute,
   ExamplesFilesRoute: ExamplesFilesRoute,
   ExamplesFormsRoute: ExamplesFormsRoute,
+  ExamplesTodosRoute: ExamplesTodosRoute,
+  ExamplesIndexRoute: ExamplesIndexRoute,
 }
 
 const ExamplesRouteWithChildren = ExamplesRoute._addFileChildren(
@@ -265,3 +368,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.tsx'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

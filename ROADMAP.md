@@ -23,10 +23,10 @@ A developer decides in ~10 seconds on the README.
 
 - [x] **Hero section first**: logo/banner image, one-line pitch, badges (CI status, license, PRs-welcome, Convex/TanStack versions), then a screenshot or GIF of the running app — _before_ any philosophy text
 - [x] Replace ASCII architecture diagram with **Mermaid** (GitHub renders it natively)
-- [ ] **Deploy a live demo** and link it at the top — single biggest attractiveness win
-- [ ] Enable GitHub "Use this template" button; add repo social preview image, topics/tags
+- [x] **Deploy a live demo** and link it at the top — single biggest attractiveness win
+- [x] Enable GitHub "Use this template" button; add repo social preview image, topics/tags
 - [x] Add community files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue/PR templates
-- [ ] Enable GitHub Discussions
+- [x] Enable GitHub Discussions
 - [x] Cut the 26-file docs table in the README to ~6 curated links; move the rest to a docs index page
 
 ## Phase 2 — Zero-friction onboarding (week 2)
@@ -44,20 +44,20 @@ Multiple small, isolated examples — each is one route + one Convex module + a 
 
 - [x] `/examples` route group with an index page listing all examples
 - [x] **Realtime chat** (exists — polish, move under examples)
-- [ ] **Todos**: optimistic updates + cursor pagination + TanStack Table list view
+- [x] **Todos**: optimistic updates + cursor pagination + TanStack Table list view
 - [x] **File uploads** (exists — polish)
 - [x] **Admin / RBAC panel** (exists — polish, showcase impersonation)
 - [x] **Forms**: react-hook-form + Zod (exists as ExampleForm — finish and surface)
-- [ ] **AI streaming**: one Convex action streaming an LLM response to the UI
-- [ ] **Stripe billing**: turn `docs/STRIPE_PAYMENTS.md` into working code (checkout + webhook)
-- [ ] **Email**: turn `docs/EMAIL_WITH_RESEND.md` into working code (welcome email on signup)
-- [ ] Adopt **shadcn/ui** (`components.json` + Button/Card/Input/Dialog) — it's the community default and makes every example prettier
+- [x] **AI streaming**: one Convex action streaming an LLM response to the UI
+- [x] **Stripe billing**: turn `docs/STRIPE_PAYMENTS.md` into working code (checkout + webhook)
+- [x] **Email**: turn `docs/EMAIL_WITH_RESEND.md` into working code (welcome email on signup)
+- [x] Adopt **shadcn/ui** (`components.json` + Button/Card/Input/Dialog) — it's the community default and makes every example prettier
 
 ## Phase 4 — Trust: tests & releases (week 5)
 
-- [ ] `convex-test` unit tests for every Convex function (currently 2 test files total)
-- [ ] Playwright e2e smoke test: sign up → send message → upload file
-- [ ] Remove `--passWithNoTests`; add coverage + CI badges
+- [x] `convex-test` unit tests for every Convex function
+- [x] Playwright e2e smoke test: sign up → send message → upload file
+- [x] Remove `--passWithNoTests`; add coverage + CI badges
 - [x] Versioned releases with changesets/release-please; keep CHANGELOG automated
 - [x] Renovate (or keep Dependabot) with auto-merge for patch updates
 
@@ -65,17 +65,17 @@ Multiple small, isolated examples — each is one route + one Convex module + a 
 
 This is how templates become defaults.
 
-- [ ] `npm create <name>@latest` package with interactive prompts:
+- [x] `npm create <name>@latest` package with interactive prompts:
   - auth: Better Auth (default) / Clerk
   - deploy target: Cloudflare (default) / Vercel / Netlify
   - examples: multi-select, scaffold only what's chosen
   - Terraform: opt-in
-- [ ] Restructure repo so the CLI composes from feature modules (the Phase 3 isolation pays off here)
+- [x] Restructure repo so the CLI composes from feature modules (the Phase 3 isolation pays off here)
 - [ ] Publish to npm; README install becomes one command
 
 ## Phase 6 — Growth (ongoing)
 
-- [ ] Docs site (Astro Starlight or VitePress) replacing the flat `docs/` folder
+- [x] Docs site (Astro Starlight or VitePress) replacing the flat `docs/` folder
 - [ ] Submit to the Convex templates gallery and TanStack community examples
 - [ ] Launch posts: Convex Discord, TanStack Discord, r/reactjs, X; one dev.to/blog walkthrough
 - [ ] Add to relevant awesome-lists

@@ -15,18 +15,18 @@ All extended documentation for the template, organized by topic.
 
 ## Deployment
 
-| Topic                  | Link                                                                     |
-| ---------------------- | ------------------------------------------------------------------------ |
-| Preview Checklist ⚡   | [PUBLIC_PREVIEW_CHECKLIST.md](PUBLIC_PREVIEW_CHECKLIST.md)               |
-| Production Checklist   | [PRODUCTION_DEPLOYMENT_CHECKLIST.md](PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
-| Cloudflare Features    | [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md)                         |
-| Production Operations  | [OPERATIONS.md](OPERATIONS.md)                                           |
-| Privacy Implementation | [PRIVACY.md](PRIVACY.md)                                                 |
-| Troubleshooting        | [TROUBLESHOOTING.md](TROUBLESHOOTING.md)                                 |
-| Vercel Deploy          | [VERCEL_SETUP.md](VERCEL_SETUP.md)                                       |
-| Netlify Deploy         | [NETLIFY_SETUP.md](NETLIFY_SETUP.md)                                     |
-| CI/CD Options          | [CI_CD_OPTIONS.md](CI_CD_OPTIONS.md)                                     |
-| Terraform              | [../infrastructure/README.md](../infrastructure/README.md)               |
+| Topic                  | Link                                                                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Preview Checklist ⚡   | [PUBLIC_PREVIEW_CHECKLIST.md](PUBLIC_PREVIEW_CHECKLIST.md)                                                                               |
+| Production Checklist   | [PRODUCTION_DEPLOYMENT_CHECKLIST.md](PRODUCTION_DEPLOYMENT_CHECKLIST.md)                                                                 |
+| Cloudflare Features    | [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md)                                                                                         |
+| Production Operations  | [OPERATIONS.md](OPERATIONS.md)                                                                                                           |
+| Privacy Implementation | [PRIVACY.md](PRIVACY.md)                                                                                                                 |
+| Troubleshooting        | [TROUBLESHOOTING.md](TROUBLESHOOTING.md)                                                                                                 |
+| Vercel Deploy          | [VERCEL_SETUP.md](VERCEL_SETUP.md)                                                                                                       |
+| Netlify Deploy         | [NETLIFY_SETUP.md](NETLIFY_SETUP.md)                                                                                                     |
+| CI/CD Options          | [CI_CD_OPTIONS.md](CI_CD_OPTIONS.md)                                                                                                     |
+| Terraform              | [Infrastructure guide](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/blob/main/infrastructure/README.md) |
 
 ## Integrations
 
@@ -48,13 +48,13 @@ All extended documentation for the template, organized by topic.
 
 ## Project
 
-| Topic                      | Link                                           |
-| -------------------------- | ---------------------------------------------- |
-| Roadmap                    | [../ROADMAP.md](../ROADMAP.md)                 |
-| AI Guidelines (for agents) | [AI_GUIDELINES.md](AI_GUIDELINES.md)           |
-| Contributing               | [../CONTRIBUTING.md](../CONTRIBUTING.md)       |
-| Changelog                  | [../CHANGELOG.md](../CHANGELOG.md)             |
-| Security Policy            | [../SECURITY.md](../SECURITY.md)               |
-| Code of Conduct            | [../CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) |
+| Topic                      | Link                                                                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Roadmap                    | [Project roadmap](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/blob/main/ROADMAP.md)         |
+| AI Guidelines (for agents) | [AI_GUIDELINES.md](AI_GUIDELINES.md)                                                                                          |
+| Contributing               | [Contributing guide](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/blob/main/CONTRIBUTING.md) |
+| Changelog                  | [Changelog](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/blob/main/CHANGELOG.md)             |
+| Security Policy            | [Security policy](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/blob/main/SECURITY.md)        |
+| Code of Conduct            | [Code of conduct](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/blob/main/CODE_OF_CONDUCT.md) |
 
 ⚡ = Production-ready implementations included

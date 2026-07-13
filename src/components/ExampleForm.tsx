@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/cn'
 
 // =============================================================================
@@ -29,6 +30,12 @@ interface ExampleFormProps {
  * Copy and modify this pattern for your own forms
  */
 export function ExampleForm({ onSubmit }: ExampleFormProps) {
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
   const {
     register,
     handleSubmit,
@@ -116,7 +123,7 @@ export function ExampleForm({ onSubmit }: ExampleFormProps) {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={!isHydrated || isSubmitting}
         className={cn(
           'w-full px-4 py-2 rounded-md bg-primary text-primary-foreground',
           'hover:bg-primary/90 transition-colors',

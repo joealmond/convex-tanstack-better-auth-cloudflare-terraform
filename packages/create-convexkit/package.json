@@ -1,0 +1,32 @@
+{
+  "name": "create-convexkit",
+  "version": "1.0.0",
+  "description": "Interactive scaffolder for ConvexKit applications",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "create-convexkit": "bin/create-convexkit.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "templates",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git",
+    "directory": "packages/create-convexkit"
+  },
+  "keywords": [
+    "convex",
+    "tanstack-start",
+    "better-auth",
+    "cloudflare",
+    "scaffolder"
+  ]
+}

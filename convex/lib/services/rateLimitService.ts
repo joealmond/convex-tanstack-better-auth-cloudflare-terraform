@@ -59,6 +59,20 @@ export const RATE_LIMIT_DEFS = {
   // File deletion: 20 per minute
   deleteFile: { kind: 'token bucket' as const, rate: 20, period: 60_000, capacity: 25 },
 
+  // Todo writes: responsive for normal use while limiting automated churn.
+  todoWrite: { kind: 'token bucket' as const, rate: 30, period: 60_000, capacity: 40 },
+
+  // External AI calls can incur cost, so default to a conservative per-user allowance.
+  generateAiResponse: {
+    kind: 'token bucket' as const,
+    rate: 5,
+    period: 3_600_000,
+    capacity: 5,
+  },
+
+  // Billing sessions create external provider objects and should not be spammed.
+  stripeSession: { kind: 'token bucket' as const, rate: 10, period: 3_600_000, capacity: 10 },
+
   // General API: 60 per minute
   apiCall: { kind: 'token bucket' as const, rate: 60, period: 60_000, capacity: 80 },
 

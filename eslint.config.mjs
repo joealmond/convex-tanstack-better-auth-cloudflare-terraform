@@ -5,11 +5,20 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: ['dist/', 'node_modules/', '.output/', '.tanstack/', 'convex/_generated/', '*.gen.ts'],
+    ignores: [
+      'dist/',
+      'node_modules/',
+      '.output/',
+      '.tanstack/',
+      'docs/.vitepress/dist/',
+      'docs/.vitepress/cache/',
+      'convex/_generated/',
+      '*.gen.ts',
+    ],
   },
   {
     // Node globals for .mjs scripts
-    files: ['scripts/**/*.mjs', '*.mjs'],
+    files: ['scripts/**/*.mjs', 'packages/**/*.mjs', '*.mjs'],
     languageOptions: {
       globals: {
         console: 'readonly',

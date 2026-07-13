@@ -129,6 +129,19 @@ export const authMutation = customMutation(mutation, {
   },
 })
 
+/** Action that requires authentication and injects ctx.user and ctx.userId. */
+export const authAction = customAction(action, {
+  args: {},
+  input: async (ctx, _args) => {
+    try {
+      const user = await requireAuth(ctx)
+      return { ctx: { ...ctx, user, userId: user._id }, args: {} }
+    } catch (e) {
+      handleServerError(e, 'authAction')
+    }
+  },
+})
+
 // =============================================================================
 // Admin Function Wrappers
 // =============================================================================

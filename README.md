@@ -8,15 +8,17 @@ The edge-ready starter kit for TanStack Start, Convex, Better Auth, and Cloudfla
 [![CI](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml/badge.svg)](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-2563eb.svg)](CONTRIBUTING.md)
 ![Node >=22](https://img.shields.io/badge/node-%3E%3D22-14b8a6.svg)
-![Convex](https://img.shields.io/badge/Convex-1.31.7-111827.svg)
-![TanStack Start](https://img.shields.io/badge/TanStack_Start-1.159.0-ef4444.svg)
-![Better Auth](https://img.shields.io/badge/Better_Auth-1.4.9-7c3aed.svg)
+![Convex](https://img.shields.io/badge/Convex-1.42-111827.svg)
+![TanStack Start](https://img.shields.io/badge/TanStack_Start-1.168-ef4444.svg)
+![Better Auth](https://img.shields.io/badge/Better_Auth-1.6-7c3aed.svg)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-ready-f97316.svg)
 
+**[Open the live demo](https://convexkit-preview.jozsef-mandula.workers.dev)** · [Read the docs](https://joealmond.github.io/convex-tanstack-better-auth-cloudflare-terraform/)
+
 ```bash
-git clone https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git
-cd convex-tanstack-better-auth-cloudflare-terraform
-npm install
+npm create convexkit@latest my-app
+cd my-app
+npm run setup
 npm run dev
 ```
 
@@ -30,7 +32,7 @@ This template embodies **opinionated simplicity**:
 - **Edge-native**: Cloudflare Workers for global, low-latency deployment
 - **Type-safe**: End-to-end TypeScript with Zod validation
 - **Self-hostable**: Works with Convex Cloud or self-hosted Convex
-- **Portable**: GitHub Actions support Cloudflare, Vercel, or Netlify
+- **Portable**: the scaffolder generates Cloudflare, Vercel, or Netlify deployment output
 
 ### Stack Choices
 
@@ -77,12 +79,11 @@ sequenceDiagram
 ## Quick Start
 
 ```bash
-# 1. Clone & install
-git clone https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git
-cd convex-tanstack-better-auth-cloudflare-terraform
-npm install
+# 1. Compose a project
+npm create convexkit@latest my-app
+cd my-app
 
-# 2. Configure Vite environment
+# 2. Configure Convex and authentication
 npm run setup
 
 # 3. Start development (Convex + Vite concurrently)
@@ -90,6 +91,10 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+The interactive generator lets you choose Better Auth or Clerk; Cloudflare Workers, Vercel, or
+Netlify; any combination of the included examples; and optional Terraform. For automation, run
+`npm create convexkit@latest -- --help` to see non-interactive flags.
 
 Prefer cloud dev? See [Codespaces and devcontainers](docs/CODESPACES.md).
 Explore the included examples at [http://localhost:3000/examples](http://localhost:3000/examples),
@@ -105,6 +110,9 @@ including realtime chat at [http://localhost:3000/examples/chat](http://localhos
 | `npm run preview`              | Preview production build with Wrangler                 |
 | `npm run typecheck`            | Run TypeScript checks                                  |
 | `npm run lint`                 | Run ESLint                                             |
+| `npm run test:coverage`        | Run unit tests with enforced coverage thresholds       |
+| `npm run test:e2e:public`      | Run public Playwright smoke tests                      |
+| `npm run docs:dev`             | Start the VitePress documentation site                 |
 | `npm run generate:routes`      | Regenerate TanStack Router route tree                  |
 | `npm run deploy:preview`       | Deploy to preview environment                          |
 | `npm run deploy:prod`          | Deploy to production                                   |
@@ -150,7 +158,7 @@ Key settings in `wrangler.jsonc`:
 
 ### GitHub Actions (Automatic)
 
-Pushing to `main` triggers CI. On success, the Deploy workflow auto-deploys to **preview**.
+Pushing to `main` triggers CI. On success, the Deploy workflow auto-deploys to **preview** when the repository variable `AUTO_DEPLOY_ENABLED` is set to `true`. This opt-in prevents fresh template copies from failing CI before deployment secrets exist.
 
 To deploy to **production**, manually trigger the Deploy workflow with `environment=production`.
 
@@ -173,9 +181,12 @@ See [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) for the
 
 | Variable                           | Options                | Default |
 | ---------------------------------- | ---------------------- | ------- |
+| `AUTO_DEPLOY_ENABLED`              | `true`, `false`        | `false` |
 | `CONVEX_HOSTING`                   | `cloud`, `self-hosted` | `cloud` |
 | `CLOUDFLARE_CUSTOM_DOMAIN_PREVIEW` | Preview hostname       | unset   |
 | `CLOUDFLARE_CUSTOM_DOMAIN_PROD`    | Production hostname    | unset   |
+
+After adding the secrets, set `AUTO_DEPLOY_ENABLED=true` to enable preview deployments after successful pushes to `main`.
 
 ### Terraform (Infrastructure)
 
@@ -196,6 +207,7 @@ Terraform provisions only optional account-level services. Wrangler owns and dep
 ├── src/routes/         # Frontend pages
 ├── src/lib/            # Utilities (auth, env, utils)
 ├── infrastructure/     # Terraform IaC
+├── packages/           # create-convexkit npm scaffolder
 ├── docs/               # Extended documentation
 └── scripts/            # Deploy scripts
 ```
@@ -206,7 +218,7 @@ Terraform provisions only optional account-level services. Wrangler owns and dep
 
 | Topic                    | Link                                                                               |
 | ------------------------ | ---------------------------------------------------------------------------------- |
-| **Docs Index**           | [docs/README.md](docs/README.md)                                                   |
+| **Docs Site**            | [VitePress source](docs/index.md)                                                  |
 | **Architecture Guide**   | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                       |
 | **Preview Checklist** ⚡ | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md)               |
 | **Production Checklist** | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |

@@ -24,6 +24,6 @@ describe('messages.list', () => {
 
     expect(messages).toHaveLength(50)
     expect(messages[0]?.content).toBe('message-54')
-    expect(messages.at(-1)?.content).toBe('message-5')
+    expect(messages[messages.length - 1]?.content).toBe('message-5')
   })
 })

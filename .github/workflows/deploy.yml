@@ -34,7 +34,8 @@ jobs:
     environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'preview' }}
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (vars.AUTO_DEPLOY_ENABLED == 'true' &&
+      github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main')
     steps:
@@ -103,6 +104,17 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --config dist/server/wrangler.json
+
+      - name: Install Playwright Chromium
+        if: env.ENVIRONMENT == 'preview' && vars.E2E_BASE_URL_PREVIEW != ''
+        run: npx playwright install --with-deps chromium
+
+      - name: Run authenticated preview smoke test
+        if: env.ENVIRONMENT == 'preview' && vars.E2E_BASE_URL_PREVIEW != ''
+        run: npm run test:e2e:auth
+        env:
+          E2E_BASE_URL: ${{ vars.E2E_BASE_URL_PREVIEW }}
+          E2E_RUN_AUTH: 'true'
 
       - name: Deployment summary
         run: |

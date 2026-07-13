@@ -18,7 +18,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   VITE_CONVEX_URL: https://example.convex.cloud
   VITE_CONVEX_SITE_URL: https://example.convex.site
-  VITE_APP_ENV: test
+  VITE_APP_ENV: preview
 
 jobs:
   validate:
@@ -54,8 +54,11 @@ jobs:
       - name: Lint without warnings
         run: npm run lint -- --max-warnings=0
 
-      - name: Test
-        run: npm test
+      - name: Test with coverage gates
+        run: npm run test:coverage
+
+      - name: Test create-convexkit composition
+        run: npm run test:cli
 
       - name: Typecheck
         run: npm run typecheck
@@ -73,7 +76,20 @@ jobs:
       - name: Build preview bundle
         run: npm run build:preview
 
+      - name: Build documentation site
+        run: npm run docs:build
+
+      - name: Verify CLI package contents
+        working-directory: packages/create-convexkit
+        run: npm pack --dry-run
+
       - name: Validate generated Worker bundle
         run: |
           npm run sync:wrangler-config
           npx wrangler deploy --dry-run --config dist/server/wrangler.json --outdir /tmp/convexkit-worker
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run public browser smoke tests
+        run: npm run test:e2e:public

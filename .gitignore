@@ -6,6 +6,8 @@ node_modules/
 dist/
 .output/
 .tanstack/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 # Convex's generated API types are committed so a fresh checkout can typecheck
 # and build before it is connected to a deployment.
@@ -38,6 +40,8 @@ npm-debug.log*
 
 # Testing
 coverage/
+playwright-report/
+output/playwright/
 
 # Wrangler
 .wrangler/

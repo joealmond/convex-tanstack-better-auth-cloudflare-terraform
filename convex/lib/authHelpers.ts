@@ -56,11 +56,11 @@
 
 import { authComponent } from '../auth'
 import { ADMIN_EMAILS } from './config'
-import type { QueryCtx, MutationCtx } from '../_generated/server'
+import type { ActionCtx, QueryCtx, MutationCtx } from '../_generated/server'
 import { ConvexError } from 'convex/values'
 
 /** Context type for queries and mutations */
-type AuthContext = QueryCtx | MutationCtx
+type AuthContext = QueryCtx | MutationCtx | ActionCtx
 
 /**
  * User type returned by Better Auth Convex adapter.
