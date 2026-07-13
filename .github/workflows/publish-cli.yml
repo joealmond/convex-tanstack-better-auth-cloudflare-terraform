@@ -15,7 +15,10 @@ concurrency:
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'create-convexkit-v')
+    if: >-
+      vars.NPM_PUBLISH_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.release.tag_name, 'create-convexkit-v'))
     runs-on: ubuntu-latest
     environment: npm
     steps:

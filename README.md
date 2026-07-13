@@ -182,11 +182,15 @@ See [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) for the
 | Variable                           | Options                | Default |
 | ---------------------------------- | ---------------------- | ------- |
 | `AUTO_DEPLOY_ENABLED`              | `true`, `false`        | `false` |
+| `RELEASES_ENABLED`                 | `true`, `false`        | `false` |
+| `NPM_PUBLISH_ENABLED`              | `true`, `false`        | `false` |
 | `CONVEX_HOSTING`                   | `cloud`, `self-hosted` | `cloud` |
 | `CLOUDFLARE_CUSTOM_DOMAIN_PREVIEW` | Preview hostname       | unset   |
 | `CLOUDFLARE_CUSTOM_DOMAIN_PROD`    | Production hostname    | unset   |
 
 After adding the secrets, set `AUTO_DEPLOY_ENABLED=true` to enable preview deployments after successful pushes to `main`.
+
+After the initial CLI package is published and the `v1.0.0` and `create-convexkit-v1.0.0` releases exist, set `RELEASES_ENABLED=true`. Set `NPM_PUBLISH_ENABLED=true` only after the `npm` GitHub environment has an `NPM_TOKEN` or trusted publishing is configured.
 
 ### Terraform (Infrastructure)
 
