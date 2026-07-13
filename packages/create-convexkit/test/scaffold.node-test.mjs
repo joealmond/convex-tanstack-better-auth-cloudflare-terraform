@@ -26,6 +26,10 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.equal(existsSync(join(target, 'wrangler.jsonc')), true)
     assert.equal(existsSync(join(target, 'worker-configuration.d.ts')), true)
     assert.match(
+      readFileSync(join(target, 'public/_headers'), 'utf8'),
+      /max-age=31536000, immutable/
+    )
+    assert.match(
       readFileSync(join(target, 'wrangler.jsonc'), 'utf8'),
       /"main": "\.\/src\/server\.ts"/
     )
