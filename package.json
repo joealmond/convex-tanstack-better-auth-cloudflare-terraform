@@ -1,6 +1,6 @@
 {
   "name": "convexkit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Edge-ready starter kit for TanStack Start, Convex, Better Auth, and Cloudflare Workers",
   "private": true,
   "type": "module",
