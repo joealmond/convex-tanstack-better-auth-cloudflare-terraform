@@ -10,8 +10,15 @@ import type { ChangeEvent } from 'react'
 import type { Id } from '@convex/_generated/dataModel'
 import { toast } from 'sonner'
 import { useConvex } from 'convex/react'
+import { z } from 'zod'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const uploadResponseSchema = z.object({
+  storageId: z
+    .string()
+    .min(1)
+    .transform((value) => value as Id<'_storage'>),
+})
 
 type FileUploadsExampleProps = {
   backTo?: '/' | '/examples'
@@ -61,7 +68,7 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
         throw new Error('Upload failed')
       }
 
-      const { storageId } = await response.json()
+      const { storageId } = uploadResponseSchema.parse(await response.json())
 
       setUploadProgress('Saving metadata...')
 

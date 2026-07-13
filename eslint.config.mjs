@@ -14,6 +14,7 @@ export default tseslint.config(
       'docs/.vitepress/cache/',
       'convex/_generated/',
       '*.gen.ts',
+      'worker-configuration.d.ts',
     ],
   },
   {

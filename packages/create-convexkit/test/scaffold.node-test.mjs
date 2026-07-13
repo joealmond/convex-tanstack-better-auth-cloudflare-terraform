@@ -24,6 +24,11 @@ test('creates the default Better Auth + Cloudflare application', () => {
   const { root, target } = scaffold([])
   try {
     assert.equal(existsSync(join(target, 'wrangler.jsonc')), true)
+    assert.equal(existsSync(join(target, 'worker-configuration.d.ts')), true)
+    assert.match(
+      readFileSync(join(target, 'wrangler.jsonc'), 'utf8'),
+      /"main": "\.\/src\/server\.ts"/
+    )
     assert.equal(existsSync(join(target, 'infrastructure')), false)
     assert.equal(existsSync(join(target, 'convex/todos.ts')), true)
     assert.equal(existsSync(join(target, 'packages/create-convexkit')), false)
@@ -54,6 +59,7 @@ test('composes only selected examples for Vercel', () => {
   try {
     assert.equal(existsSync(join(target, 'vercel.json')), true)
     assert.equal(existsSync(join(target, 'wrangler.jsonc')), false)
+    assert.equal(existsSync(join(target, 'worker-configuration.d.ts')), false)
     assert.equal(existsSync(join(target, 'infrastructure')), false)
     assert.equal(existsSync(join(target, 'convex/todos.ts')), true)
     assert.equal(existsSync(join(target, 'convex/stripe.ts')), false)

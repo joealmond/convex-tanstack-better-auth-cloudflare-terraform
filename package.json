@@ -37,7 +37,7 @@
     "convex:deploy": "npx convex deploy --yes",
     "deploy:preview": "npm run convex:push && npm run build:preview && npm run sync:wrangler-config && wrangler deploy --config dist/server/wrangler.json",
     "deploy:prod": "npm run convex:deploy && npm run build:prod && npm run sync:wrangler-config && wrangler deploy --config dist/server/wrangler.json",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "cross-env CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --env-interface CloudflareBindings"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.44.0",

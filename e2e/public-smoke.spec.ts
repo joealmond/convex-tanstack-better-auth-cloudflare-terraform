@@ -1,7 +1,12 @@
 import { expect, test } from '@playwright/test'
 
 test('landing page and example catalog render', async ({ page }) => {
-  await page.goto('/')
+  const response = await page.goto('/')
+
+  expect(response).not.toBeNull()
+  expect(response?.headers()['content-security-policy']).toContain("default-src 'self'")
+  expect(response?.headers()['x-content-type-options']).toBe('nosniff')
+  expect(response?.headers()['x-frame-options']).toBe('DENY')
   await expect(page).toHaveTitle(/Convex|TanStack/i)
 
   await page.goto('/examples')

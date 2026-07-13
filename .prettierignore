@@ -4,6 +4,7 @@ dist
 .tanstack
 convex/_generated
 src/routeTree.gen.ts
+worker-configuration.d.ts
 infrastructure/.terraform
 *.tfstate*
 AGENTS.md

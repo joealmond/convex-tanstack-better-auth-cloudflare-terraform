@@ -1,5 +1,9 @@
-// TanStack Start v1.154+ handles hydration automatically.
-// We only need to export startInstance for middleware/serialization.
-// Do NOT manually call hydrateRoot - the framework does this.
+import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 
-export const startInstance = undefined
+const csrfMiddleware = createCsrfMiddleware({
+  filter: (ctx) => ctx.handlerType === 'serverFn',
+})
+
+export const startInstance = createStart(() => ({
+  requestMiddleware: [csrfMiddleware],
+}))

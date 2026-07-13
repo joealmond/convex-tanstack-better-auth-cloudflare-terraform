@@ -431,7 +431,11 @@ function compose(options) {
   )
 
   if (options.deploy !== 'cloudflare') {
-    remove(options.target, ['wrangler.jsonc', '.github/workflows/deploy.yml'])
+    remove(options.target, [
+      'wrangler.jsonc',
+      'worker-configuration.d.ts',
+      '.github/workflows/deploy.yml',
+    ])
     copyOverlay(options.deploy, options.target)
   }
   configurePackage(options.target, options)

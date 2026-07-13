@@ -48,6 +48,11 @@ jobs:
           npm run generate:routes
           git diff --exit-code -- src/routeTree.gen.ts
 
+      - name: Verify generated Worker types are current
+        run: |
+          npm run cf-typegen
+          git diff --exit-code -- worker-configuration.d.ts
+
       - name: Check formatting
         run: npm run format:check
 
