@@ -1,6 +1,6 @@
 {
   "name": "create-convexkit",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Interactive scaffolder for ConvexKit applications",
   "type": "module",
   "license": "MIT",
