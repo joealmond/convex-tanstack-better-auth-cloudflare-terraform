@@ -12,6 +12,8 @@ export async function requireOrganizationRole(
   userId: string,
   minimum: Role = 'member'
 ) {
+  const organization = await ctx.db.get(organizationId)
+  if (!organization || organization.deleting) throw new ConvexError('Organization access denied')
   const membership = await ctx.db
     .query('organizationMembers')
     .withIndex('by_organization_user', (q) =>
@@ -129,6 +131,9 @@ export const acceptInvitation = authMutation({
   args: { organizationId: v.id('organizations') },
   handler: async (ctx, { organizationId }) => {
     if (!ctx.user.emailVerified) throw new ConvexError('A verified email is required')
+    const organization = await ctx.db.get(organizationId)
+    if (!organization || organization.deleting)
+      throw new ConvexError('Invitation is invalid or expired')
     const invitation = await ctx.db
       .query('organizationInvitations')
       .withIndex('by_organization_email', (q) =>

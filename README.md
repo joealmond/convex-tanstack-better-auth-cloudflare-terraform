@@ -241,6 +241,7 @@ Terraform provisions only optional account-level services. Wrangler owns and dep
 | **Product accelerators** | [docs/PROJECT_ACCELERATORS.md](docs/PROJECT_ACCELERATORS.md)                       |
 | **Preview Checklist** ⚡ | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md)               |
 | **Production Checklist** | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
+| **Account email setup**  | [docs/AUTH_EMAIL.md](docs/AUTH_EMAIL.md)                                           |
 | **Rate Limiting** ⚡     | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                                     |
 | **Feature Guides**       | [docs/README.md#features](docs/README.md#features)                                 |
 | **Troubleshooting**      | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                                 |

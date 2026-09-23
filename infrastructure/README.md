@@ -11,7 +11,7 @@ npm run infra:bootstrap -- --worker-name my-app-preview --app-url https://my-app
 npm run deploy:preview
 ```
 
-The first command creates or reuses a Convex cloud development deployment, creates the Better Auth secret and exact `SITE_URL` there, verifies the selected Cloudflare account, and saves non-secret local state in `.convexkit/`. Re-running it reuses that state. The second command deploys the preview Worker, checks the configured public origin against the generated Worker route, runs a read-only app and backend health check, and records the commit and deployment identity locally.
+The first command creates or reuses a Convex cloud development deployment, sets the exact `SITE_URL`, configures the selected auth provider's backend value (a generated Better Auth secret or Clerk issuer), verifies Cloudflare access, and saves non-secret local state in `.convexkit/`. Re-running it reuses that state. The second command deploys the preview Worker, checks the configured public origin against the generated Worker route, runs a read-only app and backend health check, and records the commit and deployment identity locally. Clerk projects also install `CLERK_SECRET_KEY` as a Worker secret after code deployment.
 
 To provision optional account resources in the same bootstrap, first create `terraform.tfvars` and then add `--with-terraform` to inspect the plan. Add `--apply-terraform` only after reviewing that plan; Terraform asks for its normal interactive confirmation.
 

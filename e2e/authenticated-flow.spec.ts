@@ -46,5 +46,8 @@ test.describe('live authenticated smoke', () => {
       buffer: Buffer.from('ConvexKit authenticated upload smoke test'),
     })
     await expect(page.getByText(fileName)).toBeVisible()
+    await page.goto('/account')
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    await expect(page.getByText(email)).toBeVisible()
   })
 })

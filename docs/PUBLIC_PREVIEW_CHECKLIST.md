@@ -11,6 +11,8 @@ npm run deploy:preview
 
 Use the exact Workers URL for your account, or a Custom Domain already managed by Cloudflare. The commands set the backend origin and secret, deploy, run read-only health checks, and save the preview identity locally. The steps below are the manual reference for provider configuration and troubleshooting.
 
+Account email can stay disabled for a limited preview. In that mode email/password accounts are unverified and password recovery is unavailable. Configure [account email](AUTH_EMAIL.md) before inviting real users.
+
 Current repo behavior:
 
 - After the one-time preview bootstrap is done, pushes to `main` run `CI` first.

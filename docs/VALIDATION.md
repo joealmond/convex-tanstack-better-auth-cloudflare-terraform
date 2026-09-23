@@ -22,6 +22,10 @@ adding new providers or examples. Build validation does not replace a deployed a
 - The preview deployment workflow runs the authenticated smoke when `E2E_BASE_URL_PREVIEW`
   is configured. It signs up, reloads, signs out/in, sends a message, and uploads a file to the
   dedicated test backend. Use a disposable preview backend; the test creates account and file data.
+- Account-email tests use a fake Resend response to complete sign-up verification, password
+  reset, and confirmed account deletion. Before the first public production release, repeat
+  those clicks on a protected preview deployment with a disposable inbox. CI does not send live
+  account email.
 
 The matrix covers representative boundaries, not every feature subset. When a composition bug
 is reported, add its exact selection as a regression case. Temporary failures retain their logs

@@ -1,5 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
+export function authProvider() {
+  return JSON.parse(readFileSync('package.json', 'utf8')).convexkit?.auth || 'better-auth'
+}
+
 export function readEnv(path = '.env.local') {
   if (!existsSync(path)) return {}
   return Object.fromEntries(
@@ -80,4 +84,18 @@ export function normalizeUrl(value) {
   const url = new URL(value)
   url.pathname = url.pathname.replace(/\/$/, '')
   return url.toString().replace(/\/$/, '')
+}
+
+export async function verifyDeployment(appUrl, convexSiteUrl, fetcher = fetch) {
+  const app = await fetcher(appUrl, { redirect: 'error', signal: AbortSignal.timeout(15_000) })
+  if (!app.ok) throw new Error(`App smoke failed: ${app.status} ${app.statusText}`)
+  if (!app.headers.get('content-security-policy')?.includes("default-src 'self'"))
+    throw new Error('App smoke failed: missing content-security-policy.')
+  const health = await fetcher(new URL('/api/health', convexSiteUrl), {
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!health.ok) throw new Error(`Convex health failed: ${health.status} ${health.statusText}`)
+  const payload = await health.json()
+  if (payload.status !== 'ok' || payload.layer !== 'convex')
+    throw new Error('Convex health returned an unexpected response.')
 }

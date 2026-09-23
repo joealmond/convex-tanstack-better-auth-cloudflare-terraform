@@ -48,6 +48,9 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.equal(existsSync(join(target, 'docs/index.md')), false)
     assert.match(readFileSync(join(target, 'docs/README.md'), 'utf8'), /app documentation/)
     assert.equal(existsSync(join(target, 'docs/CONFIGURATION.md')), true)
+    assert.equal(existsSync(join(target, 'docs/AUTH_EMAIL.md')), true)
+    assert.equal(existsSync(join(target, 'src/routes/reset-password.tsx')), true)
+    assert.equal(existsSync(join(target, 'src/routes/_authenticated/account.tsx')), true)
     assert.match(
       readFileSync(join(target, '.github/workflows/deploy.yml'), 'utf8'),
       /Preflight deployment configuration/
@@ -161,6 +164,10 @@ test('applies Clerk and Netlify provider overlays', () => {
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.equal(pkg.dependencies['@clerk/tanstack-react-start'], '1.5.12')
     assert.equal(pkg.dependencies['@convex-dev/better-auth'], undefined)
+    assert.equal(pkg.dependencies.resend, undefined)
+    assert.equal(existsSync(join(target, 'convex/authEmails.ts')), false)
+    assert.equal(existsSync(join(target, 'src/routes/reset-password.tsx')), false)
+    assert.equal(existsSync(join(target, 'docs/AUTH_EMAIL.md')), false)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -258,6 +265,7 @@ test('chat-only output omits file links and minimal output retains authenticatio
     const pkg = JSON.parse(readFileSync(join(minimal.target, 'package.json'), 'utf8'))
     assert.equal(pkg.dependencies.stripe, undefined)
     assert.equal(pkg.dependencies.resend, undefined)
+    assert.equal(existsSync(join(minimal.target, 'convex/authEmails.ts')), true)
     assert.equal(pkg.dependencies['@tanstack/react-table'], undefined)
   } finally {
     rmSync(chat.root, { recursive: true, force: true })

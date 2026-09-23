@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { configuredUrl, readEnv, workerName } from './infra-utils.mjs'
+import { authProvider, configuredUrl, readEnv, workerName } from './infra-utils.mjs'
 
 const required = [
   'APP_URL',
@@ -30,6 +30,7 @@ function run(command, args, env = process.env) {
 }
 
 const appUrl = process.env.APP_URL
+const selectedAuth = authProvider()
 const localPreview = readEnv().VITE_CONVEX_URL
 const env = {
   ...process.env,
@@ -38,6 +39,8 @@ const env = {
 }
 run('node', ['scripts/deploy-preflight.mjs', '--environment', 'production'], env)
 run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl], env)
+if (selectedAuth === 'clerk')
+  run('npx', ['convex', 'env', 'set', 'CLERK_JWT_ISSUER_DOMAIN', env.CLERK_JWT_ISSUER_DOMAIN], env)
 run('npx', ['convex', 'deploy', '--yes'], env)
 run('npm', ['run', 'build:prod'], env)
 const customDomain = new URL(appUrl).hostname.endsWith('.workers.dev')
@@ -52,7 +55,18 @@ if (config.name !== process.env.CLOUDFLARE_WORKER_NAME) {
   throw new Error('Generated Worker name does not match CLOUDFLARE_WORKER_NAME.')
 }
 const output = run('npx', ['wrangler', 'deploy', '--config', 'dist/server/wrangler.json'], env)
-const version = output.match(/(?:Current )?Version ID:\s*([^\s]+)/i)?.[1] || 'unavailable'
+if (selectedAuth === 'clerk') {
+  const result = spawnSync(
+    'npx',
+    ['wrangler', 'secret', 'put', 'CLERK_SECRET_KEY', '--config', 'dist/server/wrangler.json'],
+    { env, input: env.CLERK_SECRET_KEY, encoding: 'utf8', shell: false }
+  )
+  if (result.status !== 0) throw new Error('Unable to install the Clerk Worker secret.')
+}
+const version =
+  selectedAuth === 'clerk'
+    ? 'unavailable'
+    : output.match(/(?:Current )?Version ID:\s*([^\s]+)/i)?.[1] || 'unavailable'
 run(
   'node',
   [

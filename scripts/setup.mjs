@@ -266,6 +266,7 @@ try {
   console.log('\nNext steps:')
   console.log('  npm run dev')
   console.log('  Open http://localhost:3000')
+  console.log('  Before production, configure account email as shown in docs/AUTH_EMAIL.md')
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))
   process.exitCode = 1

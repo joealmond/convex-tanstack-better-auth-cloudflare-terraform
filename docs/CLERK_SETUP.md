@@ -28,6 +28,12 @@ CLERK_JWT_ISSUER_DOMAIN=https://your-domain.clerk.accounts.dev
 npx convex env set CLERK_JWT_ISSUER_DOMAIN "https://your-domain.clerk.accounts.dev"
 ```
 
+## Cloudflare deployment
+
+For a generated Cloudflare app, `npm run infra:bootstrap` sets the issuer on the selected preview Convex deployment. `npm run deploy:preview` places the publishable key in the Worker configuration and installs `CLERK_SECRET_KEY` as a Worker secret before its smoke check. No Clerk key is committed.
+
+For GitHub deployment, set `CLERK_SECRET_KEY` as a protected Environment Secret and `CLERK_PUBLISHABLE_KEY` plus `CLERK_JWT_ISSUER_DOMAIN` as Environment Variables for both preview and production. The workflow sets the Convex issuer and Worker secret for the selected environment. Keep distinct Clerk applications or keys for preview and production.
+
 ## Generated architecture
 
 - `src/start.tsx` installs Clerk's TanStack Start request middleware.

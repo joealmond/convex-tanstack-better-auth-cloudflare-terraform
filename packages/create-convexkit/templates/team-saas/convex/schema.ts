@@ -2,7 +2,12 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 export default defineSchema({
-  organizations: defineTable({ name: v.string(), slug: v.string(), createdBy: v.string() })
+  organizations: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    createdBy: v.string(),
+    deleting: v.optional(v.boolean()),
+  })
     .index('by_slug', ['slug'])
     .index('by_creator', ['createdBy']),
   organizationMembers: defineTable({
@@ -11,6 +16,7 @@ export default defineSchema({
     role: v.union(v.literal('owner'), v.literal('admin'), v.literal('member')),
   })
     .index('by_organization_user', ['organizationId', 'userId'])
+    .index('by_organization_role', ['organizationId', 'role'])
     .index('by_user', ['userId']),
   organizationInvitations: defineTable({
     organizationId: v.id('organizations'),

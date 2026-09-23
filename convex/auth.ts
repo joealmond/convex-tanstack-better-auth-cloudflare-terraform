@@ -21,6 +21,14 @@ function getEnvConfig() {
   const siteUrl = process.env.SITE_URL
   const googleClientId = process.env.GOOGLE_CLIENT_ID
   const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
+  const authEmailProvider = process.env.AUTH_EMAIL_PROVIDER || 'disabled'
+  if (!['disabled', 'resend'].includes(authEmailProvider))
+    throw new Error('AUTH_EMAIL_PROVIDER must be disabled or resend')
+  if (
+    authEmailProvider === 'resend' &&
+    (!process.env.RESEND_API_KEY || !process.env.AUTH_EMAIL_FROM)
+  )
+    throw new Error('AUTH_EMAIL_PROVIDER=resend requires RESEND_API_KEY and AUTH_EMAIL_FROM')
 
   const missing = REQUIRED_ENV_VARS.filter((name) => !process.env[name])
 
@@ -40,6 +48,7 @@ function getEnvConfig() {
     googleClientId,
     googleClientSecret,
     hasGoogleConfig,
+    authEmailEnabled: authEmailProvider === 'resend',
   }
 }
 
@@ -51,18 +60,39 @@ export const authComponent = createClient<DataModel>(components.betterAuth)
 
 // Create Better Auth instance with Convex adapter
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
+  const sendAuthEmail = async (kind: 'verify' | 'reset' | 'delete', to: string, url: string) => {
+    if (!('runAction' in ctx)) throw new Error('Account email requires an HTTP action context')
+    await ctx.runAction(internal.authEmails.send, { kind, to, url })
+  }
   return betterAuth({
     baseURL: envConfig.siteUrl,
     trustedOrigins: [envConfig.siteUrl],
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      requireEmailVerification: envConfig.authEmailEnabled,
       minPasswordLength: 12,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: envConfig.authEmailEnabled
+        ? ({ user, url }) => sendAuthEmail('reset', user.email, url)
+        : undefined,
     },
+    emailVerification: envConfig.authEmailEnabled
+      ? {
+          sendVerificationEmail: ({ user, url }) => sendAuthEmail('verify', user.email, url),
+          sendOnSignUp: true,
+          sendOnSignIn: true,
+          autoSignInAfterVerification: true,
+          expiresIn: 60 * 60,
+        }
+      : undefined,
     user: {
       deleteUser: {
         enabled: true,
+        sendDeleteAccountVerification: envConfig.authEmailEnabled
+          ? ({ user, url }) => sendAuthEmail('delete', user.email, url)
+          : undefined,
+        deleteTokenExpiresIn: 60 * 60,
         afterDelete: async (user) => {
           if ('scheduler' in ctx) {
             await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
@@ -78,6 +108,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       storage: 'database',
       window: 60,
       max: 100,
+      customRules: {
+        '/sign-in/email': { window: 60, max: 10 },
+        '/sign-up/email': { window: 600, max: 5 },
+        '/request-password-reset': { window: 600, max: 5 },
+        '/send-verification-email': { window: 600, max: 5 },
+        '/delete-user': { window: 600, max: 3 },
+      },
     },
     // <convexkit:email>
     databaseHooks: {

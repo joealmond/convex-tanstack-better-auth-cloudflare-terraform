@@ -30,6 +30,9 @@ if (!existsSync(viteBuildConfig)) {
 
 const config = JSON.parse(readFileSync(viteBuildConfig, 'utf8'))
 const env = config.vars?.APP_ENV || 'preview'
+if (process.env.CLERK_PUBLISHABLE_KEY) {
+  config.vars = { ...config.vars, CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY }
+}
 
 const workerName = process.env.CLOUDFLARE_WORKER_NAME?.trim()
 if (workerName) {

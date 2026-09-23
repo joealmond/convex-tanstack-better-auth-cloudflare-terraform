@@ -190,7 +190,7 @@ function renderProjectReadme(options) {
   const examples = options.selectedExamples.length ? options.selectedExamples.join(', ') : 'none'
   const deploy =
     options.deploy === 'cloudflare'
-      ? `\n## Preview deployment\n\nAfter logging in to Convex and Cloudflare, run \`npm run infra:bootstrap -- --worker-name ${previewWorker} --app-url https://YOUR-PREVIEW-ORIGIN\`, then \`npm run deploy:preview\`. Use your exact Workers or Custom Domain URL for \`--app-url\`. Add GitHub secrets \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`, \`VITE_CONVEX_URL_PREVIEW\`, \`VITE_CONVEX_SITE_URL_PREVIEW\`, and \`CONVEX_DEPLOY_KEY_PREVIEW\`. Set repository variables \`CLOUDFLARE_WORKER_NAME_PREVIEW=${previewWorker}\` and \`APP_URL_PREVIEW\` to that URL, then set \`AUTO_DEPLOY_ENABLED=true\`. Production uses matching \`_PROD\` values, \`CONVEX_DEPLOY_KEY_PROD\`, \`CLOUDFLARE_WORKER_NAME_PROD=${workerBaseName(options.target)}-production\`, and \`APP_URL_PROD\`.\n`
+      ? `\n## Preview deployment\n\nAfter logging in to Convex and Cloudflare, run \`npm run infra:bootstrap -- --worker-name ${previewWorker} --app-url https://YOUR-PREVIEW-ORIGIN\`, then \`npm run deploy:preview\`. Use your exact Workers or Custom Domain URL for \`--app-url\`. Add GitHub secrets \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`, \`VITE_CONVEX_URL_PREVIEW\`, \`VITE_CONVEX_SITE_URL_PREVIEW\`, and \`CONVEX_DEPLOY_KEY_PREVIEW\`. Set repository variables \`CLOUDFLARE_WORKER_NAME_PREVIEW=${previewWorker}\` and \`APP_URL_PREVIEW\` to that URL, then set \`AUTO_DEPLOY_ENABLED=true\`. Production uses matching \`_PROD\` values, \`CONVEX_DEPLOY_KEY_PROD\`, \`CLOUDFLARE_WORKER_NAME_PROD=${workerBaseName(options.target)}-production\`, and \`APP_URL_PROD\`.${options.auth === 'clerk' ? ' For Clerk, also set `CLERK_SECRET_KEY` as a GitHub Environment Secret and `CLERK_PUBLISHABLE_KEY` plus `CLERK_JWT_ISSUER_DOMAIN` as environment variables for both preview and production.' : ''}\n`
       : '\n## Deployment\n\nAdd the values from `.env.example` in your hosting provider. Keep non-`VITE_` values server-side.\n'
   return `# ${appName}\n\n${preset} generated with ConvexKit.\n\n## Start\n\nnpm install\nnpm run setup\nnpm run dev\n\nSee [configuration](docs/CONFIGURATION.md) before inviting users.\n\n## Selected examples\n\n${examples}\n${deploy}`
 }
@@ -198,13 +198,13 @@ function renderProjectReadme(options) {
 function renderConfigurationGuide(options) {
   const auth =
     options.auth === 'clerk'
-      ? 'Set `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER_DOMAIN`.'
+      ? 'Set `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER_DOMAIN` as described in [Clerk setup](CLERK_SETUP.md).'
       : 'Run `npm run setup`; it creates a local auth secret and can set backend values on Convex.'
   const team =
     options.preset === 'team-saas'
       ? '\n## Team SaaS\n\n`convex/organizations.ts` owns organization creation, membership roles, invitations, and organization-scoped authorization. The `/teams` page manages teams and invitations. Invitation acceptance requires a verified email; configure verification delivery for email/password accounts before production. Add product tables with an `organizationId` and call `requireOrganizationRole` before reading or changing them.\n'
       : ''
-  return `# Configuration\n\n## Local development\n\nCopy no secrets by hand: ${auth}\n\nRequired browser values: VITE_CONVEX_URL and VITE_CONVEX_SITE_URL. SITE_URL is a backend value and must equal the URL users open.\n\n## Production\n\nUse distinct Convex deployments and auth secrets for preview and production. Set SITE_URL on each Convex deployment to its public Worker or hosting URL. Never prefix a secret with VITE_.\n${team}`
+  return `# Configuration\n\n## Local development\n\nCopy no secrets by hand: ${auth}\n\nRequired browser values: VITE_CONVEX_URL and VITE_CONVEX_SITE_URL. SITE_URL is a backend value and must equal the URL users open.\n\n## Production\n\nUse distinct Convex deployments and auth secrets for preview and production. Set SITE_URL on each Convex deployment to its public Worker or hosting URL. Never prefix a secret with VITE_. ${options.auth === 'better-auth' ? 'Configure [account verification and recovery email](AUTH_EMAIL.md) before production.' : 'Configure Clerk production keys and verified domains before production.'}\n${team}`
 }
 
 function runCommand(command, args, cwd) {
@@ -447,7 +447,9 @@ function configureClerkGeneratedApi(target) {
   if (!existsSync(path)) return
   const source = readFileSync(path, 'utf8')
     .replace(/import type \* as auth from [^;]+;\n/, '')
+    .replace(/import type \* as authEmails from [^;]+;\n/, '')
     .replace(/ {2}auth: typeof auth;\n/, '')
+    .replace(/ {2}authEmails: typeof authEmails;\n/, '')
     .replace(/ {2}betterAuth: import\([^\n]+\n/, '')
   writeFileSync(path, source)
 }
@@ -551,8 +553,15 @@ function compose(options) {
       'src/lib/auth-client.ts',
       'src/components/AuthControls.test.tsx',
       'src/lib/auth-server.ts',
+      'src/routes/reset-password.tsx',
+      'src/routes/_authenticated/account.tsx',
       'src/routes/api/auth',
       'convex/auth.ts',
+      'convex/auth.config.test.ts',
+      'convex/auth-flow.test.ts',
+      'convex/authEmails.ts',
+      'convex/authEmails.test.ts',
+      'docs/AUTH_EMAIL.md',
       'convex/test.utils.ts',
       'convex/lib/customFunctions.test.ts',
       'convex/files.test.ts',
@@ -615,6 +624,7 @@ function compose(options) {
     configureTeamGeneratedApi(options.target)
   }
   if (
+    options.auth === 'clerk' &&
     options.preset !== 'team-saas' &&
     !options.selectedExamples.includes('files') &&
     !options.selectedExamples.includes('admin')
@@ -650,7 +660,7 @@ function compose(options) {
   writeFileSync(join(options.target, 'docs/CONFIGURATION.md'), renderConfigurationGuide(options))
   writeFileSync(
     join(options.target, 'docs/README.md'),
-    `# ${basename(options.target)} documentation\n\n- [Configuration](CONFIGURATION.md)\n- [Deployment](${options.deploy === 'cloudflare' ? 'PRODUCTION_DEPLOYMENT_CHECKLIST.md' : options.deploy === 'vercel' ? 'VERCEL_SETUP.md' : 'NETLIFY_SETUP.md'})\n- [Project accelerators](PROJECT_ACCELERATORS.md)\n`
+    `# ${basename(options.target)} documentation\n\n- [Configuration](CONFIGURATION.md)\n${options.auth === 'better-auth' ? '- [Account email](AUTH_EMAIL.md)\n' : ''}- [Deployment](${options.deploy === 'cloudflare' ? 'PRODUCTION_DEPLOYMENT_CHECKLIST.md' : options.deploy === 'vercel' ? 'VERCEL_SETUP.md' : 'NETLIFY_SETUP.md'})\n- [Project accelerators](PROJECT_ACCELERATORS.md)\n`
   )
   writeFileSync(
     join(options.target, '.convexkit.json'),

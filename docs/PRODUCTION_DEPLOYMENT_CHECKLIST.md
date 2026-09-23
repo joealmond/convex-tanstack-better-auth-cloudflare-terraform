@@ -54,12 +54,14 @@ Wrangler and the Deploy workflow own the Worker and its Custom Domain; Terraform
 ## 4. Set Convex production env vars
 
 ```bash
-npx convex env set SITE_URL "$SITE_URL"
-printf %s "$BETTER_AUTH_SECRET" | npx convex env set BETTER_AUTH_SECRET
+npx convex env set --prod SITE_URL "$SITE_URL"
+printf %s "$BETTER_AUTH_SECRET" | npx convex env set --prod BETTER_AUTH_SECRET
 # Optional, only when Google OAuth is enabled:
-npx convex env set GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
-printf %s "$GOOGLE_CLIENT_SECRET" | npx convex env set GOOGLE_CLIENT_SECRET
+npx convex env set --prod GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
+printf %s "$GOOGLE_CLIENT_SECRET" | npx convex env set --prod GOOGLE_CLIENT_SECRET
 ```
+
+For Better Auth apps, configure verification, recovery, and deletion email as described in [account email setup](AUTH_EMAIL.md). The production preflight requires `AUTH_EMAIL_PROVIDER=resend`, `AUTH_EMAIL_FROM`, and `RESEND_API_KEY` on the production Convex deployment. Keep the API key in Convex's environment variables or inject it from your team's secret manager; no credential belongs in this repository.
 
 ## 5. Optionally configure Google OAuth for production
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
 import { Buffer } from 'node:buffer'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -79,6 +79,11 @@ try {
   }
   if (deploy === 'cloudflare') {
     run('deploy-config', 'npm', ['run', 'sync:wrangler-config'])
+    if (auth === 'clerk') {
+      const config = JSON.parse(readFileSync(join(target, 'dist/server/wrangler.json'), 'utf8'))
+      if (config.vars?.CLERK_PUBLISHABLE_KEY !== env.CLERK_PUBLISHABLE_KEY)
+        throw new Error('Generated Clerk Worker config is missing the publishable key')
+    }
     run('worker-dry-run', 'npx', [
       'wrangler',
       'deploy',

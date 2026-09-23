@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { UserIdentity } from 'convex/server'
 import { api, components, internal } from './_generated/api'
 import { createAuthenticatedTest, type TestBackend } from './test.utils'
@@ -121,5 +121,44 @@ describe('organizations', () => {
       expect(member?.role).toBe('owner')
       expect((await ctx.db.get(organizationId))?.createdBy).toBe(verified.userId)
     })
+  })
+
+  it('deletes a large sole-owner organization in bounded batches', async () => {
+    vi.useFakeTimers()
+    try {
+      const owner = await createAuthenticatedTest()
+      const organizationId = await owner.asUser.mutation(api.organizations.create, {
+        name: 'Large team',
+        slug: 'large-team',
+      })
+      await owner.t.run(async (ctx) => {
+        for (let index = 0; index < 205; index += 1) {
+          await ctx.db.insert('organizationInvitations', {
+            organizationId,
+            email: `invite-${index}@example.com`,
+            role: 'member',
+            invitedBy: owner.userId,
+            expiresAt: Date.now() + 60_000,
+          })
+        }
+      })
+      await owner.t.mutation(internal.maintenance.deleteUserDataBatch, { userId: owner.userId })
+      await expect(
+        owner.asUser.mutation(api.organizations.setEntitlement, {
+          organizationId,
+          key: 'advanced',
+          enabled: true,
+        })
+      ).rejects.toThrow('Organization access denied')
+      await owner.t.finishAllScheduledFunctions(vi.runAllTimers)
+      await owner.t.run(async (ctx) => {
+        expect(await ctx.db.get(organizationId)).toBeNull()
+        expect(await ctx.db.query('organizationInvitations').collect()).toEqual([])
+        expect(await ctx.db.query('organizationAuditEvents').collect()).toEqual([])
+        expect(await ctx.db.query('organizationMembers').collect()).toEqual([])
+      })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery, useConvexMutation } from '@convex-dev/react-query'
 import { api } from '@convex/_generated/api'
-import { authClient, useSession, signIn, signOut } from '@/lib/auth-client'
+import { useSession, signIn, signOut } from '@/lib/auth-client'
 import { EmailAuthControls } from '@/components/AuthControls'
 import { useAdmin } from '@/hooks/use-admin'
 import { formatRelativeTime } from '@/lib/utils'
@@ -72,13 +72,6 @@ function RealtimeChatContent() {
     signOut()
   }
 
-  const handleDeleteAccount = async () => {
-    if (!window.confirm('Permanently delete your account, uploaded files, and messages?')) return
-    const result = await authClient.deleteUser()
-    if (result.error) throw new Error(result.error.message ?? 'Account deletion failed')
-    location.reload()
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-sm">
@@ -130,13 +123,13 @@ function RealtimeChatContent() {
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => void handleDeleteAccount()}
+                <Link
+                  to="/account"
                   className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete Account
-                </button>
+                  Account
+                </Link>
                 <button
                   onClick={handleSignOut}
                   className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"

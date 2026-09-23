@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { configuredUrl, isConvexCloudPreview, normalizeUrl, readEnv } from './infra-utils.mjs'
+import {
+  authProvider,
+  configuredUrl,
+  isConvexCloudPreview,
+  normalizeUrl,
+  readEnv,
+} from './infra-utils.mjs'
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', shell: false, ...options })
@@ -15,6 +21,7 @@ let state = {}
 if (existsSync('.convexkit/preview.json'))
   state = JSON.parse(readFileSync('.convexkit/preview.json', 'utf8'))
 const env = readEnv()
+const selectedAuth = authProvider()
 const workerName = process.env.CLOUDFLARE_WORKER_NAME || state.workerName
 if (!workerName)
   throw new Error('Run npm run infra:bootstrap -- --worker-name my-app-preview first.')
@@ -35,6 +42,10 @@ run('node', ['scripts/deploy-preflight.mjs', '--environment', 'preview'], {
 // The bootstrap stores SITE_URL before this push. Repeat it here to make a
 // deploy resilient to a manually changed Convex environment.
 run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl], { stdio: 'pipe' })
+if (selectedAuth === 'clerk')
+  run('npx', ['convex', 'env', 'set', 'CLERK_JWT_ISSUER_DOMAIN', env.CLERK_JWT_ISSUER_DOMAIN], {
+    stdio: 'pipe',
+  })
 run('npx', ['convex', 'dev', '--once'], { stdio: 'pipe' })
 run('npm', ['run', 'build:preview'], { stdio: 'pipe' })
 run('npm', ['run', 'sync:wrangler-config'], {
@@ -42,6 +53,7 @@ run('npm', ['run', 'sync:wrangler-config'], {
   env: {
     ...process.env,
     CLOUDFLARE_WORKER_NAME: workerName,
+    CLERK_PUBLISHABLE_KEY: selectedAuth === 'clerk' ? env.CLERK_PUBLISHABLE_KEY : '',
     CLOUDFLARE_CUSTOM_DOMAIN:
       process.env.CLOUDFLARE_CUSTOM_DOMAIN ||
       (new URL(appUrl).hostname.endsWith('.workers.dev') ? '' : new URL(appUrl).hostname),
@@ -50,6 +62,15 @@ run('npm', ['run', 'sync:wrangler-config'], {
 const output = run('npx', ['wrangler', 'deploy', '--config', 'dist/server/wrangler.json'], {
   stdio: 'pipe',
 })
+if (selectedAuth === 'clerk')
+  run(
+    'npx',
+    ['wrangler', 'secret', 'put', 'CLERK_SECRET_KEY', '--config', 'dist/server/wrangler.json'],
+    {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      input: env.CLERK_SECRET_KEY,
+    }
+  )
 const config = JSON.parse(readFileSync('dist/server/wrangler.json', 'utf8'))
 const configuredDomain = config.routes?.find((route) => route.custom_domain)?.pattern
 if (configuredDomain && new URL(appUrl).hostname !== configuredDomain) {
@@ -64,7 +85,10 @@ if (!configuredDomain && !workersUrl) {
     'Wrangler did not report a workers.dev URL. Configure a Custom Domain or retry the deployment.'
   )
 }
-const workerVersion = output.match(/(?:Current )?Version ID:\s*([^\s]+)/i)?.[1] || 'unavailable'
+const workerVersion =
+  selectedAuth === 'clerk'
+    ? 'unavailable'
+    : output.match(/(?:Current )?Version ID:\s*([^\s]+)/i)?.[1] || 'unavailable'
 
 run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl], { stdio: 'pipe' })
 run('npx', ['convex', 'dev', '--once'], { stdio: 'pipe' })

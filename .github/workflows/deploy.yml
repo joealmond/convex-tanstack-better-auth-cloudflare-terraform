@@ -55,6 +55,12 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Detect authentication provider
+        id: auth
+        run: |
+          provider=$(node -p "require('./package.json').convexkit?.auth || 'better-auth'")
+          echo "provider=$provider" >> "$GITHUB_OUTPUT"
+
       - name: Check Convex runtime imports
         run: npm run check:convex-imports
 
@@ -75,6 +81,9 @@ jobs:
           CONVEX_DEPLOY_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_DEPLOY_KEY_PROD || secrets.CONVEX_DEPLOY_KEY_PREVIEW }}
           CONVEX_URL: ${{ env.CONVEX_HOSTING == 'self-hosted' && (env.ENVIRONMENT == 'production' && secrets.CONVEX_URL_PROD || secrets.CONVEX_URL_PREVIEW) || '' }}
           CONVEX_ADMIN_KEY: ${{ env.CONVEX_HOSTING == 'self-hosted' && (env.ENVIRONMENT == 'production' && secrets.CONVEX_ADMIN_KEY_PROD || secrets.CONVEX_ADMIN_KEY_PREVIEW) || '' }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_JWT_ISSUER_DOMAIN: ${{ vars.CLERK_JWT_ISSUER_DOMAIN }}
 
       - name: Set deployed app URL on Convex
         run: |
@@ -83,7 +92,16 @@ jobs:
           else
             npx convex env set SITE_URL "${APP_URL}"
           fi
+          if [ "$AUTH_PROVIDER" = 'clerk' ]; then
+            if [ "$CONVEX_HOSTING" = 'self-hosted' ]; then
+              npx convex env set CLERK_JWT_ISSUER_DOMAIN "$CLERK_JWT_ISSUER_DOMAIN" --url "$CONVEX_URL"
+            else
+              npx convex env set CLERK_JWT_ISSUER_DOMAIN "$CLERK_JWT_ISSUER_DOMAIN"
+            fi
+          fi
         env:
+          AUTH_PROVIDER: ${{ steps.auth.outputs.provider }}
+          CLERK_JWT_ISSUER_DOMAIN: ${{ vars.CLERK_JWT_ISSUER_DOMAIN }}
           CONVEX_DEPLOY_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_DEPLOY_KEY_PROD || secrets.CONVEX_DEPLOY_KEY_PREVIEW }}
           CONVEX_ADMIN_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_ADMIN_KEY_PROD || secrets.CONVEX_ADMIN_KEY_PREVIEW }}
           CONVEX_URL: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_URL_PROD || secrets.CONVEX_URL_PREVIEW }}
@@ -119,6 +137,7 @@ jobs:
           VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL_PROD }}
           VITE_CONVEX_SITE_URL: ${{ secrets.VITE_CONVEX_SITE_URL_PROD }}
           VITE_APP_ENV: production
+          CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
 
       - name: Build preview Worker
         if: env.ENVIRONMENT == 'preview'
@@ -127,12 +146,14 @@ jobs:
           VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL_PREVIEW }}
           VITE_CONVEX_SITE_URL: ${{ secrets.VITE_CONVEX_SITE_URL_PREVIEW }}
           VITE_APP_ENV: preview
+          CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
 
       - name: Generate Wrangler deploy config
         run: npm run sync:wrangler-config
         env:
           CLOUDFLARE_CUSTOM_DOMAIN: ${{ env.ENVIRONMENT == 'production' && vars.CLOUDFLARE_CUSTOM_DOMAIN_PROD || vars.CLOUDFLARE_CUSTOM_DOMAIN_PREVIEW }}
           CLOUDFLARE_WORKER_NAME: ${{ env.CLOUDFLARE_WORKER_NAME }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
 
       - name: Deploy Cloudflare Worker
         id: worker-deploy
@@ -141,6 +162,14 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --config dist/server/wrangler.json
+
+      - name: Install Clerk Worker secret
+        if: steps.auth.outputs.provider == 'clerk'
+        run: printf %s "$CLERK_SECRET_KEY" | npx wrangler secret put CLERK_SECRET_KEY --config dist/server/wrangler.json
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Run read-only deployment smoke test
         id: smoke

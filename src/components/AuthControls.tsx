@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { LogIn, Loader2 } from 'lucide-react'
-import { signIn, signUp, signOut, useSession } from '@/lib/auth-client'
+import { Link } from '@tanstack/react-router'
+import { authClient, signIn, signUp, signOut, useSession } from '@/lib/auth-client'
 import { isGoogleAuthEnabled } from '@/lib/env'
 
 export function AuthControls() {
@@ -11,6 +12,9 @@ export function AuthControls() {
     return (
       <div className="flex items-center gap-3">
         <span>{session.user.name}</span>
+        <Link to="/account" className="rounded-md bg-secondary px-3 py-2">
+          Account
+        </Link>
         <button
           type="button"
           onClick={() => void signOut()}
@@ -31,23 +35,53 @@ export function AuthControls() {
 
 export function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => void }) {
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in')
+  const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot' | 'verify'>('sign-in')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setPending(true)
     setErrorMessage(null)
+    setNotice(null)
     try {
-      const result =
-        mode === 'sign-up'
-          ? await signUp.email({ name: name.trim(), email: email.trim(), password })
-          : await signIn.email({ email: email.trim(), password })
-      if (result.error) throw new Error(result.error.message ?? 'Authentication failed')
+      if (mode === 'forgot') {
+        const result = await authClient.requestPasswordReset({
+          email: email.trim(),
+          redirectTo: `${location.origin}/reset-password`,
+        })
+        if (result.error) throw new Error(result.error.message ?? 'Password recovery unavailable')
+        setNotice('If that account exists, check your email for a reset link.')
+        return
+      }
+      if (mode === 'verify') {
+        const result = await authClient.sendVerificationEmail({
+          email: email.trim(),
+          callbackURL: '/',
+        })
+        if (result.error) throw new Error(result.error.message ?? 'Verification email unavailable')
+        setNotice('If that account needs verification, check your email for a link.')
+        return
+      }
+      if (mode === 'sign-up') {
+        const result = await signUp.email({ name: name.trim(), email: email.trim(), password })
+        if (result.error) throw new Error(result.error.message ?? 'Authentication failed')
+        if (!result.data?.token) {
+          setMode('verify')
+          setNotice('Check your email for a verification link before signing in.')
+          return
+        }
+      } else {
+        const result = await signIn.email({ email: email.trim(), password })
+        if (result.error) {
+          if (result.error.code === 'EMAIL_NOT_VERIFIED') setMode('verify')
+          throw new Error(result.error.message ?? 'Authentication failed')
+        }
+      }
       location.reload()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Authentication failed')
@@ -84,6 +118,11 @@ export function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => vo
               </button>
             ))}
           </div>
+          {(mode === 'forgot' || mode === 'verify') && (
+            <button type="button" onClick={() => setMode('sign-in')} className="text-sm underline">
+              Back to sign in
+            </button>
+          )}
           {mode === 'sign-up' && (
             <label className="block text-sm">
               Name
@@ -107,26 +146,46 @@ export function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => vo
               className="mt-1 w-full rounded border border-input bg-background px-3 py-2"
             />
           </label>
-          <label className="block text-sm">
-            Password
-            <input
-              required
-              minLength={12}
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
-              className="mt-1 w-full rounded border border-input bg-background px-3 py-2"
-            />
-          </label>
+          {(mode === 'sign-in' || mode === 'sign-up') && (
+            <label className="block text-sm">
+              Password
+              <input
+                required
+                minLength={12}
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
+                className="mt-1 w-full rounded border border-input bg-background px-3 py-2"
+              />
+            </label>
+          )}
           {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+          {notice && (
+            <p role="status" className="text-sm">
+              {notice}
+            </p>
+          )}
           <button
             type="submit"
             disabled={pending}
             className="w-full rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
           >
-            {pending ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}
+            {pending
+              ? 'Please wait…'
+              : mode === 'sign-in'
+                ? 'Sign in'
+                : mode === 'sign-up'
+                  ? 'Create account'
+                  : mode === 'forgot'
+                    ? 'Send reset link'
+                    : 'Resend verification'}
           </button>
+          {mode === 'sign-in' && (
+            <button type="button" onClick={() => setMode('forgot')} className="text-sm underline">
+              Forgot password?
+            </button>
+          )}
           {isGoogleAuthEnabled && (
             <button
               type="button"

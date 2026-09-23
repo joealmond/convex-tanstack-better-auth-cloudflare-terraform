@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import {
+  authProvider,
   configuredUrl,
   isConvexCloudPreview,
   readEnv,
@@ -63,6 +64,7 @@ if (!configuredUrl(appUrl || '') || new URL(appUrl).protocol !== 'https:') {
 // A first-time Convex connection necessarily initializes the selected project,
 // then the following push applies the auth origin.
 let env = readEnv()
+const selectedAuth = authProvider()
 if (isConvexCloudPreview(env)) {
   run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl])
 } else {
@@ -77,15 +79,26 @@ if (!isConvexCloudPreview(env)) {
   process.exit(1)
 }
 
-const secret =
-  env.BETTER_AUTH_SECRET && !env.BETTER_AUTH_SECRET.startsWith('your-')
-    ? env.BETTER_AUTH_SECRET
-    : randomBytes(32).toString('base64url')
-updateEnv('.env.local', { BETTER_AUTH_SECRET: secret, VITE_APP_ENV: 'preview' })
-run('npx', ['convex', 'env', 'set', 'BETTER_AUTH_SECRET'], {
-  input: secret,
-  stdio: ['pipe', 'inherit', 'inherit'],
-})
+if (selectedAuth === 'clerk') {
+  if (
+    !env.CLERK_PUBLISHABLE_KEY?.startsWith('pk_') ||
+    !env.CLERK_SECRET_KEY?.startsWith('sk_') ||
+    !configuredUrl(env.CLERK_JWT_ISSUER_DOMAIN)
+  )
+    throw new Error('Run npm run setup with valid Clerk keys and issuer before preview bootstrap.')
+  updateEnv('.env.local', { VITE_APP_ENV: 'preview' })
+  run('npx', ['convex', 'env', 'set', 'CLERK_JWT_ISSUER_DOMAIN', env.CLERK_JWT_ISSUER_DOMAIN])
+} else {
+  const secret =
+    env.BETTER_AUTH_SECRET && !env.BETTER_AUTH_SECRET.startsWith('your-')
+      ? env.BETTER_AUTH_SECRET
+      : randomBytes(32).toString('base64url')
+  updateEnv('.env.local', { BETTER_AUTH_SECRET: secret, VITE_APP_ENV: 'preview' })
+  run('npx', ['convex', 'env', 'set', 'BETTER_AUTH_SECRET'], {
+    input: secret,
+    stdio: ['pipe', 'inherit', 'inherit'],
+  })
+}
 run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl])
 // Push again after setting the auth origin, so the deployable backend reads it.
 run('npx', ['convex', 'dev', '--once'])
@@ -113,3 +126,6 @@ writeFileSync(
   { mode: 0o600 }
 )
 console.log(`Preview infrastructure is ready for ${requestedName}. Next: npm run deploy:preview`)
+console.log(
+  'Account email is optional for local/limited preview use; see docs/AUTH_EMAIL.md before production.'
+)
