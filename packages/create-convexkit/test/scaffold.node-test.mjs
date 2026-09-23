@@ -77,7 +77,8 @@ test('composes only selected examples for Vercel', () => {
     assert.match(readFileSync(join(target, 'src/routes/index.tsx'), 'utf8'), /Your realtime app/)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.equal(pkg.dependencies.nitro, '3.0.260903-beta')
-    assert.match(pkg.scripts['build:prod'], /sanitize-build-output/)
+    assert.match(pkg.scripts.build, /sanitize-build-output\.mjs \.vercel\/output/)
+    assert.match(pkg.scripts['build:prod'], /sanitize-build-output\.mjs \.vercel\/output/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -98,6 +99,10 @@ test('applies Clerk and Netlify provider overlays', () => {
     assert.equal(existsSync(join(target, 'convex/auth.ts')), false)
     assert.match(readFileSync(join(target, 'src/routes/__root.tsx'), 'utf8'), /ClerkProvider/)
     assert.match(readFileSync(join(target, 'convex/lib/authHelpers.ts'), 'utf8'), /getUserIdentity/)
+    assert.match(
+      readFileSync(join(target, 'src/lib/security-headers.ts'), 'utf8'),
+      /localBackendUrl\?: string/
+    )
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.equal(pkg.dependencies['@clerk/tanstack-react-start'], '1.5.12')
     assert.equal(pkg.dependencies['@convex-dev/better-auth'], undefined)

@@ -346,10 +346,12 @@ function configurePackage(target, options) {
     delete pkg.scripts['sync:wrangler-config']
     delete pkg.scripts['deploy:preview']
     delete pkg.scripts['deploy:prod']
+    const buildOutput = options.deploy === 'vercel' ? '.vercel/output' : 'dist'
+    pkg.scripts.build = `vite build && node scripts/sanitize-build-output.mjs ${buildOutput}`
     pkg.scripts['build:preview'] =
-      'vite build --mode preview && node scripts/sanitize-build-output.mjs'
+      `vite build --mode preview && node scripts/sanitize-build-output.mjs ${buildOutput}`
     pkg.scripts['build:prod'] =
-      'vite build --mode production && node scripts/sanitize-build-output.mjs'
+      `vite build --mode production && node scripts/sanitize-build-output.mjs ${buildOutput}`
     pkg.scripts.preview = 'vite preview'
   }
   if (options.deploy === 'vercel') {
