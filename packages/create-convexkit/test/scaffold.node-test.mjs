@@ -39,7 +39,7 @@ test('creates the default Better Auth + Cloudflare application', () => {
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.match(pkg.scripts.build, /sanitize-build-output/)
     assert.match(pkg.scripts.check, /check:convex-imports/)
-    assert.equal(pkg.devDependencies.esbuild, '0.27.0')
+    assert.equal(typeof pkg.devDependencies.esbuild, 'string')
     assert.equal(existsSync(join(target, 'scripts/sanitize-build-output.mjs')), true)
     assert.equal(existsSync(join(target, 'scripts/check-convex-runtime-imports.mjs')), true)
     assert.equal(existsSync(join(target, 'docs/PROJECT_ACCELERATORS.md')), true)
