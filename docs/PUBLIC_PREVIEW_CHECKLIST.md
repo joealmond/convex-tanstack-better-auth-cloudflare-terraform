@@ -104,9 +104,9 @@ Add these repository secrets for automated preview deploys:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
-- `VITE_CONVEX_URL`
-- `VITE_CONVEX_SITE_URL`
-- `CONVEX_DEPLOY_KEY_PREVIEW` or shared `CONVEX_DEPLOY_KEY`
+- `VITE_CONVEX_URL_PREVIEW`
+- `VITE_CONVEX_SITE_URL_PREVIEW`
+- `CONVEX_DEPLOY_KEY_PREVIEW`
 
 Once these are set and the preview environment has been bootstrapped once, pushing to `main` is enough to auto-deploy preview after CI passes.
 

@@ -18,6 +18,7 @@ const REPOSITORY =
 const ALL_EXAMPLES = ['chat', 'files', 'admin', 'forms', 'todos', 'ai', 'billing', 'email']
 const VALID_AUTH = ['better-auth', 'clerk']
 const VALID_DEPLOY = ['cloudflare', 'vercel', 'netlify']
+const VALID_PRESETS = ['personal', 'team-saas']
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const cliVersion = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version
 const defaultTemplateRef = `create-convexkit-v${cliVersion}`
@@ -79,7 +80,8 @@ Usage:
 Options:
   --auth <better-auth|clerk>       Authentication provider (default: better-auth)
   --deploy <cloudflare|vercel|netlify>  Deployment target (default: cloudflare)
-  --examples <all|none|csv>        Feature examples (default: all)
+  --preset <personal|team-saas>    App foundation (default: personal)
+  --examples <all|none|csv>        Feature examples (default: none)
   --terraform, --no-terraform      Include Terraform (default: no)
   --install, --no-install          Install dependencies (default: install)
   --template-dir <path>            Use a local template checkout (testing/contributing)
@@ -105,7 +107,7 @@ function parseArgs(argv) {
     else if (arg === '--install') result.install = true
     else if (arg === '--no-install') result.install = false
     else if (
-      ['--auth', '--deploy', '--examples', '--template-dir', '--template-ref'].includes(arg)
+      ['--auth', '--deploy', '--preset', '--examples', '--template-dir', '--template-ref'].includes(arg)
     ) {
       const value = argv[++index]
       if (!value || value.startsWith('-')) throw new Error(`${arg} requires a value`)
@@ -145,7 +147,8 @@ async function collectOptions(parsed) {
     parsed.project ||= await ask('Project directory', 'my-convexkit-app')
     parsed.auth ||= await ask('Auth: better-auth or clerk', 'better-auth')
     parsed.deploy ||= await ask('Deploy: cloudflare, vercel, or netlify', 'cloudflare')
-    parsed.examples ||= await ask(`Examples: all, none, or CSV [${ALL_EXAMPLES.join(', ')}]`, 'all')
+    parsed.preset ||= await ask('Preset: personal or team-saas', 'personal')
+    parsed.examples ||= await ask(`Examples: all, none, or CSV [${ALL_EXAMPLES.join(', ')}]`, 'none')
     if (!parsed.yes) {
       const answer = (await rl.question('Include Terraform? [y/N]: ')).trim().toLowerCase()
       parsed.terraform = answer === 'y' || answer === 'yes'
@@ -160,12 +163,34 @@ function validateOptions(options) {
   if (!VALID_AUTH.includes(options.auth)) throw new Error(`Invalid auth provider: ${options.auth}`)
   if (!VALID_DEPLOY.includes(options.deploy))
     throw new Error(`Invalid deploy target: ${options.deploy}`)
-  options.selectedExamples = parseExamples(options.examples)
+  options.preset ||= 'personal'
+  if (!VALID_PRESETS.includes(options.preset)) throw new Error(`Invalid preset: ${options.preset}`)
+  options.selectedExamples = parseExamples(options.examples || 'none')
   options.target = resolve(options.project)
   if (options.target === resolve('.')) throw new Error('Choose a new project directory')
   if (existsSync(options.target) && readdirSync(options.target).length > 0) {
     throw new Error(`Target directory is not empty: ${options.target}`)
   }
+}
+
+function renderProjectReadme(options) {
+  const appName = basename(options.target)
+  const preset = options.preset === 'team-saas' ? 'Team SaaS' : 'Personal app'
+  const examples = options.selectedExamples.length ? options.selectedExamples.join(', ') : 'none'
+  const deploy = options.deploy === 'cloudflare'
+    ? '\n## Preview deployment\n\nAdd these GitHub secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `VITE_CONVEX_URL_PREVIEW`, `VITE_CONVEX_SITE_URL_PREVIEW`, and `CONVEX_DEPLOY_KEY_PREVIEW`. Then set the repository variable `AUTO_DEPLOY_ENABLED=true`. Production uses the same URL names with `_PROD` and `CONVEX_DEPLOY_KEY_PROD`.\n'
+    : '\n## Deployment\n\nAdd the values from `.env.example` in your hosting provider. Keep non-`VITE_` values server-side.\n'
+  return `# ${appName}\n\n${preset} generated with ConvexKit.\n\n## Start\n\nnpm install\nnpm run setup\nnpm run dev\n\nSee [configuration](docs/CONFIGURATION.md) before inviting users.\n\n## Selected examples\n\n${examples}\n${deploy}`
+}
+
+function renderConfigurationGuide(options) {
+  const auth = options.auth === 'clerk'
+    ? 'Set `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER_DOMAIN`.'
+    : 'Run `npm run setup`; it creates a local auth secret and can set backend values on Convex.'
+  const team = options.preset === 'team-saas'
+    ? '\n## Team SaaS\n\n`convex/organizations.ts` owns organization creation, membership roles, invitations, and organization-scoped authorization. Add product tables with an `organizationId` and call `requireOrganizationRole` before reading or changing them.\n'
+    : ''
+  return `# Configuration\n\n## Local development\n\nCopy no secrets by hand: ${auth}\n\nRequired browser values: VITE_CONVEX_URL and VITE_CONVEX_SITE_URL. SITE_URL is a backend value and must equal the URL users open.\n\n## Production\n\nUse distinct Convex deployments and auth secrets for preview and production. Set SITE_URL on each Convex deployment to its public Worker or hosting URL. Never prefix a secret with VITE_.\n${team}`
 }
 
 function runCommand(command, args, cwd) {
@@ -312,6 +337,7 @@ function configurePackage(target, options) {
     deploy: options.deploy,
     examples: options.selectedExamples,
     terraform: options.terraform,
+    preset: options.preset,
     cliVersion,
     templateRef: options.templateDir ? 'local' : options.templateRef,
   }
@@ -407,10 +433,16 @@ function renderMaintenance(selected) {
     chat
       ? `    const messages = await ctx.db.query('messages').withIndex('by_author', (query) => query.eq('authorId', userId)).take(BATCH_SIZE)\n    for (const message of messages) await ctx.db.delete(message._id)`
       : '    const messages: Array<never> = []',
+    ...['todos', 'aiRuns', 'emailDeliveries', 'billingSubscriptions'].map((table) => {
+      const feature = table === 'aiRuns' ? 'ai' : table === 'emailDeliveries' ? 'email' : table === 'billingSubscriptions' ? 'billing' : 'todos'
+      return selected.includes(feature)
+        ? `    const ${table} = await ctx.db.query('${table}').withIndex('by_owner', (query) => query.eq('ownerId', userId)).take(BATCH_SIZE)\n    for (const item of ${table}) await ctx.db.delete(item._id)`
+        : `    const ${table}: Array<never> = []`
+    }),
   ].join('\n\n')
   const retentionConstant = chat ? 'const MESSAGE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000\n' : ''
   const now = files || chat ? '    const now = Date.now()\n' : ''
-  return `import { v } from 'convex/values'\nimport { internal } from './_generated/api'\nimport { internalMutation } from './_generated/server'\n\n${retentionConstant}const BATCH_SIZE = 100\n\nexport const deleteExpiredData = internalMutation({\n  args: {},\n  handler: async (ctx) => {\n${now}${expiryWork}\n    if (intents.length === BATCH_SIZE || expiredMessages.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.maintenance.deleteExpiredData)\n  },\n})\n\nexport const deleteUserDataBatch = internalMutation({\n  args: { userId: v.string() },\n  handler: async (ctx, { userId }) => {\n${userWork}\n    if (files.length === BATCH_SIZE || messages.length === BATCH_SIZE || intents.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, { userId })\n  },\n})\n`
+  return `import { v } from 'convex/values'\nimport { internal } from './_generated/api'\nimport { internalMutation } from './_generated/server'\n\n${retentionConstant}const BATCH_SIZE = 100\n\nexport const deleteExpiredData = internalMutation({\n  args: {},\n  handler: async (ctx) => {\n${now}${expiryWork}\n    if (intents.length === BATCH_SIZE || expiredMessages.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.maintenance.deleteExpiredData)\n  },\n})\n\nexport const deleteUserDataBatch = internalMutation({\n  args: { userId: v.string() },\n  handler: async (ctx, { userId }) => {\n${userWork}\n    if ([files, messages, intents, todos, aiRuns, emailDeliveries, billingSubscriptions].some((items) => items.length === BATCH_SIZE)) await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, { userId })\n  },\n})\n`
 }
 
 function compose(options) {
@@ -500,6 +532,7 @@ function compose(options) {
     renderMaintenance(options.selectedExamples)
   )
   if (!options.selectedExamples.includes('chat')) copyOverlay('no-chat', options.target)
+  if (options.preset === 'team-saas') copyOverlay('team-saas', options.target)
   if (!options.selectedExamples.includes('files') && !options.selectedExamples.includes('admin')) {
     remove(options.target, ['src/routes/_authenticated.tsx'])
   }
@@ -518,6 +551,8 @@ function compose(options) {
   }
   configurePackage(options.target, options)
   configureGeneratedChecks(options)
+  writeFileSync(join(options.target, 'README.md'), renderProjectReadme(options))
+  writeFileSync(join(options.target, 'docs/CONFIGURATION.md'), renderConfigurationGuide(options))
   writeFileSync(
     join(options.target, '.convexkit.json'),
     `${JSON.stringify({ version: 1, ...options, target: undefined, templateDir: undefined, deployWorkflow: undefined }, null, 2)}\n`

@@ -34,7 +34,7 @@ test('creates the default Better Auth + Cloudflare application', () => {
       /"main": "\.\/src\/server\.ts"/
     )
     assert.equal(existsSync(join(target, 'infrastructure')), false)
-    assert.equal(existsSync(join(target, 'convex/todos.ts')), true)
+    assert.equal(existsSync(join(target, 'convex/todos.ts')), false)
     assert.equal(existsSync(join(target, 'packages/create-convexkit')), false)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.match(pkg.scripts.build, /sanitize-build-output/)
@@ -43,16 +43,20 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.equal(existsSync(join(target, 'scripts/sanitize-build-output.mjs')), true)
     assert.equal(existsSync(join(target, 'scripts/check-convex-runtime-imports.mjs')), true)
     assert.equal(existsSync(join(target, 'docs/PROJECT_ACCELERATORS.md')), true)
-    assert.deepEqual(pkg.convexkit.examples, [
-      'chat',
-      'files',
-      'admin',
-      'forms',
-      'todos',
-      'ai',
-      'billing',
-      'email',
-    ])
+    assert.deepEqual(pkg.convexkit.examples, [])
+    assert.equal(pkg.convexkit.preset, 'personal')
+    assert.match(readFileSync(join(target, 'README.md'), 'utf8'), /CONVEX_DEPLOY_KEY_PREVIEW/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('team-saas preset includes organization authorization foundation', () => {
+  const { root, target } = scaffold(['--preset', 'team-saas'])
+  try {
+    assert.equal(existsSync(join(target, 'convex/organizations.ts')), true)
+    assert.match(readFileSync(join(target, 'convex/schema.ts'), 'utf8'), /organizationMembers/)
+    assert.match(readFileSync(join(target, 'docs/CONFIGURATION.md'), 'utf8'), /requireOrganizationRole/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -200,5 +204,16 @@ test('chat-only output omits file links and minimal output retains authenticatio
   } finally {
     rmSync(chat.root, { recursive: true, force: true })
     rmSync(minimal.root, { recursive: true, force: true })
+  }
+})
+
+test('generated account cleanup covers every selected owner-scoped example', () => {
+  const { root, target } = scaffold(['--examples', 'todos,ai,email,billing'])
+  try {
+    const maintenance = readFileSync(join(target, 'convex/maintenance.ts'), 'utf8')
+    for (const table of ['todos', 'aiRuns', 'emailDeliveries', 'billingSubscriptions'])
+      assert.match(maintenance, new RegExp(`query\\('${table}'\\)`))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
   }
 })

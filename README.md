@@ -96,8 +96,9 @@ email/password accounts do not need Google OAuth. Admin email allowlists require
 
 Open [http://localhost:3000](http://localhost:3000)
 
-The interactive generator lets you choose Better Auth or Clerk; Cloudflare Workers, Vercel, or
-Netlify; any combination of the included examples; and optional Terraform. For automation, run
+The interactive generator starts with a clean personal app by default. Choose the Team SaaS preset
+for organization membership, roles, and invitations; add only the examples you need; and choose
+Better Auth or Clerk, Cloudflare Workers, Vercel, or Netlify, and optional Terraform. For automation, run
 `npm create convexkit@latest -- --help` to see non-interactive flags.
 
 Cloudflare + Better Auth is the default release path. CI additionally builds all/minimal variants
