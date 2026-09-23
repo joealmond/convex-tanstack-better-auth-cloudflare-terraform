@@ -41,9 +41,21 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.equal(existsSync(join(target, 'infrastructure')), false)
     assert.equal(existsSync(join(target, 'convex/todos.ts')), false)
     assert.equal(existsSync(join(target, 'packages/create-convexkit')), false)
+    assert.equal(existsSync(join(target, 'ROADMAP.md')), false)
+    assert.equal(existsSync(join(target, 'CONTRIBUTING.md')), false)
+    assert.equal(existsSync(join(target, 'AGENTS.md')), false)
+    assert.equal(existsSync(join(target, '.github/workflows/ci.yml')), true)
+    assert.equal(existsSync(join(target, 'docs/index.md')), false)
+    assert.match(readFileSync(join(target, 'docs/README.md'), 'utf8'), /app documentation/)
+    assert.equal(existsSync(join(target, 'docs/CONFIGURATION.md')), true)
+    assert.match(
+      readFileSync(join(target, '.github/workflows/deploy.yml'), 'utf8'),
+      /Preflight deployment configuration/
+    )
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.match(pkg.scripts.build, /sanitize-build-output/)
     assert.match(pkg.scripts.check, /check:convex-imports/)
+    assert.equal(pkg.scripts['docs:build'], undefined)
     assert.equal(typeof pkg.devDependencies.esbuild, 'string')
     assert.equal(existsSync(join(target, 'scripts/sanitize-build-output.mjs')), true)
     assert.equal(existsSync(join(target, 'scripts/check-convex-runtime-imports.mjs')), true)

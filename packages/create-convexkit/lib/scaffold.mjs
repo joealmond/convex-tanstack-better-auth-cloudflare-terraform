@@ -380,6 +380,10 @@ function configurePackage(target, options) {
   delete pkg.scripts['test:e2e:local-auth']
   delete pkg.scripts['test:setup']
   delete pkg.scripts['test:guardrails']
+  delete pkg.scripts['docs:dev']
+  delete pkg.scripts['docs:build']
+  delete pkg.scripts['docs:preview']
+  delete pkg.devDependencies.vitepress
   for (const [feature, dependencies] of Object.entries({
     billing: ['stripe'],
     email: ['resend'],
@@ -511,7 +515,19 @@ function compose(options) {
     'packages/create-convexkit',
     'coverage',
     'output',
-    '.github/workflows',
+    '.github',
+    'AGENTS.md',
+    'CHANGELOG.md',
+    'CODE_OF_CONDUCT.md',
+    'CONTRIBUTING.md',
+    'ROADMAP.md',
+    'SECURITY.md',
+    '.release-please-manifest.json',
+    'release-please-config.json',
+    'docs/.vitepress',
+    'docs/assets',
+    'docs/index.md',
+    'docs/README.md',
     'scripts/validate-scaffold.mjs',
     'scripts/validate-local-auth.mjs',
     'scripts/setup.node-test.mjs',
@@ -620,6 +636,10 @@ function compose(options) {
   configureGeneratedChecks(options)
   writeFileSync(join(options.target, 'README.md'), renderProjectReadme(options))
   writeFileSync(join(options.target, 'docs/CONFIGURATION.md'), renderConfigurationGuide(options))
+  writeFileSync(
+    join(options.target, 'docs/README.md'),
+    `# ${basename(options.target)} documentation\n\n- [Configuration](CONFIGURATION.md)\n- [Deployment](${options.deploy === 'cloudflare' ? 'PRODUCTION_DEPLOYMENT_CHECKLIST.md' : options.deploy === 'vercel' ? 'VERCEL_SETUP.md' : 'NETLIFY_SETUP.md'})\n- [Project accelerators](PROJECT_ACCELERATORS.md)\n`
+  )
   writeFileSync(
     join(options.target, '.convexkit.json'),
     `${JSON.stringify({ version: 1, ...options, target: undefined, templateDir: undefined, deployWorkflow: undefined }, null, 2)}\n`
