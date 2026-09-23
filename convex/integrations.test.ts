@@ -199,6 +199,76 @@ describe('optional integrations', () => {
     expect(await t.run((ctx) => ctx.db.query('stripeEvents').collect())).toHaveLength(1)
   })
 
+  it.each(['active', 'trialing', 'past_due'])(
+    'blocks deletion while a subscription is %s',
+    async (status) => {
+      const { t, userId } = await createAuthenticatedTest()
+      await t.mutation(internal.billing.saveCheckout, {
+        ownerId: userId,
+        stripeCustomerId: 'cus_delete_blocked',
+        checkoutSessionId: 'cs_delete_blocked',
+        priceId: 'price_test',
+      })
+      await t.mutation(internal.billing.applyStripeEvent, {
+        eventId: `evt_delete_${status}`,
+        eventType: 'customer.subscription.updated',
+        ownerId: userId,
+        stripeCustomerId: 'cus_delete_blocked',
+        stripeSubscriptionId: 'sub_delete_blocked',
+        status,
+      })
+
+      await expect(
+        t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
+      ).rejects.toThrow('Cancel your Stripe subscription')
+      await expect(
+        t.mutation(internal.billing.prepareAccountDeletion, { ownerId: userId })
+      ).rejects.toThrow('Cancel your Stripe subscription')
+    }
+  )
+
+  it('allows a cancelled subscription, keeps a tombstone, and ignores a delayed webhook', async () => {
+    const { t, userId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId: userId,
+      stripeCustomerId: 'cus_deleted',
+      checkoutSessionId: 'cs_deleted',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_cancelled_before_delete',
+      eventType: 'customer.subscription.deleted',
+      ownerId: userId,
+      stripeCustomerId: 'cus_deleted',
+      stripeSubscriptionId: 'sub_deleted',
+      status: 'canceled',
+    })
+
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
+    ).resolves.toBeNull()
+    await t.mutation(internal.billing.prepareAccountDeletion, { ownerId: userId })
+    await t.mutation(internal.maintenance.deleteUserDataBatch, { userId })
+    expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toBeNull()
+    expect(await t.query(internal.billing.getDeletionTombstone, { ownerId: userId })).toMatchObject(
+      {
+        stripeCustomerId: 'cus_deleted',
+        stripeSubscriptionId: 'sub_deleted',
+      }
+    )
+
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_delayed_after_delete',
+      eventType: 'customer.subscription.updated',
+      ownerId: userId,
+      stripeCustomerId: 'cus_deleted',
+      stripeSubscriptionId: 'sub_deleted',
+      status: 'active',
+    })
+    expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toBeNull()
+    expect(await t.run((ctx) => ctx.db.query('stripeEvents').collect())).toHaveLength(2)
+  })
+
   it('rejects checkout and webhook calls without server secrets', async () => {
     const { t, asUser } = await createAuthenticatedTest()
     await expect(asUser.action(api.stripe.createCheckout)).rejects.toThrow('STRIPE_PRICE_ID')

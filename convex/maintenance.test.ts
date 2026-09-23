@@ -82,4 +82,24 @@ describe('retention maintenance', () => {
       expect(await ctx.db.query('messages').collect()).toEqual([])
     })
   })
+
+  it('keeps a Stripe reference until the subscription is inactive', async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      await ctx.db.insert('billingSubscriptions', {
+        ownerId: 'user-1',
+        stripeCustomerId: 'cus_active',
+        stripeSubscriptionId: 'sub_active',
+        status: 'active',
+        updatedAt: 0,
+      })
+    })
+
+    await t.mutation(internal.maintenance.deleteUserDataBatch, { userId: 'user-1' })
+
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query('billingSubscriptions').collect()).toHaveLength(1)
+      expect(await ctx.db.query('billingDeletionTombstones').collect()).toEqual([])
+    })
+  })
 })

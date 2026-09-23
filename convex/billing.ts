@@ -1,5 +1,18 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 import { authQuery, internalMutation, internalQuery } from './lib/customFunctions'
+
+const TERMINAL_SUBSCRIPTION_STATUSES = new Set(['canceled', 'cancelled', 'incomplete_expired'])
+
+function canStillCharge(
+  subscription: {
+    stripeSubscriptionId?: string
+    status: string
+  } | null
+) {
+  return Boolean(
+    subscription?.stripeSubscriptionId && !TERMINAL_SUBSCRIPTION_STATUSES.has(subscription.status)
+  )
+}
 
 export const current = authQuery({
   args: {},
@@ -18,6 +31,70 @@ export const getByOwner = internalQuery({
       .query('billingSubscriptions')
       .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
       .unique()
+  },
+})
+
+/**
+ * Call this from Better Auth's `beforeDelete` hook. It aborts deletion before
+ * the identity is removed when Stripe could still collect a payment.
+ */
+export const assertAccountDeletionAllowed = internalQuery({
+  args: { ownerId: v.string() },
+  handler: async (ctx, { ownerId }) => {
+    const subscription = await ctx.db
+      .query('billingSubscriptions')
+      .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
+      .unique()
+    if (canStillCharge(subscription))
+      throw new ConvexError(
+        'Cancel your Stripe subscription in the billing portal before deleting this account.'
+      )
+  },
+})
+
+export const getDeletionTombstone = internalQuery({
+  args: { ownerId: v.string() },
+  handler: async (ctx, { ownerId }) => {
+    return await ctx.db
+      .query('billingDeletionTombstones')
+      .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
+      .unique()
+  },
+})
+
+/**
+ * Call this after the deletion guard succeeds and before the identity is
+ * removed. The tombstone lets the webhook handler reject delayed events.
+ */
+export const prepareAccountDeletion = internalMutation({
+  args: { ownerId: v.string() },
+  handler: async (ctx, { ownerId }) => {
+    const subscription = await ctx.db
+      .query('billingSubscriptions')
+      .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
+      .unique()
+    if (canStillCharge(subscription))
+      throw new ConvexError(
+        'Cancel your Stripe subscription in the billing portal before deleting this account.'
+      )
+
+    const tombstone = await ctx.db
+      .query('billingDeletionTombstones')
+      .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
+      .unique()
+    const values = {
+      stripeCustomerId: subscription?.stripeCustomerId,
+      stripeSubscriptionId: subscription?.stripeSubscriptionId,
+      deletedAt: Date.now(),
+    }
+    if (tombstone) {
+      await ctx.db.patch(tombstone._id, {
+        stripeCustomerId: values.stripeCustomerId ?? tombstone.stripeCustomerId,
+        stripeSubscriptionId: values.stripeSubscriptionId ?? tombstone.stripeSubscriptionId,
+      })
+      return tombstone._id
+    }
+    return await ctx.db.insert('billingDeletionTombstones', { ownerId, ...values })
   },
 })
 
@@ -66,6 +143,27 @@ export const applyStripeEvent = internalMutation({
       .withIndex('by_event', (query) => query.eq('eventId', args.eventId))
       .unique()
     if (alreadyProcessed) return
+
+    const tombstoneByOwner = args.ownerId
+      ? await ctx.db
+          .query('billingDeletionTombstones')
+          .withIndex('by_owner', (query) => query.eq('ownerId', args.ownerId!))
+          .unique()
+      : null
+    const tombstone =
+      tombstoneByOwner ??
+      (await ctx.db
+        .query('billingDeletionTombstones')
+        .withIndex('by_customer', (query) => query.eq('stripeCustomerId', args.stripeCustomerId))
+        .unique())
+    if (tombstone) {
+      await ctx.db.insert('stripeEvents', {
+        eventId: args.eventId,
+        eventType: args.eventType,
+        processedAt: Date.now(),
+      })
+      return
+    }
 
     const byOwner = args.ownerId
       ? await ctx.db

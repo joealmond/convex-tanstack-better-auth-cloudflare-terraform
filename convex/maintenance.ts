@@ -99,7 +99,22 @@ export const deleteUserDataBatch = internalMutation({
       .query('billingSubscriptions')
       .withIndex('by_owner', (query) => query.eq('ownerId', userId))
       .take(BATCH_SIZE)
-    for (const subscription of subscriptions) await ctx.db.delete(subscription._id)
+    for (const subscription of subscriptions) {
+      const inactive = ['canceled', 'cancelled', 'incomplete_expired'].includes(subscription.status)
+      if (!inactive && subscription.stripeSubscriptionId) continue
+      const tombstone = await ctx.db
+        .query('billingDeletionTombstones')
+        .withIndex('by_owner', (query) => query.eq('ownerId', userId))
+        .unique()
+      if (!tombstone)
+        await ctx.db.insert('billingDeletionTombstones', {
+          ownerId: userId,
+          stripeCustomerId: subscription.stripeCustomerId,
+          stripeSubscriptionId: subscription.stripeSubscriptionId,
+          deletedAt: Date.now(),
+        })
+      await ctx.db.delete(subscription._id)
+    }
     hasMore ||= subscriptions.length === BATCH_SIZE
     // </convexkit:billing>
 

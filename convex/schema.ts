@@ -22,6 +22,17 @@ export default defineSchema({
     eventType: v.string(),
     processedAt: v.number(),
   }).index('by_event', ['eventId']),
+
+  // Retained after a deleted account's billing row is removed. It contains no
+  // account profile data and prevents delayed Stripe events from recreating it.
+  billingDeletionTombstones: defineTable({
+    ownerId: v.string(),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    deletedAt: v.number(),
+  })
+    .index('by_owner', ['ownerId'])
+    .index('by_customer', ['stripeCustomerId']),
   // </convexkit:billing>
 
   // <convexkit:email>
