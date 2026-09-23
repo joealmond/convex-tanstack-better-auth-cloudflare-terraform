@@ -62,6 +62,81 @@ test('rejects a local Convex backend for the cloud preview', () => {
   )
 })
 
+test('preview bootstrap reuses infrastructure and keeps auth secrets out of saved state', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'convexkit-bootstrap-'))
+  try {
+    const capture = join(directory, 'commands.jsonl')
+    const mock = join(directory, 'npx')
+    writeFileSync(
+      mock,
+      '#!/usr/bin/env node\nconst fs=require("node:fs"); fs.appendFileSync(process.env.CAPTURE_FILE, JSON.stringify({args:process.argv.slice(2),input:fs.readFileSync(0,"utf8")})+"\\n")\n'
+    )
+    chmodSync(mock, 0o755)
+    writeFileSync(
+      join(directory, 'package.json'),
+      JSON.stringify({ convexkit: { auth: 'better-auth' } })
+    )
+    writeFileSync(
+      join(directory, '.env.local'),
+      'CONVEX_DEPLOYMENT=dev:fixture\nVITE_CONVEX_URL=https://fixture.convex.cloud\nVITE_CONVEX_SITE_URL=https://fixture.convex.site\n'
+    )
+    const run = () =>
+      spawnSync(
+        process.execPath,
+        [
+          resolve('scripts/infra-bootstrap.mjs'),
+          '--worker-name',
+          'fixture-preview',
+          '--app-url',
+          'https://fixture-preview.workers.dev',
+        ],
+        {
+          cwd: directory,
+          env: { PATH: `${directory}:${process.env.PATH}`, CAPTURE_FILE: capture },
+          encoding: 'utf8',
+        }
+      )
+    assert.equal(run().status, 0)
+    const firstEnv = readFileSync(join(directory, '.env.local'), 'utf8')
+    const secret = firstEnv.match(/^BETTER_AUTH_SECRET=(.+)$/m)?.[1]
+    assert.ok(secret)
+    assert.equal(run().status, 0)
+    assert.match(
+      readFileSync(join(directory, '.env.local'), 'utf8'),
+      new RegExp(`BETTER_AUTH_SECRET=${secret}`)
+    )
+    const state = readFileSync(join(directory, '.convexkit/preview.json'), 'utf8')
+    assert.doesNotMatch(state, new RegExp(secret))
+    const commands = readFileSync(capture, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+    const secretSet = commands.find((command) => command.args.at(-1) === 'BETTER_AUTH_SECRET')
+    assert.equal(secretSet.input, secret)
+    assert.equal(
+      commands.some((command) => command.args.includes(secret)),
+      false
+    )
+    writeFileSync(join(directory, 'package.json'), JSON.stringify({ convexkit: { auth: 'clerk' } }))
+    writeFileSync(
+      join(directory, '.env.local'),
+      'CONVEX_DEPLOYMENT=dev:fixture\nVITE_CONVEX_URL=https://fixture.convex.cloud\nVITE_CONVEX_SITE_URL=https://fixture.convex.site\nCLERK_PUBLISHABLE_KEY=pk_test_fixture\nCLERK_SECRET_KEY=sk_test_fixture\nCLERK_JWT_ISSUER_DOMAIN=https://fixture.clerk.accounts.dev\n'
+    )
+    assert.equal(run().status, 0)
+    assert.doesNotMatch(readFileSync(join(directory, '.env.local'), 'utf8'), /BETTER_AUTH_SECRET/)
+    const clerkCommands = readFileSync(capture, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+    assert.equal(
+      clerkCommands.some((command) => command.args.includes('CLERK_JWT_ISSUER_DOMAIN')),
+      true
+    )
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('production deploy stops before cloud commands when credentials are missing', () => {
   const result = spawnSync(process.execPath, ['scripts/deploy-production.mjs'], {
     env: { PATH: process.env.PATH },
