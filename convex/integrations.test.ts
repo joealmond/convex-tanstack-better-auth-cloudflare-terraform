@@ -120,7 +120,7 @@ describe('optional integrations', () => {
     ])
   })
 
-  it('updates checkout records and resolves webhook owners by customer ID', async () => {
+  it('keeps pending checkout records and resolves webhook owners by customer ID', async () => {
     const { t, asUser, userId } = await createAuthenticatedTest()
     const checkout = {
       ownerId: userId,
@@ -136,7 +136,7 @@ describe('optional integrations', () => {
       })
     ).toBe(id)
     expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toMatchObject({
-      checkoutSessionId: 'cs_second',
+      checkoutSessionId: 'cs_first',
     })
     await t.mutation(internal.billing.applyStripeEvent, {
       eventId: 'evt_customer',
@@ -146,7 +146,7 @@ describe('optional integrations', () => {
       status: 'active',
     })
     expect(await asUser.query(api.billing.current)).toMatchObject({
-      checkoutSessionId: 'cs_second',
+      checkoutSessionId: 'cs_first',
       priceId: 'price_test',
       status: 'active',
     })
@@ -252,6 +252,59 @@ describe('optional integrations', () => {
     await expect(
       t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
     ).resolves.toBeNull()
+  })
+
+  it('keeps subscription state when a Checkout event arrives late and blocks duplicate Checkout', async () => {
+    vi.stubEnv('SITE_URL', 'https://app.example.com')
+    vi.stubEnv('STRIPE_PRICE_ID', 'price_test')
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const checkout = {
+      ownerId: userId,
+      stripeCustomerId: 'cus_out_of_order',
+      checkoutSessionId: 'cs_first',
+      priceId: 'price_test',
+    }
+    await t.mutation(internal.billing.saveCheckout, checkout)
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_subscription_active',
+      eventType: 'customer.subscription.updated',
+      ownerId: userId,
+      stripeCustomerId: 'cus_out_of_order',
+      stripeSubscriptionId: 'sub_active',
+      status: 'active',
+    })
+
+    const activeBilling = await t.query(internal.billing.getByOwner, { ownerId: userId })
+    expect(
+      await t.mutation(internal.billing.saveCheckout, {
+        ...checkout,
+        checkoutSessionId: 'cs_second',
+      })
+    ).toBe(activeBilling!._id)
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_checkout_expired_late',
+      eventType: 'checkout.session.expired',
+      ownerId: userId,
+      stripeCustomerId: 'cus_out_of_order',
+      checkoutSessionId: 'cs_second',
+      status: 'checkout_expired',
+    })
+
+    expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toMatchObject({
+      stripeSubscriptionId: 'sub_active',
+      status: 'active',
+      checkoutSessionId: 'cs_second',
+    })
+    await expect(asUser.action(api.stripe.createCheckout)).rejects.toThrow(
+      'existing Stripe subscription'
+    )
+    expect(fetch).not.toHaveBeenCalled()
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
+    ).rejects.toThrow('Cancel your Stripe subscription')
   })
 
   it('allows a cancelled subscription, keeps a tombstone, and ignores a delayed webhook', async () => {

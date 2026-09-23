@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { ConvexError } from 'convex/values'
 import { internal } from './_generated/api'
+import { canStillCharge } from './billing'
 import { httpAction } from './_generated/server'
 import { authAction } from './lib/customFunctions'
 import { rateLimiter } from './lib/services/rateLimitService'
@@ -37,8 +38,13 @@ export const createCheckout = authAction({
     }
     await rateLimiter.limit(ctx, 'stripeSession', { key: ctx.userId, throws: true })
 
-    const stripe = createStripeClient()
     const existing = await ctx.runQuery(internal.billing.getByOwner, { ownerId: ctx.userId })
+    if (canStillCharge(existing))
+      throw new ConvexError(
+        'Manage your existing Stripe subscription in the billing portal before starting another Checkout session.'
+      )
+
+    const stripe = createStripeClient()
     let customerId = existing?.stripeCustomerId
     if (!customerId) {
       const customer = await stripe.customers.create({

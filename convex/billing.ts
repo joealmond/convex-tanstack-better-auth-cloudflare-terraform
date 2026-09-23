@@ -1,14 +1,10 @@
 import { ConvexError, v } from 'convex/values'
 import { authQuery, internalMutation, internalQuery } from './lib/customFunctions'
 
-const TERMINAL_BILLING_STATUSES = new Set([
-  'canceled',
-  'cancelled',
-  'incomplete_expired',
-  'checkout_expired',
-])
+const TERMINAL_SUBSCRIPTION_STATUSES = new Set(['canceled', 'cancelled', 'incomplete_expired'])
+const TERMINAL_CHECKOUT_STATUSES = new Set(['checkout_expired'])
 
-function canStillCharge(
+export function canStillCharge(
   subscription: {
     stripeCustomerId?: string
     stripeSubscriptionId?: string
@@ -17,12 +13,12 @@ function canStillCharge(
   } | null
 ) {
   if (!subscription) return false
+  if (subscription.stripeSubscriptionId)
+    return !TERMINAL_SUBSCRIPTION_STATUSES.has(subscription.status)
   const hasProviderReference = Boolean(
-    subscription.stripeCustomerId ||
-    subscription.stripeSubscriptionId ||
-    subscription.checkoutSessionId
+    subscription.stripeCustomerId || subscription.checkoutSessionId
   )
-  return hasProviderReference && !TERMINAL_BILLING_STATUSES.has(subscription.status)
+  return hasProviderReference && !TERMINAL_CHECKOUT_STATUSES.has(subscription.status)
 }
 
 export const current = authQuery({
@@ -121,6 +117,7 @@ export const saveCheckout = internalMutation({
       .query('billingSubscriptions')
       .withIndex('by_owner', (query) => query.eq('ownerId', args.ownerId))
       .unique()
+    if (existing && canStillCharge(existing)) return existing._id
     const values = {
       stripeCustomerId: args.stripeCustomerId,
       checkoutSessionId: args.checkoutSessionId,
@@ -189,13 +186,20 @@ export const applyStripeEvent = internalMutation({
         .withIndex('by_customer', (query) => query.eq('stripeCustomerId', args.stripeCustomerId))
         .unique())
 
+    const checkoutCannotReplaceSubscription = Boolean(
+      args.eventType.startsWith('checkout.session.') && existing?.stripeSubscriptionId
+    )
     const values = {
       stripeCustomerId: args.stripeCustomerId,
-      stripeSubscriptionId: args.stripeSubscriptionId,
+      stripeSubscriptionId: checkoutCannotReplaceSubscription
+        ? existing?.stripeSubscriptionId
+        : args.stripeSubscriptionId,
       checkoutSessionId: args.checkoutSessionId ?? existing?.checkoutSessionId,
       priceId: args.priceId ?? existing?.priceId,
-      status: args.status,
-      currentPeriodEnd: args.currentPeriodEnd,
+      status: checkoutCannotReplaceSubscription ? (existing?.status ?? args.status) : args.status,
+      currentPeriodEnd: checkoutCannotReplaceSubscription
+        ? existing?.currentPeriodEnd
+        : args.currentPeriodEnd,
       updatedAt: Date.now(),
     }
     if (existing) {
