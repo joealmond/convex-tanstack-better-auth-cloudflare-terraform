@@ -150,6 +150,7 @@ jobs:
           VITE_CONVEX_URL: ${{ env.ENVIRONMENT == 'production' && secrets.VITE_CONVEX_URL_PROD || secrets.VITE_CONVEX_URL_PREVIEW }}
           CONVEX_DEPLOYMENT: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_DEPLOYMENT_PROD || secrets.CONVEX_DEPLOYMENT_PREVIEW }}
           CLOUDFLARE_WORKER_NAME: ${{ env.CLOUDFLARE_WORKER_NAME }}
+          WORKER_VERSION_ID: unavailable
 
       - name: Deployment summary
         run: |

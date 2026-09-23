@@ -45,3 +45,21 @@ export function requireConfiguredEnv(values, keys) {
   const missing = keys.filter((key) => !configuredUrl(values[key]))
   if (missing.length) throw new Error(`Set valid values for ${missing.join(', ')} in .env.local.`)
 }
+
+export function isConvexCloudPreview(values) {
+  try {
+    const realtime = new URL(values.VITE_CONVEX_URL)
+    const site = new URL(values.VITE_CONVEX_SITE_URL)
+    return values.CONVEX_DEPLOYMENT?.startsWith('dev:') &&
+      realtime.protocol === 'https:' && realtime.hostname.endsWith('.convex.cloud') &&
+      site.protocol === 'https:' && site.hostname.endsWith('.convex.site')
+  } catch {
+    return false
+  }
+}
+
+export function normalizeUrl(value) {
+  const url = new URL(value)
+  url.pathname = url.pathname.replace(/\/$/, '')
+  return url.toString().replace(/\/$/, '')
+}

@@ -7,13 +7,13 @@ Wrangler is authoritative for the Worker, its environments, observability, bindi
 From the repository root, choose a globally unique Worker name and run:
 
 ```sh
-npm run infra:bootstrap -- --worker-name my-app-preview
+npm run infra:bootstrap -- --worker-name my-app-preview --app-url https://my-app-preview.example
 npm run deploy:preview
 ```
 
-The first command creates or reuses the Convex development deployment, creates the Better Auth secret there, verifies the selected Cloudflare account, and saves non-secret local state in `.convexkit/`. Re-running it reuses that state. The second command deploys the preview Worker, writes its exact URL to `SITE_URL` on Convex, runs a read-only app and backend health check, and records the commit and deployment identity locally.
+The first command creates or reuses a Convex cloud development deployment, creates the Better Auth secret and exact `SITE_URL` there, verifies the selected Cloudflare account, and saves non-secret local state in `.convexkit/`. Re-running it reuses that state. The second command deploys the preview Worker, checks the configured public origin against the generated Worker route, runs a read-only app and backend health check, and records the commit and deployment identity locally.
 
-To provision optional account resources in the same bootstrap, first create `terraform.tfvars` and then add `--with-terraform`. Terraform is idempotent after its first apply.
+To provision optional account resources in the same bootstrap, first create `terraform.tfvars` and then add `--with-terraform` to inspect the plan. Add `--apply-terraform` only after reviewing that plan; Terraform asks for its normal interactive confirmation.
 
 1. Copy `terraform.tfvars.example` to the ignored `terraform.tfvars` and use a narrowly scoped Cloudflare API token.
 2. Run `terraform init`, `terraform plan`, and review the plan before `terraform apply`.
