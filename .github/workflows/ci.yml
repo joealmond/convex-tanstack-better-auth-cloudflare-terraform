@@ -113,12 +113,13 @@ jobs:
         run: find /tmp -maxdepth 2 -path '/tmp/convexkit-auth-*/*.log' -exec tail -n 80 {} +
 
   generated-apps:
-    name: Generated ${{ matrix.auth }} / ${{ matrix.deploy }} / ${{ matrix.examples }}
+    name: Generated ${{ matrix.preset }} / ${{ matrix.auth }} / ${{ matrix.deploy }} / ${{ matrix.examples }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
+        preset: [personal]
         auth: [better-auth, clerk]
         deploy: [cloudflare, vercel, netlify]
         examples: [all, none]
@@ -131,13 +132,14 @@ jobs:
           - { auth: better-auth, deploy: cloudflare, examples: ai }
           - { auth: better-auth, deploy: cloudflare, examples: billing }
           - { auth: better-auth, deploy: cloudflare, examples: email }
+          - { preset: team-saas, auth: better-auth, deploy: cloudflare, examples: none }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
       - name: Install, lint, test, typecheck, build, and audit generated app
-        run: node scripts/validate-scaffold.mjs '${{ matrix.auth }}' '${{ matrix.deploy }}' '${{ matrix.examples }}'
+        run: node scripts/validate-scaffold.mjs '${{ matrix.auth }}' '${{ matrix.deploy }}' '${{ matrix.examples }}' '${{ matrix.preset }}'
       - name: Print failure logs
         if: failure()
         run: find /tmp -maxdepth 2 -path '/tmp/convexkit-validate-*/*.log' -exec tail -n 80 {} +

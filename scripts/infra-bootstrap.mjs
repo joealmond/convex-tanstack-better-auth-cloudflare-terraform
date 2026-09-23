@@ -2,7 +2,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { configuredUrl, isConvexCloudPreview, readEnv, requireConfiguredEnv, updateEnv, workerName } from './infra-utils.mjs'
+import {
+  configuredUrl,
+  isConvexCloudPreview,
+  readEnv,
+  requireConfiguredEnv,
+  updateEnv,
+  workerName,
+} from './infra-utils.mjs'
 
 const args = process.argv.slice(2)
 const valueAfter = (flag) => args[args.indexOf(flag) + 1]
@@ -31,12 +38,19 @@ function run(command, commandArgs, options = {}) {
 const statePath = '.convexkit/preview.json'
 let state = {}
 try {
-  state = JSON.parse(await import('node:fs/promises').then(({ readFile }) => readFile(statePath, 'utf8')))
-} catch {}
+  state = JSON.parse(
+    await import('node:fs/promises').then(({ readFile }) => readFile(statePath, 'utf8'))
+  )
+} catch {
+  // No saved preview state on the first run.
+}
 
-const requestedName = valueAfter('--worker-name') || process.env.CLOUDFLARE_WORKER_NAME || state.workerName
+const requestedName =
+  valueAfter('--worker-name') || process.env.CLOUDFLARE_WORKER_NAME || state.workerName
 if (!workerName(requestedName || '')) {
-  console.error('Choose a unique preview Worker name: npm run infra:bootstrap -- --worker-name my-app-preview')
+  console.error(
+    'Choose a unique preview Worker name: npm run infra:bootstrap -- --worker-name my-app-preview'
+  )
   process.exit(1)
 }
 const appUrl = valueAfter('--app-url') || process.env.APP_URL || state.appUrl
@@ -57,13 +71,16 @@ if (isConvexCloudPreview(env)) {
 }
 requireConfiguredEnv(env, ['VITE_CONVEX_URL', 'VITE_CONVEX_SITE_URL'])
 if (!isConvexCloudPreview(env)) {
-  console.error('Preview bootstrap requires a Convex cloud development deployment (dev:..., *.convex.cloud, *.convex.site).')
+  console.error(
+    'Preview bootstrap requires a Convex cloud development deployment (dev:..., *.convex.cloud, *.convex.site).'
+  )
   process.exit(1)
 }
 
-const secret = env.BETTER_AUTH_SECRET && !env.BETTER_AUTH_SECRET.startsWith('your-')
-  ? env.BETTER_AUTH_SECRET
-  : randomBytes(32).toString('base64url')
+const secret =
+  env.BETTER_AUTH_SECRET && !env.BETTER_AUTH_SECRET.startsWith('your-')
+    ? env.BETTER_AUTH_SECRET
+    : randomBytes(32).toString('base64url')
 updateEnv('.env.local', { BETTER_AUTH_SECRET: secret, VITE_APP_ENV: 'preview' })
 run('npx', ['convex', 'env', 'set', 'BETTER_AUTH_SECRET', secret])
 run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl])
@@ -80,12 +97,16 @@ if (withTerraform) {
 mkdirSync('.convexkit', { recursive: true, mode: 0o700 })
 writeFileSync(
   statePath,
-  `${JSON.stringify({
-    workerName: requestedName,
-    appUrl,
-    convexUrl: env.VITE_CONVEX_URL,
-    convexSiteUrl: env.VITE_CONVEX_SITE_URL,
-  }, null, 2)}\n`,
+  `${JSON.stringify(
+    {
+      workerName: requestedName,
+      appUrl,
+      convexUrl: env.VITE_CONVEX_URL,
+      convexSiteUrl: env.VITE_CONVEX_SITE_URL,
+    },
+    null,
+    2
+  )}\n`,
   { mode: 0o600 }
 )
 console.log(`Preview infrastructure is ready for ${requestedName}. Next: npm run deploy:preview`)

@@ -107,7 +107,9 @@ function parseArgs(argv) {
     else if (arg === '--install') result.install = true
     else if (arg === '--no-install') result.install = false
     else if (
-      ['--auth', '--deploy', '--preset', '--examples', '--template-dir', '--template-ref'].includes(arg)
+      ['--auth', '--deploy', '--preset', '--examples', '--template-dir', '--template-ref'].includes(
+        arg
+      )
     ) {
       const value = argv[++index]
       if (!value || value.startsWith('-')) throw new Error(`${arg} requires a value`)
@@ -148,7 +150,10 @@ async function collectOptions(parsed) {
     parsed.auth ||= await ask('Auth: better-auth or clerk', 'better-auth')
     parsed.deploy ||= await ask('Deploy: cloudflare, vercel, or netlify', 'cloudflare')
     parsed.preset ||= await ask('Preset: personal or team-saas', 'personal')
-    parsed.examples ||= await ask(`Examples: all, none, or CSV [${ALL_EXAMPLES.join(', ')}]`, 'none')
+    parsed.examples ||= await ask(
+      `Examples: all, none, or CSV [${ALL_EXAMPLES.join(', ')}]`,
+      'none'
+    )
     if (!parsed.yes) {
       const answer = (await rl.question('Include Terraform? [y/N]: ')).trim().toLowerCase()
       parsed.terraform = answer === 'y' || answer === 'yes'
@@ -179,27 +184,52 @@ function validateOptions(options) {
 
 function renderProjectReadme(options) {
   const appName = basename(options.target)
+  const previewWorker = `${workerBaseName(options.target)}-preview`
   const preset = options.preset === 'team-saas' ? 'Team SaaS' : 'Personal app'
   const examples = options.selectedExamples.length ? options.selectedExamples.join(', ') : 'none'
-  const deploy = options.deploy === 'cloudflare'
-    ? `\n## Preview deployment\n\nRun \`npm run infra:bootstrap -- --worker-name ${appName}-preview\` after logging in to Convex and Cloudflare. Add these GitHub secrets: \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`, \`VITE_CONVEX_URL_PREVIEW\`, \`VITE_CONVEX_SITE_URL_PREVIEW\`, and \`CONVEX_DEPLOY_KEY_PREVIEW\`. Set repository variables \`CLOUDFLARE_WORKER_NAME_PREVIEW=${appName}-preview\` and \`APP_URL_PREVIEW\` to the deployed Worker URL, then set \`AUTO_DEPLOY_ENABLED=true\`. Production uses matching \`_PROD\` values, \`CONVEX_DEPLOY_KEY_PROD\`, \`CLOUDFLARE_WORKER_NAME_PROD=${appName}\`, and \`APP_URL_PROD\`.\n`
-    : '\n## Deployment\n\nAdd the values from `.env.example` in your hosting provider. Keep non-`VITE_` values server-side.\n'
+  const deploy =
+    options.deploy === 'cloudflare'
+      ? `\n## Preview deployment\n\nAfter logging in to Convex and Cloudflare, run \`npm run infra:bootstrap -- --worker-name ${previewWorker} --app-url https://YOUR-PREVIEW-ORIGIN\`, then \`npm run deploy:preview\`. Use your exact Workers or Custom Domain URL for \`--app-url\`. Add GitHub secrets \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`, \`VITE_CONVEX_URL_PREVIEW\`, \`VITE_CONVEX_SITE_URL_PREVIEW\`, and \`CONVEX_DEPLOY_KEY_PREVIEW\`. Set repository variables \`CLOUDFLARE_WORKER_NAME_PREVIEW=${previewWorker}\` and \`APP_URL_PREVIEW\` to that URL, then set \`AUTO_DEPLOY_ENABLED=true\`. Production uses matching \`_PROD\` values, \`CONVEX_DEPLOY_KEY_PROD\`, \`CLOUDFLARE_WORKER_NAME_PROD=${workerBaseName(options.target)}-production\`, and \`APP_URL_PROD\`.\n`
+      : '\n## Deployment\n\nAdd the values from `.env.example` in your hosting provider. Keep non-`VITE_` values server-side.\n'
   return `# ${appName}\n\n${preset} generated with ConvexKit.\n\n## Start\n\nnpm install\nnpm run setup\nnpm run dev\n\nSee [configuration](docs/CONFIGURATION.md) before inviting users.\n\n## Selected examples\n\n${examples}\n${deploy}`
 }
 
 function renderConfigurationGuide(options) {
-  const auth = options.auth === 'clerk'
-    ? 'Set `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER_DOMAIN`.'
-    : 'Run `npm run setup`; it creates a local auth secret and can set backend values on Convex.'
-  const team = options.preset === 'team-saas'
-    ? '\n## Team SaaS\n\n`convex/organizations.ts` owns organization creation, membership roles, invitations, and organization-scoped authorization. Add product tables with an `organizationId` and call `requireOrganizationRole` before reading or changing them.\n'
-    : ''
+  const auth =
+    options.auth === 'clerk'
+      ? 'Set `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER_DOMAIN`.'
+      : 'Run `npm run setup`; it creates a local auth secret and can set backend values on Convex.'
+  const team =
+    options.preset === 'team-saas'
+      ? '\n## Team SaaS\n\n`convex/organizations.ts` owns organization creation, membership roles, invitations, and organization-scoped authorization. The `/teams` page manages teams and invitations. Invitation acceptance requires a verified email; configure verification delivery for email/password accounts before production. Add product tables with an `organizationId` and call `requireOrganizationRole` before reading or changing them.\n'
+      : ''
   return `# Configuration\n\n## Local development\n\nCopy no secrets by hand: ${auth}\n\nRequired browser values: VITE_CONVEX_URL and VITE_CONVEX_SITE_URL. SITE_URL is a backend value and must equal the URL users open.\n\n## Production\n\nUse distinct Convex deployments and auth secrets for preview and production. Set SITE_URL on each Convex deployment to its public Worker or hosting URL. Never prefix a secret with VITE_.\n${team}`
 }
 
 function runCommand(command, args, cwd) {
   const result = spawnSync(command, args, { cwd, stdio: 'inherit', shell: false })
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed`)
+}
+
+function workerBaseName(target) {
+  const slug = basename(target)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return (slug && /^[a-z]/.test(slug) ? slug : `app-${slug}`).slice(0, 48).replace(/-+$/, '')
+}
+
+function configureWorkerNames(target) {
+  const path = join(target, 'wrangler.jsonc')
+  const base = workerBaseName(target)
+  const source = readFileSync(path, 'utf8')
+  writeFileSync(
+    path,
+    source
+      .replace('"name": "convexkit"', `"name": "${base}"`)
+      .replace('"name": "convexkit-preview"', `"name": "${base}-preview"`)
+      .replace('"name": "convexkit-production"', `"name": "${base}-production"`)
+  )
 }
 
 // Local template copies must never carry credentials, deployment state or caches.
@@ -376,6 +406,11 @@ function configurePackage(target, options) {
     delete pkg.scripts['sync:wrangler-config']
     delete pkg.scripts['deploy:preview']
     delete pkg.scripts['deploy:prod']
+    delete pkg.scripts['infra:bootstrap']
+    delete pkg.scripts['preflight:deploy']
+    delete pkg.scripts['smoke:preview']
+    delete pkg.scripts['release:record']
+    delete pkg.scripts['test:infra']
     const buildOutput = options.deploy === 'vercel' ? '.vercel/output' : 'dist'
     pkg.scripts.build = `vite build && node scripts/sanitize-build-output.mjs ${buildOutput}`
     pkg.scripts['build:preview'] =
@@ -408,8 +443,14 @@ function configureClerkGeneratedApi(target) {
 function configureTeamGeneratedApi(target) {
   const path = join(target, 'convex/_generated/api.d.ts')
   const source = readFileSync(path, 'utf8')
-    .replace('import type * as users from "../users.js";', 'import type * as organizations from "../organizations.js";\nimport type * as users from "../users.js";')
-    .replace('  users: typeof users;', '  organizations: typeof organizations;\n  users: typeof users;')
+    .replace(
+      'import type * as users from "../users.js";',
+      'import type * as organizations from "../organizations.js";\nimport type * as users from "../users.js";'
+    )
+    .replace(
+      '  users: typeof users;',
+      '  organizations: typeof organizations;\n  users: typeof users;'
+    )
   writeFileSync(path, source)
 }
 
@@ -446,7 +487,14 @@ function renderMaintenance(selected) {
       ? `    const messages = await ctx.db.query('messages').withIndex('by_author', (query) => query.eq('authorId', userId)).take(BATCH_SIZE)\n    for (const message of messages) await ctx.db.delete(message._id)`
       : '    const messages: Array<never> = []',
     ...['todos', 'aiRuns', 'emailDeliveries', 'billingSubscriptions'].map((table) => {
-      const feature = table === 'aiRuns' ? 'ai' : table === 'emailDeliveries' ? 'email' : table === 'billingSubscriptions' ? 'billing' : 'todos'
+      const feature =
+        table === 'aiRuns'
+          ? 'ai'
+          : table === 'emailDeliveries'
+            ? 'email'
+            : table === 'billingSubscriptions'
+              ? 'billing'
+              : 'todos'
       return selected.includes(feature)
         ? `    const ${table} = await ctx.db.query('${table}').withIndex('by_owner', (query) => query.eq('ownerId', userId)).take(BATCH_SIZE)\n    for (const item of ${table}) await ctx.db.delete(item._id)`
         : `    const ${table}: Array<never> = []`
@@ -454,7 +502,7 @@ function renderMaintenance(selected) {
   ].join('\n\n')
   const retentionConstant = chat ? 'const MESSAGE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000\n' : ''
   const now = files || chat ? '    const now = Date.now()\n' : ''
-  return `import { v } from 'convex/values'\nimport { internal } from './_generated/api'\nimport { internalMutation } from './_generated/server'\n\n${retentionConstant}const BATCH_SIZE = 100\n\nexport const deleteExpiredData = internalMutation({\n  args: {},\n  handler: async (ctx) => {\n${now}${expiryWork}\n    if (intents.length === BATCH_SIZE || expiredMessages.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.maintenance.deleteExpiredData)\n  },\n})\n\nexport const deleteUserDataBatch = internalMutation({\n  args: { userId: v.string() },\n  handler: async (ctx, { userId }) => {\n${userWork}\n    if ([files, messages, intents, todos, aiRuns, emailDeliveries, billingSubscriptions].some((items) => items.length === BATCH_SIZE)) await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, { userId })\n  },\n})\n`
+  return `import { v } from 'convex/values'\nimport { internal } from './_generated/api'\nimport { internalMutation } from './_generated/server'\n\n${retentionConstant}const BATCH_SIZE = 100\n\nexport const deleteExpiredData = internalMutation({\n  args: {},\n  handler: async (ctx) => {\n${now}${expiryWork}\n    if (intents.length === BATCH_SIZE || expiredMessages.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.maintenance.deleteExpiredData)\n  },\n})\n\nexport const deleteUserDataBatch = internalMutation({\n  args: { userId: v.string(), email: v.optional(v.string()) },\n  handler: async (ctx, { userId }) => {\n${userWork}\n    if ([files, messages, intents, todos, aiRuns, emailDeliveries, billingSubscriptions].some((items) => items.length === BATCH_SIZE)) await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, { userId })\n  },\n})\n`
 }
 
 function compose(options) {
@@ -518,16 +566,6 @@ function compose(options) {
       "import { defineSchema } from 'convex/server'\n\nexport default defineSchema({})\n"
     )
   }
-  if (options.auth === 'better-auth' && !options.selectedExamples.includes('email')) {
-    const authPath = join(options.target, 'convex/auth.ts')
-    writeFileSync(
-      authPath,
-      readFileSync(authPath, 'utf8').replace(
-        "import { components, internal } from './_generated/api'",
-        "import { components } from './_generated/api'"
-      )
-    )
-  }
   if (!options.selectedExamples.includes('chat')) {
     remove(options.target, ['convex/seed.ts', 'convex/seed.test.ts'])
     pruneGeneratedApi(options.target, 'seed')
@@ -548,7 +586,11 @@ function compose(options) {
     copyOverlay('team-saas', options.target)
     configureTeamGeneratedApi(options.target)
   }
-  if (!options.selectedExamples.includes('files') && !options.selectedExamples.includes('admin')) {
+  if (
+    options.preset !== 'team-saas' &&
+    !options.selectedExamples.includes('files') &&
+    !options.selectedExamples.includes('admin')
+  ) {
     remove(options.target, ['src/routes/_authenticated.tsx'])
   }
   writeFileSync(
@@ -561,9 +603,19 @@ function compose(options) {
       'wrangler.jsonc',
       'worker-configuration.d.ts',
       '.github/workflows/deploy.yml',
+      'scripts/infra-bootstrap.mjs',
+      'scripts/deploy-preflight.mjs',
+      'scripts/deploy-preview.mjs',
+      'scripts/deploy-production.mjs',
+      'scripts/deploy.sh',
+      'scripts/infra-utils.mjs',
+      'scripts/infra-utils.node-test.mjs',
+      'scripts/smoke-preview.mjs',
+      'scripts/write-release-record.mjs',
+      'scripts/generate-wrangler-config.mjs',
     ])
     copyOverlay(options.deploy, options.target)
-  }
+  } else configureWorkerNames(options.target)
   configurePackage(options.target, options)
   configureGeneratedChecks(options)
   writeFileSync(join(options.target, 'README.md'), renderProjectReadme(options))

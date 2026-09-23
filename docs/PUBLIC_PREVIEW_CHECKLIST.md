@@ -2,6 +2,15 @@
 
 Use this for a limited public preview before the full production cutover.
 
+Fast path after signing in to Convex and Cloudflare:
+
+```bash
+npm run infra:bootstrap -- --worker-name my-app-preview --app-url https://my-app-preview.example.workers.dev
+npm run deploy:preview
+```
+
+Use the exact Workers URL for your account, or a Custom Domain already managed by Cloudflare. The commands set the backend origin and secret, deploy, run read-only health checks, and save the preview identity locally. The steps below are the manual reference for provider configuration and troubleshooting.
+
 Current repo behavior:
 
 - After the one-time preview bootstrap is done, pushes to `main` run `CI` first.

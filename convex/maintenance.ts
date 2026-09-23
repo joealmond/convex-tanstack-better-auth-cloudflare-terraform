@@ -28,7 +28,7 @@ export const deleteExpiredData = internalMutation({
 })
 
 export const deleteUserDataBatch = internalMutation({
-  args: { userId: v.string() },
+  args: { userId: v.string(), email: v.optional(v.string()) },
   handler: async (ctx, { userId }) => {
     let hasMore = false
     // <convexkit:files>

@@ -34,7 +34,9 @@ const env = config.vars?.APP_ENV || 'preview'
 const workerName = process.env.CLOUDFLARE_WORKER_NAME?.trim()
 if (workerName) {
   if (!/^[a-z][a-z0-9-]{0,62}$/.test(workerName)) {
-    console.error('CLOUDFLARE_WORKER_NAME must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens.')
+    console.error(
+      'CLOUDFLARE_WORKER_NAME must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens.'
+    )
     process.exit(1)
   }
   config.name = workerName

@@ -58,9 +58,13 @@ jobs:
       - name: Check Convex runtime imports
         run: npm run check:convex-imports
 
+      - name: Validate application before any deployment
+        run: npm run lint -- --max-warnings=0 && npm run test:coverage && npm run test:cli && npm run test:infra && npm run typecheck
+
       - name: Preflight deployment configuration
         run: npm run preflight:deploy -- --environment "${ENVIRONMENT}"
         env:
+          REQUIRE_APP_URL: 'true'
           APP_URL: ${{ env.APP_URL }}
           VITE_CONVEX_URL: ${{ env.ENVIRONMENT == 'production' && secrets.VITE_CONVEX_URL_PROD || secrets.VITE_CONVEX_URL_PREVIEW }}
           VITE_CONVEX_SITE_URL: ${{ env.ENVIRONMENT == 'production' && secrets.VITE_CONVEX_SITE_URL_PROD || secrets.VITE_CONVEX_SITE_URL_PREVIEW }}
@@ -71,6 +75,18 @@ jobs:
           CONVEX_DEPLOY_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_DEPLOY_KEY_PROD || secrets.CONVEX_DEPLOY_KEY_PREVIEW }}
           CONVEX_URL: ${{ env.CONVEX_HOSTING == 'self-hosted' && (env.ENVIRONMENT == 'production' && secrets.CONVEX_URL_PROD || secrets.CONVEX_URL_PREVIEW) || '' }}
           CONVEX_ADMIN_KEY: ${{ env.CONVEX_HOSTING == 'self-hosted' && (env.ENVIRONMENT == 'production' && secrets.CONVEX_ADMIN_KEY_PROD || secrets.CONVEX_ADMIN_KEY_PREVIEW) || '' }}
+
+      - name: Set deployed app URL on Convex
+        run: |
+          if [ "$CONVEX_HOSTING" = 'self-hosted' ]; then
+            npx convex env set SITE_URL "${APP_URL}" --url "${CONVEX_URL}"
+          else
+            npx convex env set SITE_URL "${APP_URL}"
+          fi
+        env:
+          CONVEX_DEPLOY_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_DEPLOY_KEY_PROD || secrets.CONVEX_DEPLOY_KEY_PREVIEW }}
+          CONVEX_ADMIN_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_ADMIN_KEY_PROD || secrets.CONVEX_ADMIN_KEY_PREVIEW }}
+          CONVEX_URL: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_URL_PROD || secrets.CONVEX_URL_PREVIEW }}
 
       - name: Deploy Convex cloud production
         if: env.CONVEX_HOSTING == 'cloud' && env.ENVIRONMENT == 'production'
@@ -119,38 +135,31 @@ jobs:
           CLOUDFLARE_WORKER_NAME: ${{ env.CLOUDFLARE_WORKER_NAME }}
 
       - name: Deploy Cloudflare Worker
+        id: worker-deploy
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --config dist/server/wrangler.json
 
-      - name: Set deployed app URL on Convex
-        run: |
-          if [ "$CONVEX_HOSTING" = 'self-hosted' ]; then
-            npx convex env set SITE_URL "${APP_URL}" --url "${CONVEX_URL}"
-          else
-            npx convex env set SITE_URL "${APP_URL}"
-          fi
-        env:
-          CONVEX_DEPLOY_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_DEPLOY_KEY_PROD || secrets.CONVEX_DEPLOY_KEY_PREVIEW }}
-          CONVEX_ADMIN_KEY: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_ADMIN_KEY_PROD || secrets.CONVEX_ADMIN_KEY_PREVIEW }}
-          CONVEX_URL: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_URL_PROD || secrets.CONVEX_URL_PREVIEW }}
-
       - name: Run read-only deployment smoke test
+        id: smoke
         run: npm run smoke:preview -- --url "${APP_URL}" --convex-site-url "${VITE_CONVEX_SITE_URL}"
         env:
           VITE_CONVEX_SITE_URL: ${{ env.ENVIRONMENT == 'production' && secrets.VITE_CONVEX_SITE_URL_PROD || secrets.VITE_CONVEX_SITE_URL_PREVIEW }}
 
       - name: Write release record
+        if: always()
         run: npm run release:record
         env:
+          RELEASE_STATUS: ${{ job.status }}
+          SMOKE_STATUS: ${{ steps.smoke.outcome }}
           DEPLOY_ENVIRONMENT: ${{ env.ENVIRONMENT }}
           APP_URL: ${{ env.APP_URL }}
           VITE_CONVEX_URL: ${{ env.ENVIRONMENT == 'production' && secrets.VITE_CONVEX_URL_PROD || secrets.VITE_CONVEX_URL_PREVIEW }}
           CONVEX_DEPLOYMENT: ${{ env.ENVIRONMENT == 'production' && secrets.CONVEX_DEPLOYMENT_PROD || secrets.CONVEX_DEPLOYMENT_PREVIEW }}
           CLOUDFLARE_WORKER_NAME: ${{ env.CLOUDFLARE_WORKER_NAME }}
-          WORKER_VERSION_ID: unavailable
+          WRANGLER_OUTPUT: ${{ steps.worker-deploy.outputs.command-output }}
 
       - name: Deployment summary
         run: |

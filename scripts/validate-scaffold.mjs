@@ -7,7 +7,8 @@ import { join, resolve } from 'node:path'
 
 // Use real, isolated installs: symlinking the repository's node_modules hides
 // missing dependencies and incompatible provider overlays.
-const [auth = 'better-auth', deploy = 'cloudflare', examples = 'all'] = process.argv.slice(2)
+const [auth = 'better-auth', deploy = 'cloudflare', examples = 'none', preset = 'personal'] =
+  process.argv.slice(2)
 const repository = resolve(import.meta.dirname, '..')
 const root = mkdtempSync(join(tmpdir(), 'convexkit-validate-'))
 const target = join(root, 'app')
@@ -27,7 +28,7 @@ const env = {
 }
 
 function run(label, command, args, cwd = target) {
-  console.log(`[${auth}/${deploy}/${examples}] ${label}`)
+  console.log(`[${preset}/${auth}/${deploy}/${examples}] ${label}`)
   const result = spawnSync(command, args, {
     cwd,
     env,
@@ -59,13 +60,16 @@ try {
       deploy,
       '--examples',
       examples,
+      '--preset',
+      preset,
     ],
     repository
   )
   run('install', 'npm', ['install', '--no-fund', '--no-audit'])
   run('routes', 'npm', ['run', 'generate:routes'])
   run('check', 'npm', ['run', 'check'])
-  run('audit', 'npm', ['audit', '--audit-level=low'])
+  if (process.env.VALIDATE_SKIP_AUDIT !== 'true')
+    run('audit', 'npm', ['audit', '--audit-level=low'])
   if (deploy === 'vercel' && !existsSync(join(target, '.vercel/output/config.json'))) {
     throw new Error('Vercel build output is missing')
   }
@@ -84,7 +88,7 @@ try {
       join(root, 'worker'),
     ])
   }
-  console.log(`Passed ${auth}/${deploy}/${examples}`)
+  console.log(`Passed ${preset}/${auth}/${deploy}/${examples}`)
   rmSync(root, { recursive: true, force: true })
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))

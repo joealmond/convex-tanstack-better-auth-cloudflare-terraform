@@ -91,13 +91,7 @@ This creates a test account, message, and file; use a disposable preview project
 
 ## 7. Deploy production
 
-Local deploy path:
-
-```bash
-./scripts/deploy.sh production
-```
-
-GitHub Actions path:
+GitHub Actions path (runs preflight, application checks, deployment smoke, and records the release):
 
 - Open the `Deploy` workflow
 - Run it manually with `environment=production`

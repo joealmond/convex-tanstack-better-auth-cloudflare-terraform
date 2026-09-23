@@ -40,7 +40,7 @@
     "convex:push": "npx convex dev --once",
     "convex:deploy": "npx convex deploy --yes",
     "deploy:preview": "node scripts/deploy-preview.mjs",
-    "deploy:prod": "npm run convex:deploy && npm run build:prod && npm run sync:wrangler-config && wrangler deploy --config dist/server/wrangler.json",
+    "deploy:prod": "node scripts/deploy-production.mjs",
     "cf-typegen": "cross-env CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --env-interface CloudflareBindings",
     "test:scaffold": "node scripts/validate-scaffold.mjs",
     "test:setup": "node --test scripts/setup.node-test.mjs",

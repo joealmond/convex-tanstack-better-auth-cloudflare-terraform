@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 import { configuredUrl, isConvexCloudPreview, workerName } from './infra-utils.mjs'
 
@@ -15,14 +16,29 @@ test('requires a portable Worker name', () => {
 })
 
 test('rejects a local Convex backend for the cloud preview', () => {
-  assert.equal(isConvexCloudPreview({
-    CONVEX_DEPLOYMENT: 'dev:preview',
-    VITE_CONVEX_URL: 'https://preview.convex.cloud',
-    VITE_CONVEX_SITE_URL: 'https://preview.convex.site',
-  }), true)
-  assert.equal(isConvexCloudPreview({
-    CONVEX_DEPLOYMENT: 'dev:local',
-    VITE_CONVEX_URL: 'http://127.0.0.1:3210',
-    VITE_CONVEX_SITE_URL: 'http://127.0.0.1:3211',
-  }), false)
+  assert.equal(
+    isConvexCloudPreview({
+      CONVEX_DEPLOYMENT: 'dev:preview',
+      VITE_CONVEX_URL: 'https://preview.convex.cloud',
+      VITE_CONVEX_SITE_URL: 'https://preview.convex.site',
+    }),
+    true
+  )
+  assert.equal(
+    isConvexCloudPreview({
+      CONVEX_DEPLOYMENT: 'dev:local',
+      VITE_CONVEX_URL: 'http://127.0.0.1:3210',
+      VITE_CONVEX_SITE_URL: 'http://127.0.0.1:3211',
+    }),
+    false
+  )
+})
+
+test('production deploy stops before cloud commands when credentials are missing', () => {
+  const result = spawnSync(process.execPath, ['scripts/deploy-production.mjs'], {
+    env: { PATH: process.env.PATH },
+    encoding: 'utf8',
+  })
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /Set production values for/)
 })

@@ -8,7 +8,13 @@ export function readEnv(path = '.env.local') {
       .filter((line) => line && !line.trimStart().startsWith('#') && line.includes('='))
       .map((line) => {
         const index = line.indexOf('=')
-        return [line.slice(0, index).trim(), line.slice(index + 1).trim().replace(/^['"]|['"]$/g, '')]
+        return [
+          line.slice(0, index).trim(),
+          line
+            .slice(index + 1)
+            .trim()
+            .replace(/^['"]|['"]$/g, ''),
+        ]
       })
   )
 }
@@ -25,13 +31,21 @@ export function updateEnv(path, updates) {
     return `${key}=${value}`
   })
   for (const [key, value] of pending) lines.push(`${key}=${value}`)
-  writeFileSync(path, `${lines.filter((line, index) => line || index < lines.length - 1).join('\n')}\n`, { mode: 0o600 })
+  writeFileSync(
+    path,
+    `${lines.filter((line, index) => line || index < lines.length - 1).join('\n')}\n`,
+    { mode: 0o600 }
+  )
 }
 
 export function configuredUrl(value) {
   try {
     const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol) && !url.hostname.includes('your-') && !url.hostname.startsWith('example.')
+    return (
+      ['http:', 'https:'].includes(url.protocol) &&
+      !url.hostname.includes('your-') &&
+      !url.hostname.startsWith('example.')
+    )
   } catch {
     return false
   }
@@ -50,9 +64,13 @@ export function isConvexCloudPreview(values) {
   try {
     const realtime = new URL(values.VITE_CONVEX_URL)
     const site = new URL(values.VITE_CONVEX_SITE_URL)
-    return values.CONVEX_DEPLOYMENT?.startsWith('dev:') &&
-      realtime.protocol === 'https:' && realtime.hostname.endsWith('.convex.cloud') &&
-      site.protocol === 'https:' && site.hostname.endsWith('.convex.site')
+    return (
+      values.CONVEX_DEPLOYMENT?.startsWith('dev:') &&
+      realtime.protocol === 'https:' &&
+      realtime.hostname.endsWith('.convex.cloud') &&
+      site.protocol === 'https:' &&
+      site.hostname.endsWith('.convex.site')
+    )
   } catch {
     return false
   }

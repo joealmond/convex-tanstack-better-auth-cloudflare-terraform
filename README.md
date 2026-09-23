@@ -159,12 +159,14 @@ Key settings in `wrangler.jsonc`:
 
 ## Deployment
 
-### Local Deploy
+### Preview bootstrap
 
 ```bash
-./scripts/deploy.sh preview     # deploy preview (default)
-./scripts/deploy.sh production  # deploy production
+npm run infra:bootstrap -- --worker-name my-app-preview --app-url https://my-app-preview.example.workers.dev
+npm run deploy:preview
 ```
+
+The bootstrap reuses the selected Convex cloud development deployment, sets the auth origin and secret, and checks Cloudflare access. Deployment verifies the public app and backend health before writing a release record. Use the manually triggered `Deploy` workflow for production.
 
 ### GitHub Actions (Automatic)
 
@@ -184,6 +186,8 @@ To deploy to **production**, manually trigger the Deploy workflow with `environm
 | `VITE_CONVEX_URL_PROD`         | Convex URL for production builds       |
 | `VITE_CONVEX_SITE_URL_PROD`    | Convex HTTP-actions URL for production |
 | `CONVEX_DEPLOY_KEY_PROD`       | Production Convex deploy key           |
+
+Set repository variables `APP_URL_PREVIEW`, `APP_URL_PROD`, `CLOUDFLARE_WORKER_NAME_PREVIEW`, and `CLOUDFLARE_WORKER_NAME_PROD` to the exact public origins and Worker names. The deployment preflight requires them.
 
 See [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md) for the full bootstrap guide.
 

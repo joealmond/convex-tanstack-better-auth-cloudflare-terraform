@@ -29,7 +29,12 @@ describe('retention maintenance', () => {
   it('deletes every application record owned by a deleted account', async () => {
     const t = convexTest(schema, modules)
     await t.run(async (ctx) => {
-      await ctx.db.insert('todos', { ownerId: 'user-1', title: 'todo', completed: false, updatedAt: 0 })
+      await ctx.db.insert('todos', {
+        ownerId: 'user-1',
+        title: 'todo',
+        completed: false,
+        updatedAt: 0,
+      })
       await ctx.db.insert('aiRuns', {
         ownerId: 'user-1',
         prompt: 'prompt',
@@ -44,11 +49,25 @@ describe('retention maintenance', () => {
         status: 'sent',
         updatedAt: 0,
       })
-      await ctx.db.insert('billingSubscriptions', { ownerId: 'user-1', status: 'active', updatedAt: 0 })
+      await ctx.db.insert('billingSubscriptions', {
+        ownerId: 'user-1',
+        status: 'active',
+        updatedAt: 0,
+      })
       await ctx.db.insert('uploadIntents', { userId: 'user-1', expiresAt: Date.now() + 1_000 })
-      await ctx.db.insert('fileUsage', { userId: 'user-1', totalBytes: 1, fileCount: 1, updatedAt: 0 })
+      await ctx.db.insert('fileUsage', {
+        userId: 'user-1',
+        totalBytes: 1,
+        fileCount: 1,
+        updatedAt: 0,
+      })
       await ctx.db.insert('messages', { content: 'message', authorId: 'user-1' })
-      await ctx.db.insert('todos', { ownerId: 'user-2', title: 'keep', completed: false, updatedAt: 0 })
+      await ctx.db.insert('todos', {
+        ownerId: 'user-2',
+        title: 'keep',
+        completed: false,
+        updatedAt: 0,
+      })
     })
 
     await t.mutation(internal.maintenance.deleteUserDataBatch, { userId: 'user-1' })

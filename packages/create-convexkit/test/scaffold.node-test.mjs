@@ -33,6 +33,11 @@ test('creates the default Better Auth + Cloudflare application', () => {
       readFileSync(join(target, 'wrangler.jsonc'), 'utf8'),
       /"main": "\.\/src\/server\.ts"/
     )
+    assert.match(readFileSync(join(target, 'wrangler.jsonc'), 'utf8'), /"name": "app-preview"/)
+    assert.match(
+      readFileSync(join(target, 'README.md'), 'utf8'),
+      /--app-url https:\/\/YOUR-PREVIEW-ORIGIN/
+    )
     assert.equal(existsSync(join(target, 'infrastructure')), false)
     assert.equal(existsSync(join(target, 'convex/todos.ts')), false)
     assert.equal(existsSync(join(target, 'packages/create-convexkit')), false)
@@ -56,9 +61,15 @@ test('team-saas preset includes organization authorization foundation', () => {
   try {
     assert.equal(existsSync(join(target, 'convex/organizations.ts')), true)
     assert.match(readFileSync(join(target, 'convex/schema.ts'), 'utf8'), /organizationMembers/)
-    assert.match(readFileSync(join(target, 'convex/_generated/api.d.ts'), 'utf8'), /organizations: typeof organizations/)
+    assert.match(
+      readFileSync(join(target, 'convex/_generated/api.d.ts'), 'utf8'),
+      /organizations: typeof organizations/
+    )
     assert.equal(existsSync(join(target, 'convex/organizations.test.ts')), true)
-    assert.match(readFileSync(join(target, 'docs/CONFIGURATION.md'), 'utf8'), /requireOrganizationRole/)
+    assert.match(
+      readFileSync(join(target, 'docs/CONFIGURATION.md'), 'utf8'),
+      /requireOrganizationRole/
+    )
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -67,7 +78,22 @@ test('team-saas preset includes organization authorization foundation', () => {
 test('team-saas rejects combinations its schema does not yet compose', () => {
   const root = mkdtempSync(join(tmpdir(), 'convexkit-cli-'))
   try {
-    const result = spawnSync(process.execPath, [cli, join(root, 'app'), '--yes', '--no-install', '--template-dir', repository, '--preset', 'team-saas', '--examples', 'todos'], { encoding: 'utf8' })
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        join(root, 'app'),
+        '--yes',
+        '--no-install',
+        '--template-dir',
+        repository,
+        '--preset',
+        'team-saas',
+        '--examples',
+        'todos',
+      ],
+      { encoding: 'utf8' }
+    )
     assert.notEqual(result.status, 0)
     assert.match(result.stderr, /team-saas currently requires --examples none/)
   } finally {
