@@ -506,8 +506,14 @@ describe('optional integrations', () => {
       'fetch',
       vi
         .fn()
-        .mockImplementation(() =>
-          Promise.resolve(Response.json({ object: 'list', data: [], has_more: false }))
+        .mockImplementation((input: string) =>
+          Promise.resolve(
+            Response.json(
+              String(input).includes('/checkout/sessions/cs_missed_terminal')
+                ? { id: 'cs_missed_terminal', status: 'expired' }
+                : { object: 'list', data: [], has_more: false }
+            )
+          )
         )
     )
     await t.action(internal.stripe.assertNoProviderObligations, { ownerId })
@@ -520,6 +526,38 @@ describe('optional integrations', () => {
     await t.mutation(internal.billing.prepareAccountDeletion, { ownerId })
     await t.mutation(internal.maintenance.deleteUserDataBatch, { userId: ownerId })
     expect(await t.query(internal.billing.getByOwner, { ownerId })).toBeNull()
+  })
+
+  it('blocks deletion when Checkout completes between Stripe list calls', async () => {
+    const { t, userId: ownerId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId: 'cus_checkout_race',
+      checkoutSessionId: 'cs_checkout_race',
+      priceId: 'price_test',
+    })
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
+    const fetch = vi.fn().mockImplementation((input: string) => {
+      const url = String(input)
+      if (url.includes('/checkout/sessions/cs_checkout_race'))
+        return Promise.resolve(
+          Response.json({
+            id: 'cs_checkout_race',
+            status: 'complete',
+            subscription: 'sub_checkout_race',
+          })
+        )
+      if (url.includes('/subscriptions/sub_checkout_race'))
+        return Promise.resolve(Response.json({ id: 'sub_checkout_race', status: 'active' }))
+      return Promise.resolve(Response.json({ object: 'list', data: [], has_more: false }))
+    })
+    vi.stubGlobal('fetch', fetch)
+    await expect(
+      t.action(internal.stripe.assertNoProviderObligations, { ownerId })
+    ).rejects.toThrow('Cancel all Stripe subscriptions')
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toMatchObject({
+      status: 'checkout_pending',
+    })
   })
 
   it('accepts the current terminal subscription state when Checkout completion arrives late', async () => {

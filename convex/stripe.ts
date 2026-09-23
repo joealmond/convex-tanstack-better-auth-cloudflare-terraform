@@ -58,6 +58,22 @@ export const assertNoProviderObligations = internalAction({
     })
     if (openCheckouts.data.length || openCheckouts.has_more)
       throw new ConvexError('Wait for open Stripe Checkout sessions to expire before deletion')
+    if (billing?.checkoutSessionId && canStillCharge(billing)) {
+      // The session may have completed between the subscription and open-session lists.
+      const session = await stripe.checkout.sessions.retrieve(billing.checkoutSessionId)
+      if (session.status === 'open')
+        throw new ConvexError('Wait for open Stripe Checkout sessions to expire before deletion')
+      if (session.status === 'complete') {
+        const subscriptionId = id(session.subscription)
+        if (!subscriptionId)
+          throw new ConvexError('Stripe Checkout completion is not reconciled yet')
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        if (!isTerminalStripeSubscription(subscription.status))
+          throw new ConvexError('Cancel all Stripe subscriptions before deleting this account')
+      } else if (session.status !== 'expired') {
+        throw new ConvexError('Stripe Checkout status is not reconciled yet')
+      }
+    }
     if (billing && canStillCharge(billing))
       await ctx.runMutation(internal.billing.markProviderClear, {
         ownerId,
