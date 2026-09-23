@@ -166,14 +166,20 @@ test('applies Clerk and Netlify provider overlays', () => {
   }
 })
 
-test('pins the template ref to the CLI release and emits target-specific checks', () => {
+test('records local template provenance and emits target-specific checks', () => {
   const { root, target } = scaffold(['--examples', 'none'])
   try {
     const metadata = JSON.parse(readFileSync(join(target, '.convexkit.json'), 'utf8'))
+    assert.equal(metadata.templateRef, 'local')
     const cliPackage = JSON.parse(
       readFileSync(join(repository, 'packages/create-convexkit/package.json'), 'utf8')
     )
-    assert.equal(metadata.templateRef, `create-convexkit-v${cliPackage.version}`)
+    const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' })
+    assert.equal(help.status, 0)
+    assert.match(
+      help.stdout,
+      new RegExp(`create-convexkit-v${cliPackage.version.replaceAll('.', '\\.')}`)
+    )
     assert.equal(metadata.project, undefined)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.doesNotMatch(pkg.scripts.check, /test:cli|test:scaffold|test:setup/)
