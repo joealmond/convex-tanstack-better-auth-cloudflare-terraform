@@ -27,7 +27,6 @@ function RealtimeChatContent() {
   const sendMessage = useConvexMutation(api.messages.send)
   const deleteMessage = useConvexMutation(api.messages.remove)
   const deleteAnyMessage = useConvexMutation(api.messages.deleteAny)
-  const requestAccountDataDeletion = useConvexMutation(api.users.requestAccountDataDeletion)
   const [isSending, setIsSending] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const { isAdmin } = useAdmin()
@@ -75,7 +74,6 @@ function RealtimeChatContent() {
 
   const handleDeleteAccount = async () => {
     if (!window.confirm('Permanently delete your account, uploaded files, and messages?')) return
-    await requestAccountDataDeletion({})
     const result = await authClient.deleteUser()
     if (result.error) throw new Error(result.error.message ?? 'Account deletion failed')
     location.reload()

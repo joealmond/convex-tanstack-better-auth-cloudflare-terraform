@@ -60,7 +60,7 @@ export const isAdmin = publicQuery({
   },
 })
 
-/** Queue deletion of application-owned data before Better Auth removes the account. */
+/** Remove application data for an authenticated account on request. */
 export const requestAccountDataDeletion = authMutation({
   args: {},
   handler: async (ctx) => {

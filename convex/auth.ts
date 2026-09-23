@@ -63,6 +63,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     user: {
       deleteUser: {
         enabled: true,
+        afterDelete: async (user) => {
+          if ('scheduler' in ctx) {
+            await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
+              userId: user.id,
+            })
+          }
+        },
       },
     },
     rateLimit: {
