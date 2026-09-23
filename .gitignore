@@ -50,4 +50,8 @@ output/playwright/
 .wrangler/
 .wrangler.deploy.jsonc
 
+# Local bootstrap and deployment records. They identify external resources but
+# must not be shared between applications or environments.
+.convexkit/
+
 # TanStack Router's generated route tree is committed for fresh-checkout builds.

@@ -31,6 +31,15 @@ if (!existsSync(viteBuildConfig)) {
 const config = JSON.parse(readFileSync(viteBuildConfig, 'utf8'))
 const env = config.vars?.APP_ENV || 'preview'
 
+const workerName = process.env.CLOUDFLARE_WORKER_NAME?.trim()
+if (workerName) {
+  if (!/^[a-z][a-z0-9-]{0,62}$/.test(workerName)) {
+    console.error('CLOUDFLARE_WORKER_NAME must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens.')
+    process.exit(1)
+  }
+  config.name = workerName
+}
+
 // Custom Domains are Worker routes, not DNS CNAMEs to an account-ID hostname.
 // Keep the source config portable and inject the deployment-specific hostname
 // only into the generated artifact.
@@ -48,5 +57,5 @@ if (customDomain) {
 // Write the (possibly unchanged) config back
 writeFileSync(viteBuildConfig, JSON.stringify(config, null, 2))
 console.log(
-  `Verified dist/server/wrangler.json for ${env} environment${customDomain ? ` at ${customDomain}` : ''}`
+  `Verified dist/server/wrangler.json for ${env} environment as ${config.name}${customDomain ? ` at ${customDomain}` : ''}`
 )
