@@ -12,6 +12,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import readline from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
+import { format, resolveConfig } from 'prettier'
 
 const REPOSITORY =
   'https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git'
@@ -393,8 +394,15 @@ function configurePackage(target, options) {
     if (!options.selectedExamples.includes(feature))
       for (const name of dependencies) delete pkg.dependencies[name]
   }
-  pkg.scripts.check =
-    'npm run lint -- --max-warnings=0 && npm run test && npm run check:convex-imports && npm run typecheck && npm run build'
+  pkg.scripts.check = [
+    'npm run format:check',
+    'npm run lint -- --max-warnings=0',
+    'npm run test',
+    ...(options.deploy === 'cloudflare' ? ['npm run test:infra'] : []),
+    'npm run check:convex-imports',
+    'npm run typecheck',
+    'npm run build',
+  ].join(' && ')
   // The generated dependency graph differs from the repository template.
   // npm install updates the retained lockfile using exact direct versions.
 
@@ -642,7 +650,7 @@ function compose(options) {
   )
   writeFileSync(
     join(options.target, '.convexkit.json'),
-    `${JSON.stringify({ version: 1, ...options, target: undefined, templateDir: undefined, deployWorkflow: undefined }, null, 2)}\n`
+    `${JSON.stringify({ version: 1, preset: options.preset, auth: options.auth, deploy: options.deploy, examples: options.selectedExamples, terraform: options.terraform, cliVersion, templateRef: options.templateDir ? 'local' : options.templateRef }, null, 2)}\n`
   )
 }
 
@@ -671,6 +679,9 @@ jobs:
       - run: npm ci
       - run: npm run generate:routes
       - run: npm run check
+      - run: npm audit --audit-level=low
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:public
 `
   )
   // Keep the deployment workflow only for the target it actually supports.
@@ -709,6 +720,24 @@ ${options.selectedExamples.map((feature) => `  await expect(page.getByRole('head
   }
 }
 
+async function formatGeneratedFiles(target) {
+  for (const relative of [
+    'convex/schema.ts',
+    'convex/auth.ts',
+    'convex/http.ts',
+    'convex/maintenance.ts',
+    'src/components/examples/RealtimeChatExample.tsx',
+    'src/routes/examples.index.tsx',
+    'e2e/public-smoke.spec.ts',
+    '.convexkit.json',
+  ]) {
+    const path = join(target, relative)
+    if (!existsSync(path)) continue
+    const config = (await resolveConfig(path)) || {}
+    writeFileSync(path, await format(readFileSync(path, 'utf8'), { ...config, filepath: path }))
+  }
+}
+
 export async function run(argv = process.argv.slice(2)) {
   const parsed = parseArgs(argv)
   if (parsed.help) {
@@ -723,6 +752,7 @@ export async function run(argv = process.argv.slice(2)) {
   const workflow = join(options.target, '.github/workflows/deploy.yml')
   if (existsSync(workflow)) options.deployWorkflow = readFileSync(workflow, 'utf8')
   compose(options)
+  await formatGeneratedFiles(options.target)
 
   if (options.install) {
     runCommand('npm', ['install'], options.target)

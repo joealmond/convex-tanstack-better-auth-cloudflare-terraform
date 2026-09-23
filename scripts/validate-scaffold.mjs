@@ -68,6 +68,7 @@ try {
   run('install', 'npm', ['install', '--no-fund', '--no-audit'])
   run('routes', 'npm', ['run', 'generate:routes'])
   run('check', 'npm', ['run', 'check'])
+  if (process.env.VALIDATE_E2E === 'true') run('e2e-public', 'npm', ['run', 'test:e2e:public'])
   if (process.env.VALIDATE_SKIP_AUDIT !== 'true')
     run('audit', 'npm', ['audit', '--audit-level=low'])
   if (deploy === 'vercel' && !existsSync(join(target, '.vercel/output/config.json'))) {

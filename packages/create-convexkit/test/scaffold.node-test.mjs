@@ -174,6 +174,7 @@ test('pins the template ref to the CLI release and emits target-specific checks'
       readFileSync(join(repository, 'packages/create-convexkit/package.json'), 'utf8')
     )
     assert.equal(metadata.templateRef, `create-convexkit-v${cliPackage.version}`)
+    assert.equal(metadata.project, undefined)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     assert.doesNotMatch(pkg.scripts.check, /test:cli|test:scaffold|test:setup/)
     assert.equal(pkg.scripts['test:guardrails'], undefined)

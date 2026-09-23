@@ -17,6 +17,9 @@
   "engines": {
     "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   },
+  "dependencies": {
+    "prettier": "3.9.8"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform.git",
