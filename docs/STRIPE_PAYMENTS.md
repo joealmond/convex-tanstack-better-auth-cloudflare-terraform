@@ -29,6 +29,7 @@ Subscribe to:
 - `customer.subscription.deleted`
 
 Account deletion is blocked while a subscription can charge or a Checkout session can still complete. The user must cancel in the Stripe portal and wait for a terminal webhook, or wait for a pending Checkout session to expire. The template does not cancel subscriptions automatically. A minimal billing tombstone is retained after deletion so late webhooks cannot recreate account billing rows.
+Deletion also checks Stripe's current subscriptions and open Checkout sessions for the recorded customer. If Stripe cannot be reached, deletion stops and can be retried. Configure `STRIPE_SECRET_KEY` for this check before enabling billing.
 
 ## Security model
 
@@ -61,7 +62,7 @@ missing.
 
 ## What the larger product taught us
 
-The included route is a working integration example, not a complete paid-access system. It rejects a second Checkout while a session or subscription can still charge and keeps late Checkout events from downgrading a subscription. Concurrent provider calls still need durable idempotency and reconciliation; event-ID deduplication alone does not settle every older event that arrives after a newer one. Do not use this table as a paid entitlement until the product-specific rules below are implemented and tested.
+The included route is a working integration example, not a complete paid-access system. It rejects a second Checkout while a session or subscription can still charge and binds webhook updates to the current Checkout/subscription IDs. Concurrent provider calls still need durable idempotency and reconciliation; event-ID deduplication alone does not settle every older event that arrives after a newer one. Do not use this table as a paid entitlement until the product-specific rules below are implemented and tested.
 
 For a subscription product, build these parts before enabling charges:
 

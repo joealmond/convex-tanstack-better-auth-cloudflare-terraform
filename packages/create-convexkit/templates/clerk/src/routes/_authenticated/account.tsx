@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useUser } from '@clerk/tanstack-react-start'
-import { useConvex, useMutation } from 'convex/react'
+import { useAction, useConvex } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import { exportKinds } from '@/lib/export-kinds'
 import { downloadAccountData } from '@/lib/account-export'
@@ -11,7 +11,7 @@ export const Route = createFileRoute('/_authenticated/account')({ component: Acc
 function AccountPage() {
   const { user } = useUser()
   const convex = useConvex()
-  const prepareAccountDeletion = useMutation(api.users.prepareAccountDeletion)
+  const prepareAccountDeletion = useAction(api.users.prepareAccountDeletion)
   const [notice, setNotice] = useState('')
   const [pending, setPending] = useState(false)
 

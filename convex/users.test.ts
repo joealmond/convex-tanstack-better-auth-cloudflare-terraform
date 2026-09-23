@@ -7,7 +7,11 @@ import { createAuthenticatedTest, createTestBackend } from './test.utils'
 import { isAdmin } from './lib/authHelpers'
 import { ADMIN_EMAILS } from './lib/config'
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+})
 
 describe('users', () => {
   it('requires a verified email before granting allowlisted admin access', async () => {
@@ -64,9 +68,7 @@ describe('users', () => {
       checkoutSessionId: 'cs_user_guard',
       priceId: 'price_test',
     })
-    await expect(asUser.mutation(api.users.prepareAccountDeletion)).rejects.toThrow(
-      'billing portal'
-    )
+    await expect(asUser.action(api.users.prepareAccountDeletion)).rejects.toThrow('billing portal')
     await t.mutation(internal.billing.applyStripeEvent, {
       eventId: 'evt_user_guard_expired',
       eventType: 'checkout.session.expired',
@@ -75,7 +77,16 @@ describe('users', () => {
       checkoutSessionId: 'cs_user_guard',
       status: 'checkout_expired',
     })
-    await asUser.mutation(api.users.prepareAccountDeletion)
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(Response.json({ object: 'list', data: [], has_more: false }))
+        )
+    )
+    await asUser.action(api.users.prepareAccountDeletion)
     expect(await t.query(internal.billing.getDeletionTombstone, { ownerId: userId })).not.toBeNull()
   })
   // </convexkit:billing>

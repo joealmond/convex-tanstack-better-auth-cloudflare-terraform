@@ -1,9 +1,10 @@
 import Stripe from 'stripe'
 import { ConvexError } from 'convex/values'
+import { v } from 'convex/values'
 import { internal } from './_generated/api'
-import { canStillCharge } from './billing'
+import { canStillCharge, isTerminalStripeSubscription } from './billing'
 import { httpAction } from './_generated/server'
-import { authAction } from './lib/customFunctions'
+import { authAction, internalAction } from './lib/customFunctions'
 import { rateLimiter } from './lib/services/rateLimitService'
 
 const MAX_WEBHOOK_BYTES = 1_000_000
@@ -27,6 +28,34 @@ function publicSiteUrl() {
     throw new ConvexError('SITE_URL must be an HTTPS URL or a local development URL')
   }
 }
+
+/** A live, read-only provider check before removing an account with billing history. */
+export const assertNoProviderObligations = internalAction({
+  args: { ownerId: v.string() },
+  handler: async (ctx, { ownerId }) => {
+    const billing = await ctx.runQuery(internal.billing.getByOwner, { ownerId })
+    if (!billing?.stripeCustomerId) return
+    const stripe = createStripeClient()
+    const subscriptions = await stripe.subscriptions.list({
+      customer: billing.stripeCustomerId,
+      status: 'all',
+      limit: 100,
+    })
+    if (
+      subscriptions.has_more ||
+      subscriptions.data.some((subscription) => !isTerminalStripeSubscription(subscription.status))
+    ) {
+      throw new ConvexError('Cancel all Stripe subscriptions before deleting this account')
+    }
+    const openCheckouts = await stripe.checkout.sessions.list({
+      customer: billing.stripeCustomerId,
+      status: 'open',
+      limit: 1,
+    })
+    if (openCheckouts.data.length || openCheckouts.has_more)
+      throw new ConvexError('Wait for open Stripe Checkout sessions to expire before deletion')
+  },
+})
 
 export const createCheckout = authAction({
   args: {},

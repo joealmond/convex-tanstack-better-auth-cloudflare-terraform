@@ -23,6 +23,10 @@ export function canStillCharge(
   return hasProviderReference && !TERMINAL_CHECKOUT_STATUSES.has(subscription.status)
 }
 
+export function isTerminalStripeSubscription(status: string) {
+  return TERMINAL_SUBSCRIPTION_STATUSES.has(status)
+}
+
 export const current = authQuery({
   args: {},
   handler: async (ctx) => {
@@ -128,7 +132,12 @@ export const saveCheckout = internalMutation({
       updatedAt: Date.now(),
     }
     if (existing) {
-      await ctx.db.patch(existing._id, values)
+      await ctx.db.patch(existing._id, {
+        ...values,
+        // A canceled subscription belongs to the previous Checkout generation.
+        stripeSubscriptionId: undefined,
+        currentPeriodEnd: undefined,
+      })
       return existing._id
     }
     return await ctx.db.insert('billingSubscriptions', { ownerId: args.ownerId, ...values })
@@ -188,8 +197,29 @@ export const applyStripeEvent = internalMutation({
         .withIndex('by_customer', (query) => query.eq('stripeCustomerId', args.stripeCustomerId))
         .unique())
 
+    const checkoutEvent = args.eventType.startsWith('checkout.session.')
+    const staleCheckout =
+      checkoutEvent &&
+      existing?.checkoutSessionId &&
+      args.checkoutSessionId !== existing.checkoutSessionId
+    const unboundSubscription =
+      !checkoutEvent && existing?.status === 'checkout_pending' && !existing.stripeSubscriptionId
+    const staleSubscription =
+      !checkoutEvent &&
+      existing?.stripeSubscriptionId &&
+      args.stripeSubscriptionId !== existing.stripeSubscriptionId
+    const wrongCustomer = existing && existing.stripeCustomerId !== args.stripeCustomerId
+    if (staleCheckout || unboundSubscription || staleSubscription || wrongCustomer) {
+      await ctx.db.insert('stripeEvents', {
+        eventId: args.eventId,
+        eventType: args.eventType,
+        processedAt: Date.now(),
+      })
+      return
+    }
+
     const checkoutCannotReplaceSubscription = Boolean(
-      args.eventType.startsWith('checkout.session.') && existing?.stripeSubscriptionId
+      checkoutEvent && existing?.stripeSubscriptionId
     )
     const values = {
       stripeCustomerId: args.stripeCustomerId,

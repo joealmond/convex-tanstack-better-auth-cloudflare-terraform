@@ -68,10 +68,14 @@ it('guards billable account deletion before creating a webhook tombstone', async
   vi.stubEnv('AUTH_EMAIL_PROVIDER', 'disabled')
   const { createAuth } = await import('./auth')
   const runQuery = vi.fn().mockResolvedValue(undefined)
+  const runAction = vi.fn().mockResolvedValue(undefined)
   const runMutation = vi.fn().mockResolvedValue(undefined)
-  const auth = createAuth({ runQuery, runMutation } as never)
+  const auth = createAuth({ runQuery, runAction, runMutation } as never)
   await auth.options.user?.deleteUser?.beforeDelete?.({ id: 'user-1' } as never)
   expect(runQuery).toHaveBeenCalledWith(internal.billing.assertAccountDeletionAllowed, {
+    ownerId: 'user-1',
+  })
+  expect(runAction).toHaveBeenCalledWith(internal.stripe.assertNoProviderObligations, {
     ownerId: 'user-1',
   })
   expect(runMutation).toHaveBeenCalledWith(internal.billing.prepareAccountDeletion, {

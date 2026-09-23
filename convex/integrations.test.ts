@@ -145,6 +145,23 @@ describe('optional integrations', () => {
       stripeSubscriptionId: 'sub_test',
       status: 'active',
     })
+    expect(await asUser.query(api.billing.current)).toMatchObject({ status: 'checkout_pending' })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_checkout_completed',
+      eventType: 'checkout.session.completed',
+      ownerId: userId,
+      stripeCustomerId: 'cus_test',
+      checkoutSessionId: 'cs_first',
+      stripeSubscriptionId: 'sub_test',
+      status: 'checkout_completed',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_customer_after_binding',
+      eventType: 'customer.subscription.updated',
+      stripeCustomerId: 'cus_test',
+      stripeSubscriptionId: 'sub_test',
+      status: 'active',
+    })
     expect(await asUser.query(api.billing.current)).toMatchObject({
       checkoutSessionId: 'cs_first',
       priceId: 'price_test',
@@ -254,6 +271,207 @@ describe('optional integrations', () => {
     ).resolves.toBeNull()
   })
 
+  it('clears an old subscription before a new Checkout and accepts its expiration', async () => {
+    const { t, userId } = await createAuthenticatedTest()
+    const ownerId = userId
+    const stripeCustomerId = 'cus_recheckout'
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_old',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_old_completed',
+      eventType: 'checkout.session.completed',
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_old',
+      stripeSubscriptionId: 'sub_old',
+      status: 'checkout_completed',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_old_canceled',
+      eventType: 'customer.subscription.deleted',
+      ownerId,
+      stripeCustomerId,
+      stripeSubscriptionId: 'sub_old',
+      status: 'canceled',
+    })
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_new',
+      priceId: 'price_test',
+    })
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toMatchObject({
+      status: 'checkout_pending',
+      checkoutSessionId: 'cs_new',
+    })
+    expect((await t.query(internal.billing.getByOwner, { ownerId }))?.stripeSubscriptionId).toBe(
+      undefined
+    )
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_old_delayed',
+      eventType: 'customer.subscription.updated',
+      ownerId,
+      stripeCustomerId,
+      stripeSubscriptionId: 'sub_old',
+      status: 'active',
+    })
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toMatchObject({
+      status: 'checkout_pending',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_new_expired',
+      eventType: 'checkout.session.expired',
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_new',
+      status: 'checkout_expired',
+    })
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId })
+    ).resolves.toBeNull()
+  })
+
+  it('ignores expiration of an older Checkout after a replacement starts', async () => {
+    const { t, userId: ownerId } = await createAuthenticatedTest()
+    const stripeCustomerId = 'cus_sequential_checkout'
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_old',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_old_expired',
+      eventType: 'checkout.session.expired',
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_old',
+      status: 'checkout_expired',
+    })
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_new',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_old_expired_late',
+      eventType: 'checkout.session.expired',
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_old',
+      status: 'checkout_expired',
+    })
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toMatchObject({
+      checkoutSessionId: 'cs_new',
+      status: 'checkout_pending',
+    })
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId })
+    ).rejects.toThrow('billing portal')
+  })
+
+  it('ignores an old subscription event after a replacement subscription is bound', async () => {
+    const { t, userId: ownerId } = await createAuthenticatedTest()
+    const stripeCustomerId = 'cus_replace'
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_old',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_first_complete',
+      eventType: 'checkout.session.completed',
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_old',
+      stripeSubscriptionId: 'sub_old',
+      status: 'checkout_completed',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_first_cancel',
+      eventType: 'customer.subscription.deleted',
+      ownerId,
+      stripeCustomerId,
+      stripeSubscriptionId: 'sub_old',
+      status: 'canceled',
+    })
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_new',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_second_complete',
+      eventType: 'checkout.session.completed',
+      ownerId,
+      stripeCustomerId,
+      checkoutSessionId: 'cs_new',
+      stripeSubscriptionId: 'sub_new',
+      status: 'checkout_completed',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_old_late_cancel',
+      eventType: 'customer.subscription.deleted',
+      ownerId,
+      stripeCustomerId,
+      stripeSubscriptionId: 'sub_old',
+      status: 'canceled',
+    })
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toMatchObject({
+      stripeSubscriptionId: 'sub_new',
+      status: 'checkout_completed',
+    })
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId })
+    ).rejects.toThrow('billing portal')
+  })
+
+  it('blocks deletion when Stripe still has a subscription or an open Checkout', async () => {
+    const { t, userId: ownerId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId: 'cus_provider_check',
+      checkoutSessionId: 'cs_provider_check',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_provider_checkout_expired',
+      eventType: 'checkout.session.expired',
+      ownerId,
+      stripeCustomerId: 'cus_provider_check',
+      checkoutSessionId: 'cs_provider_check',
+      status: 'checkout_expired',
+    })
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
+    const fetch = vi.fn().mockResolvedValueOnce(
+      Response.json({
+        object: 'list',
+        data: [{ id: 'sub_unseen', status: 'active' }],
+        has_more: false,
+      })
+    )
+    vi.stubGlobal('fetch', fetch)
+    await expect(
+      t.action(internal.stripe.assertNoProviderObligations, { ownerId })
+    ).rejects.toThrow('Cancel all Stripe subscriptions')
+
+    fetch
+      .mockResolvedValueOnce(Response.json({ object: 'list', data: [], has_more: false }))
+      .mockResolvedValueOnce(
+        Response.json({ object: 'list', data: [{ id: 'cs_open' }], has_more: false })
+      )
+    await expect(
+      t.action(internal.stripe.assertNoProviderObligations, { ownerId })
+    ).rejects.toThrow('open Stripe Checkout')
+  })
+
   it('keeps subscription state when a Checkout event arrives late and blocks duplicate Checkout', async () => {
     vi.stubEnv('SITE_URL', 'https://app.example.com')
     vi.stubEnv('STRIPE_PRICE_ID', 'price_test')
@@ -268,6 +486,15 @@ describe('optional integrations', () => {
       priceId: 'price_test',
     }
     await t.mutation(internal.billing.saveCheckout, checkout)
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_checkout_bound',
+      eventType: 'checkout.session.completed',
+      ownerId: userId,
+      stripeCustomerId: 'cus_out_of_order',
+      checkoutSessionId: 'cs_first',
+      stripeSubscriptionId: 'sub_active',
+      status: 'checkout_completed',
+    })
     await t.mutation(internal.billing.applyStripeEvent, {
       eventId: 'evt_subscription_active',
       eventType: 'customer.subscription.updated',
@@ -315,6 +542,15 @@ describe('optional integrations', () => {
       priceId: 'price_test',
     })
     await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_checkout_before_delete',
+      eventType: 'checkout.session.completed',
+      ownerId: userId,
+      stripeCustomerId: 'cus_deleted',
+      checkoutSessionId: 'cs_deleted',
+      stripeSubscriptionId: 'sub_deleted',
+      status: 'checkout_completed',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
       eventId: 'evt_cancelled_before_delete',
       eventType: 'customer.subscription.deleted',
       ownerId: userId,
@@ -353,7 +589,7 @@ describe('optional integrations', () => {
       status: 'active',
     })
     expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toBeNull()
-    expect(await t.run((ctx) => ctx.db.query('stripeEvents').collect())).toHaveLength(2)
+    expect(await t.run((ctx) => ctx.db.query('stripeEvents').collect())).toHaveLength(3)
   })
 
   it('rejects checkout and webhook calls without server secrets', async () => {

@@ -27,7 +27,8 @@
  */
 
 import { internal } from './_generated/api'
-import { authMutation, publicQuery } from './lib/customFunctions'
+import { v } from 'convex/values'
+import { authAction, authMutation, internalMutation, publicQuery } from './lib/customFunctions'
 import { getAuthUserSafe, isAdmin as checkIsAdmin } from './lib/authHelpers'
 
 /**
@@ -70,15 +71,23 @@ export const requestAccountDataDeletion = authMutation({
   },
 })
 
+export const queueAccountCleanup = internalMutation({
+  args: { userId: v.string(), email: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, args)
+  },
+})
+
 /** Guard provider obligations, then queue application cleanup before Clerk deletes identity. */
-export const prepareAccountDeletion = authMutation({
+export const prepareAccountDeletion = authAction({
   args: {},
   handler: async (ctx) => {
     // <convexkit:billing>
     await ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: ctx.userId })
+    await ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: ctx.userId })
     await ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: ctx.userId })
     // </convexkit:billing>
-    await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
+    await ctx.runMutation(internal.users.queueAccountCleanup, {
       userId: ctx.userId,
       email: ctx.user.emailVerified ? ctx.user.email : undefined,
     })
