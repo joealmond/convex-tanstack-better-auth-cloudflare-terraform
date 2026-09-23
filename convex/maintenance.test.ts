@@ -102,4 +102,24 @@ describe('retention maintenance', () => {
       expect(await ctx.db.query('billingDeletionTombstones').collect()).toEqual([])
     })
   })
+
+  it('keeps a pending Checkout reference until Stripe expires it', async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      await ctx.db.insert('billingSubscriptions', {
+        ownerId: 'user-1',
+        stripeCustomerId: 'cus_checkout_pending',
+        checkoutSessionId: 'cs_checkout_pending',
+        status: 'checkout_pending',
+        updatedAt: 0,
+      })
+    })
+
+    await t.mutation(internal.maintenance.deleteUserDataBatch, { userId: 'user-1' })
+
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query('billingSubscriptions').collect()).toHaveLength(1)
+      expect(await ctx.db.query('billingDeletionTombstones').collect()).toEqual([])
+    })
+  })
 })

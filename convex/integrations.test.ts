@@ -227,6 +227,33 @@ describe('optional integrations', () => {
     }
   )
 
+  it('blocks deletion until a pending Checkout session expires', async () => {
+    const { t, userId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId: userId,
+      stripeCustomerId: 'cus_checkout_pending',
+      checkoutSessionId: 'cs_checkout_pending',
+      priceId: 'price_test',
+    })
+
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
+    ).rejects.toThrow('Cancel your Stripe subscription')
+
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_checkout_expired',
+      eventType: 'checkout.session.expired',
+      ownerId: userId,
+      stripeCustomerId: 'cus_checkout_pending',
+      checkoutSessionId: 'cs_checkout_pending',
+      status: 'checkout_expired',
+    })
+
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
+    ).resolves.toBeNull()
+  })
+
   it('allows a cancelled subscription, keeps a tombstone, and ignores a delayed webhook', async () => {
     const { t, userId } = await createAuthenticatedTest()
     await t.mutation(internal.billing.saveCheckout, {

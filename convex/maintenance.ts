@@ -100,8 +100,16 @@ export const deleteUserDataBatch = internalMutation({
       .withIndex('by_owner', (query) => query.eq('ownerId', userId))
       .take(BATCH_SIZE)
     for (const subscription of subscriptions) {
-      const inactive = ['canceled', 'cancelled', 'incomplete_expired'].includes(subscription.status)
-      if (!inactive && subscription.stripeSubscriptionId) continue
+      const inactive = ['canceled', 'cancelled', 'incomplete_expired', 'checkout_expired'].includes(
+        subscription.status
+      )
+      if (
+        !inactive &&
+        (subscription.stripeCustomerId ||
+          subscription.stripeSubscriptionId ||
+          subscription.checkoutSessionId)
+      )
+        continue
       const tombstone = await ctx.db
         .query('billingDeletionTombstones')
         .withIndex('by_owner', (query) => query.eq('ownerId', userId))

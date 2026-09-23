@@ -1,17 +1,28 @@
 import { ConvexError, v } from 'convex/values'
 import { authQuery, internalMutation, internalQuery } from './lib/customFunctions'
 
-const TERMINAL_SUBSCRIPTION_STATUSES = new Set(['canceled', 'cancelled', 'incomplete_expired'])
+const TERMINAL_BILLING_STATUSES = new Set([
+  'canceled',
+  'cancelled',
+  'incomplete_expired',
+  'checkout_expired',
+])
 
 function canStillCharge(
   subscription: {
+    stripeCustomerId?: string
     stripeSubscriptionId?: string
+    checkoutSessionId?: string
     status: string
   } | null
 ) {
-  return Boolean(
-    subscription?.stripeSubscriptionId && !TERMINAL_SUBSCRIPTION_STATUSES.has(subscription.status)
+  if (!subscription) return false
+  const hasProviderReference = Boolean(
+    subscription.stripeCustomerId ||
+    subscription.stripeSubscriptionId ||
+    subscription.checkoutSessionId
   )
+  return hasProviderReference && !TERMINAL_BILLING_STATUSES.has(subscription.status)
 }
 
 export const current = authQuery({

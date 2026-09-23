@@ -124,7 +124,7 @@ export const webhook = httpAction(async (ctx, request) => {
       Stripe.createSubtleCryptoProvider()
     )
 
-    if (event.type === 'checkout.session.completed') {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.expired') {
       const session = event.data.object
       const customerId = id(session.customer)
       if (customerId) {
@@ -135,7 +135,8 @@ export const webhook = httpAction(async (ctx, request) => {
           stripeCustomerId: customerId,
           stripeSubscriptionId: id(session.subscription) || undefined,
           checkoutSessionId: session.id,
-          status: 'checkout_completed',
+          status:
+            event.type === 'checkout.session.expired' ? 'checkout_expired' : 'checkout_completed',
         })
       }
     } else if (
