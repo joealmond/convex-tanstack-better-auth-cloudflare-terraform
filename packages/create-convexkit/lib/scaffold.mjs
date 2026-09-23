@@ -166,6 +166,10 @@ function validateOptions(options) {
   options.preset ||= 'personal'
   if (!VALID_PRESETS.includes(options.preset)) throw new Error(`Invalid preset: ${options.preset}`)
   options.selectedExamples = parseExamples(options.examples || 'none')
+  if (options.preset === 'team-saas' && options.auth !== 'better-auth')
+    throw new Error('team-saas currently requires Better Auth')
+  if (options.preset === 'team-saas' && options.selectedExamples.length)
+    throw new Error('team-saas currently requires --examples none')
   options.target = resolve(options.project)
   if (options.target === resolve('.')) throw new Error('Choose a new project directory')
   if (existsSync(options.target) && readdirSync(options.target).length > 0) {
@@ -178,7 +182,7 @@ function renderProjectReadme(options) {
   const preset = options.preset === 'team-saas' ? 'Team SaaS' : 'Personal app'
   const examples = options.selectedExamples.length ? options.selectedExamples.join(', ') : 'none'
   const deploy = options.deploy === 'cloudflare'
-    ? '\n## Preview deployment\n\nAdd these GitHub secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `VITE_CONVEX_URL_PREVIEW`, `VITE_CONVEX_SITE_URL_PREVIEW`, and `CONVEX_DEPLOY_KEY_PREVIEW`. Then set the repository variable `AUTO_DEPLOY_ENABLED=true`. Production uses the same URL names with `_PROD` and `CONVEX_DEPLOY_KEY_PROD`.\n'
+    ? `\n## Preview deployment\n\nRun \`npm run infra:bootstrap -- --worker-name ${appName}-preview\` after logging in to Convex and Cloudflare. Add these GitHub secrets: \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`, \`VITE_CONVEX_URL_PREVIEW\`, \`VITE_CONVEX_SITE_URL_PREVIEW\`, and \`CONVEX_DEPLOY_KEY_PREVIEW\`. Set repository variables \`CLOUDFLARE_WORKER_NAME_PREVIEW=${appName}-preview\` and \`APP_URL_PREVIEW\` to the deployed Worker URL, then set \`AUTO_DEPLOY_ENABLED=true\`. Production uses matching \`_PROD\` values, \`CONVEX_DEPLOY_KEY_PROD\`, \`CLOUDFLARE_WORKER_NAME_PROD=${appName}\`, and \`APP_URL_PROD\`.\n`
     : '\n## Deployment\n\nAdd the values from `.env.example` in your hosting provider. Keep non-`VITE_` values server-side.\n'
   return `# ${appName}\n\n${preset} generated with ConvexKit.\n\n## Start\n\nnpm install\nnpm run setup\nnpm run dev\n\nSee [configuration](docs/CONFIGURATION.md) before inviting users.\n\n## Selected examples\n\n${examples}\n${deploy}`
 }

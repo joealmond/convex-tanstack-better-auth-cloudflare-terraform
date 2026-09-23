@@ -62,6 +62,17 @@ test('team-saas preset includes organization authorization foundation', () => {
   }
 })
 
+test('team-saas rejects combinations its schema does not yet compose', () => {
+  const root = mkdtempSync(join(tmpdir(), 'convexkit-cli-'))
+  try {
+    const result = spawnSync(process.execPath, [cli, join(root, 'app'), '--yes', '--no-install', '--template-dir', repository, '--preset', 'team-saas', '--examples', 'todos'], { encoding: 'utf8' })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /team-saas currently requires --examples none/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('composes only selected examples for Vercel', () => {
   const { root, target } = scaffold([
     '--deploy',
