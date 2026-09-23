@@ -43,7 +43,7 @@
  * ## Admin Detection
  *
  * A user is considered an admin if:
- * 1. Their email is in the ADMIN_EMAILS whitelist (see config.ts), OR
+ * 1. Their verified email is in the ADMIN_EMAILS allowlist (see config.ts), OR
  * 2. Their user record has `role: 'admin'` in the database
  *
  * ## Setup
@@ -71,6 +71,7 @@ export interface AuthUser {
   _id: string
   name: string
   email: string
+  emailVerified?: boolean
   image?: string | null
   role?: string | null
 }
@@ -120,7 +121,7 @@ export async function requireAuth(ctx: AuthContext): Promise<AuthUser> {
  * Check if a user has admin privileges.
  *
  * Admin status is determined by:
- * 1. Email whitelist (ADMIN_EMAILS in config.ts)
+ * 1. Verified email allowlist (ADMIN_EMAILS in config.ts)
  * 2. Role field on user record (role === 'admin')
  *
  * @param user - The user to check
@@ -128,7 +129,7 @@ export async function requireAuth(ctx: AuthContext): Promise<AuthUser> {
  */
 export function isAdmin(user: AuthUser): boolean {
   // Check email whitelist first (for easy setup)
-  if (user.email && ADMIN_EMAILS.includes(user.email)) {
+  if (user.emailVerified === true && user.email && ADMIN_EMAILS.includes(user.email)) {
     return true
   }
   // Fallback to role field in database

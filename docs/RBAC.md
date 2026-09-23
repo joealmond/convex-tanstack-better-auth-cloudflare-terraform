@@ -16,19 +16,20 @@ export const ADMIN_EMAILS: string[] = [
 ]
 ```
 
-**Option B: Convex Dashboard**
+The account must also have `emailVerified: true`. Use Google sign-in with a verified email,
+or configure Better Auth email verification before using an email/password account as an
+allowlisted admin. Plain email/password signup remains available for regular users.
 
-1. Open the [Convex Dashboard](https://dashboard.convex.dev)
-2. Go to your project → Functions
-3. Run the `users.setAdminByEmail` mutation to verify the email, then follow the logged instruction:
-   ```json
-   { "email": "your-email@example.com", "isAdmin": true }
-   ```
-   This will log the exact config change needed. Add the email to `ADMIN_EMAILS` and redeploy.
+**Option B: Server-managed role**
+
+A trusted server-managed `role: 'admin'` also grants access. Better Auth's admin plugin is not
+enabled by this starter; adding it requires its component schema and server-side configuration.
+For Clerk, use a server-managed role claim, never client-editable user metadata.
+There is no public mutation for promoting users.
 
 ### 2. Sign In
 
-Once configured, sign in with your admin email. You'll see:
+Once configured, sign in with your verified admin email. You'll see:
 
 - An "Admin" badge next to your name
 - A floating admin toolbar at the bottom-right
@@ -59,13 +60,13 @@ src/
 
 A user is considered an admin if **either**:
 
-1. Their email is in `ADMIN_EMAILS` (in `convex/lib/config.ts`), OR
+1. Their email is verified and is in `ADMIN_EMAILS` (in `convex/lib/config.ts`), OR
 2. Their user record has `role: 'admin'` in the database
 
 ```ts
 // This is how admin status is determined
 function isAdmin(user: AuthUser): boolean {
-  if (ADMIN_EMAILS.includes(user.email)) return true
+  if (user.emailVerified === true && ADMIN_EMAILS.includes(user.email)) return true
   return user.role === 'admin'
 }
 ```
@@ -217,11 +218,10 @@ function AdminFeature() {
 
 ### Backend Functions
 
-| Function                | Type     | Description                    |
-| ----------------------- | -------- | ------------------------------ |
-| `users.current`         | Query    | Get current authenticated user |
-| `users.isAdmin`         | Query    | Check if current user is admin |
-| `users.setAdminByEmail` | Mutation | Log admin config instruction   |
+| Function        | Type  | Description                    |
+| --------------- | ----- | ------------------------------ |
+| `users.current` | Query | Get current authenticated user |
+| `users.isAdmin` | Query | Check if current user is admin |
 
 ### Backend Helpers
 
@@ -257,20 +257,12 @@ export const deleteUser = adminMutation({
 })
 ```
 
-### Protecting the setAdminByEmail Mutation
+### Email ownership
 
-By default, `setAdminByEmail` can be called by anyone (for easy initial setup). For production, uncomment the authorization check in `convex/users.ts`:
-
-```ts
-// Uncomment these lines in production:
-const currentUser = (await authComponent.getAuthUser(ctx)) as AuthUser | null
-if (!currentUser) throw new Error('Authentication required')
-const isCurrentUserAdmin =
-  ADMIN_EMAILS.includes(currentUser.email) || currentUser.role === ROLES.ADMIN
-if (!isCurrentUserAdmin) {
-  throw new Error('Only admins can modify user roles')
-}
-```
+The backend checks `emailVerified === true` before using `ADMIN_EMAILS`. Missing verification
+claims fail closed. Clerk's Convex JWT must contain the provider's verified email and
+`email_verified` claims; configure those in the Clerk dashboard if they are absent.
+Do not remove this check to make a development account an admin.
 
 ### Frontend Security Note
 

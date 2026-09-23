@@ -83,6 +83,12 @@ Before using the production deploy workflow, add these repository secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
+Before deployment, confirm that email-allowlisted administrators have verified email ownership.
+An unverified email/password signup must remain a regular user even when the email is allowlisted.
+Run the authenticated smoke test against a dedicated preview backend with
+`E2E_RUN_AUTH=true E2E_BASE_URL=https://your-preview-host npm run test:e2e:auth`.
+This creates a test account, message, and file; use a disposable preview project.
+
 ## 7. Deploy production
 
 Local deploy path:

@@ -5,6 +5,9 @@ node_modules/
 # Build outputs
 dist/
 .output/
+.netlify/
+.vercel/
+.nitro/
 .tanstack/
 docs/.vitepress/dist/
 docs/.vitepress/cache/

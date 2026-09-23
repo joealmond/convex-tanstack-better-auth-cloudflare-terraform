@@ -305,9 +305,7 @@ Apply rate limiting to uploads:
 import { withFileUploadLimit } from './lib/middleware/withRateLimit'
 
 export const saveFile = authMutation({
-  args: {
-    /* ... */
-  },
+  args: {/* ... */},
   handler: withFileUploadLimit(async (ctx, args, user) => {
     return await ctx.db.insert('files', {
       ...args,
@@ -391,9 +389,7 @@ export const uploadToR2 = action({
       region: 'auto',
       endpoint: process.env.R2_ENDPOINT,
       forcePathStyle: true, // Required for Cloudflare R2!
-      credentials: {
-        /* ... */
-      },
+      credentials: {/* ... */},
     })
 
     // 2. Decode base64 to binary using Web APIs (No Node.js Buffer needed)

@@ -31,7 +31,7 @@ npx convex env set CLERK_JWT_ISSUER_DOMAIN "https://your-domain.clerk.accounts.d
 ## Generated architecture
 
 - `src/start.tsx` installs Clerk's TanStack Start request middleware.
-- `src/routes/__root.tsx` obtains a server token and uses `ConvexProviderWithClerk` in the browser.
+- `src/routes/__root.tsx` obtains a server token with `getToken({ template: 'convex' })` and uses `ConvexProviderWithClerk` in the browser.
 - `convex/auth.config.ts` trusts the configured Clerk issuer for the `convex` application ID.
 - `convex/lib/authHelpers.ts` converts `ctx.auth.getUserIdentity()` to ConvexKit's provider-neutral
   user shape.
@@ -42,3 +42,10 @@ Clerk-generated project.
 
 See the current [Clerk TanStack Start quickstart](https://clerk.com/docs/tanstack-react-start/getting-started/quickstart)
 and [Convex TanStack Start with Clerk guide](https://docs.convex.dev/client/tanstack/tanstack-start/clerk).
+
+## Admin email allowlists
+
+Include `email` and `email_verified` claims from Clerk's verified primary email in the Convex
+JWT template. The backend requires `emailVerified === true` for an `ADMIN_EMAILS` match.
+Missing verification fails closed. Server-managed `role: 'admin'` claims are also accepted;
+never populate a role from client-editable unsafe metadata.

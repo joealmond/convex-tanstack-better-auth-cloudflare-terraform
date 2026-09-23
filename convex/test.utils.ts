@@ -16,7 +16,9 @@ export function createTestBackend() {
   return t
 }
 
-export async function createAuthenticatedTest(user: { name?: string; email?: string } = {}) {
+export async function createAuthenticatedTest(
+  user: { name?: string; email?: string; emailVerified?: boolean } = {}
+) {
   const t = createTestBackend()
   const now = Date.now()
   const email = user.email ?? 'person@example.com'
@@ -26,7 +28,7 @@ export async function createAuthenticatedTest(user: { name?: string; email?: str
       data: {
         name: user.name ?? 'Test Person',
         email,
-        emailVerified: true,
+        emailVerified: user.emailVerified ?? true,
         createdAt: now,
         updatedAt: now,
       },

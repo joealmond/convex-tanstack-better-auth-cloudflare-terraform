@@ -9,74 +9,49 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ExamplesRouteImport } from './routes/examples'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ExamplesIndexRouteImport } from './routes/examples.index'
-import { Route as ExamplesTodosRouteImport } from './routes/examples.todos'
-import { Route as ExamplesFormsRouteImport } from './routes/examples.forms'
-import { Route as ExamplesFilesRouteImport } from './routes/examples.files'
-import { Route as ExamplesEmailRouteImport } from './routes/examples.email'
-import { Route as ExamplesChatRouteImport } from './routes/examples.chat'
-import { Route as ExamplesBillingRouteImport } from './routes/examples.billing'
-import { Route as ExamplesAiRouteImport } from './routes/examples.ai'
-import { Route as ExamplesAdminRouteImport } from './routes/examples.admin'
-import { Route as AuthenticatedFilesRouteImport } from './routes/_authenticated/files'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as ExamplesRouteImport } from './routes/examples'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedFilesRouteImport } from './routes/_authenticated/files'
+import { Route as ExamplesIndexRouteImport } from './routes/examples.index'
+import { Route as ExamplesAdminRouteImport } from './routes/examples.admin'
+import { Route as ExamplesAiRouteImport } from './routes/examples.ai'
+import { Route as ExamplesBillingRouteImport } from './routes/examples.billing'
+import { Route as ExamplesChatRouteImport } from './routes/examples.chat'
+import { Route as ExamplesEmailRouteImport } from './routes/examples.email'
+import { Route as ExamplesFilesRouteImport } from './routes/examples.files'
+import { Route as ExamplesFormsRouteImport } from './routes/examples.forms'
+import { Route as ExamplesTodosRouteImport } from './routes/examples.todos'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
-const ExamplesRoute = ExamplesRouteImport.update({
-  id: '/examples',
-  path: '/examples',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ExamplesRoute = ExamplesRouteImport.update({
+  id: '/examples',
+  path: '/examples',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedFilesRoute = AuthenticatedFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesTodosRoute = ExamplesTodosRouteImport.update({
-  id: '/todos',
-  path: '/todos',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesFormsRoute = ExamplesFormsRouteImport.update({
-  id: '/forms',
-  path: '/forms',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesFilesRoute = ExamplesFilesRouteImport.update({
-  id: '/files',
-  path: '/files',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesEmailRoute = ExamplesEmailRouteImport.update({
-  id: '/email',
-  path: '/email',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesChatRoute = ExamplesChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesBillingRoute = ExamplesBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesAiRoute = ExamplesAiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
   getParentRoute: () => ExamplesRoute,
 } as any)
 const ExamplesAdminRoute = ExamplesAdminRouteImport.update({
@@ -84,15 +59,40 @@ const ExamplesAdminRoute = ExamplesAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => ExamplesRoute,
 } as any)
-const AuthenticatedFilesRoute = AuthenticatedFilesRouteImport.update({
+const ExamplesAiRoute = ExamplesAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesBillingRoute = ExamplesBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesChatRoute = ExamplesChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesEmailRoute = ExamplesEmailRouteImport.update({
+  id: '/email',
+  path: '/email',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesFilesRoute = ExamplesFilesRouteImport.update({
   id: '/files',
   path: '/files',
-  getParentRoute: () => AuthenticatedRoute,
+  getParentRoute: () => ExamplesRoute,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AuthenticatedRoute,
+const ExamplesFormsRoute = ExamplesFormsRouteImport.update({
+  id: '/forms',
+  path: '/forms',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesTodosRoute = ExamplesTodosRouteImport.update({
+  id: '/todos',
+  path: '/todos',
+  getParentRoute: () => ExamplesRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -209,11 +209,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/examples': {
-      id: '/examples'
-      path: '/examples'
-      fullPath: '/examples'
-      preLoaderRoute: typeof ExamplesRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -223,67 +223,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/examples': {
+      id: '/examples'
+      path: '/examples'
+      fullPath: '/examples'
+      preLoaderRoute: typeof ExamplesRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/files': {
+      id: '/_authenticated/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof AuthenticatedFilesRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/examples/': {
       id: '/examples/'
       path: '/'
       fullPath: '/examples/'
       preLoaderRoute: typeof ExamplesIndexRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/todos': {
-      id: '/examples/todos'
-      path: '/todos'
-      fullPath: '/examples/todos'
-      preLoaderRoute: typeof ExamplesTodosRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/forms': {
-      id: '/examples/forms'
-      path: '/forms'
-      fullPath: '/examples/forms'
-      preLoaderRoute: typeof ExamplesFormsRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/files': {
-      id: '/examples/files'
-      path: '/files'
-      fullPath: '/examples/files'
-      preLoaderRoute: typeof ExamplesFilesRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/email': {
-      id: '/examples/email'
-      path: '/email'
-      fullPath: '/examples/email'
-      preLoaderRoute: typeof ExamplesEmailRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/chat': {
-      id: '/examples/chat'
-      path: '/chat'
-      fullPath: '/examples/chat'
-      preLoaderRoute: typeof ExamplesChatRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/billing': {
-      id: '/examples/billing'
-      path: '/billing'
-      fullPath: '/examples/billing'
-      preLoaderRoute: typeof ExamplesBillingRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/ai': {
-      id: '/examples/ai'
-      path: '/ai'
-      fullPath: '/examples/ai'
-      preLoaderRoute: typeof ExamplesAiRouteImport
       parentRoute: typeof ExamplesRoute
     }
     '/examples/admin': {
@@ -293,19 +258,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamplesAdminRouteImport
       parentRoute: typeof ExamplesRoute
     }
-    '/_authenticated/files': {
-      id: '/_authenticated/files'
-      path: '/files'
-      fullPath: '/files'
-      preLoaderRoute: typeof AuthenticatedFilesRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/examples/ai': {
+      id: '/examples/ai'
+      path: '/ai'
+      fullPath: '/examples/ai'
+      preLoaderRoute: typeof ExamplesAiRouteImport
+      parentRoute: typeof ExamplesRoute
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/examples/billing': {
+      id: '/examples/billing'
+      path: '/billing'
+      fullPath: '/examples/billing'
+      preLoaderRoute: typeof ExamplesBillingRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/chat': {
+      id: '/examples/chat'
+      path: '/chat'
+      fullPath: '/examples/chat'
+      preLoaderRoute: typeof ExamplesChatRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/email': {
+      id: '/examples/email'
+      path: '/email'
+      fullPath: '/examples/email'
+      preLoaderRoute: typeof ExamplesEmailRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/files': {
+      id: '/examples/files'
+      path: '/files'
+      fullPath: '/examples/files'
+      preLoaderRoute: typeof ExamplesFilesRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/forms': {
+      id: '/examples/forms'
+      path: '/forms'
+      fullPath: '/examples/forms'
+      preLoaderRoute: typeof ExamplesFormsRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/todos': {
+      id: '/examples/todos'
+      path: '/todos'
+      fullPath: '/examples/todos'
+      preLoaderRoute: typeof ExamplesTodosRouteImport
+      parentRoute: typeof ExamplesRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -368,3 +368,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.tsx'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

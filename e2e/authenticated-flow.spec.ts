@@ -3,10 +3,12 @@ import { expect, test } from '@playwright/test'
 test.describe('live authenticated smoke', () => {
   test.skip(
     process.env.E2E_RUN_AUTH !== 'true' || !process.env.E2E_BASE_URL,
-    'Set E2E_BASE_URL and E2E_RUN_AUTH=true to exercise the deployed backend.'
+    'Set E2E_BASE_URL and E2E_RUN_AUTH=true to exercise a real backend.'
   )
 
-  test('sign up, send a message, and upload a file', async ({ page }) => {
+  test('sign up, persist a session, sign in, send a message, and upload a file', async ({
+    page,
+  }) => {
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const email = `convexkit-e2e-${unique}@example.com`
     const password = `ConvexKit-${unique}-Password!`
@@ -23,6 +25,15 @@ test.describe('live authenticated smoke', () => {
     await authForm.getByLabel('Password').fill(password)
     await authForm.locator('button[type="submit"]').click()
 
+    await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible()
+    await page.getByRole('button', { name: 'Sign Out' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    const signInForm = page.locator('form').filter({ has: page.getByLabel('Email') })
+    await signInForm.getByLabel('Email').fill(email)
+    await signInForm.getByLabel('Password').fill(password)
+    await signInForm.locator('button[type="submit"]').click()
     await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible()
     await page.getByPlaceholder('Type a message...').fill(message)
     await page.getByRole('button', { name: 'Send' }).click()

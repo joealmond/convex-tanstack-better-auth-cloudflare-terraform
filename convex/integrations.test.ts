@@ -3,6 +3,9 @@ import { api, internal } from './_generated/api'
 import { createAuthenticatedTest } from './test.utils'
 
 afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
   vi.useRealTimers()
   delete process.env.OPENAI_API_KEY
   delete process.env.RESEND_API_KEY
@@ -12,6 +15,149 @@ afterEach(() => {
 })
 
 describe('optional integrations', () => {
+  it('persists streamed AI output across partial events and marks completion', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"Hel'
+          )
+        )
+        controller.enqueue(
+          encoder.encode('lo"}\n\ndata: {"type":"response.created"}\n\ndata: [DONE]\n\n')
+        )
+        controller.close()
+      },
+    })
+    const request = vi.fn().mockResolvedValue(new Response(stream))
+    vi.stubGlobal('fetch', request)
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const runId = await asUser.mutation(api.ai.start, { prompt: ' Say hello ' })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await asUser.query(api.ai.listRecent)).toMatchObject([
+      { output: 'Hello', status: 'completed', prompt: 'Say hello' },
+    ])
+    await t.mutation(internal.ai.appendOutput, {
+      runId,
+      ownerId: userId,
+      chunk: 'late',
+      model: 'test',
+    })
+    expect(await asUser.query(api.ai.listRecent)).toMatchObject([{ output: 'Hello' }])
+    expect(request).toHaveBeenCalledOnce()
+  })
+
+  it('validates AI prompts and records provider failures', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('unavailable', { status: 503 })))
+    const { t, asUser } = await createAuthenticatedTest()
+    await expect(asUser.mutation(api.ai.start, { prompt: ' ' })).rejects.toThrow(
+      'Prompt is required'
+    )
+    await expect(asUser.mutation(api.ai.start, { prompt: 'x'.repeat(1001) })).rejects.toThrow(
+      '1000 characters'
+    )
+    await asUser.mutation(api.ai.start, { prompt: 'test' })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await asUser.query(api.ai.listRecent)).toMatchObject([
+      { status: 'error', error: expect.stringContaining('503') },
+    ])
+  })
+
+  it('deduplicates welcome mail, escapes HTML, and records delivery ownership', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('RESEND_API_KEY', 're_test_only')
+    const request = vi.fn().mockResolvedValue(Response.json({ id: 'email_test' }))
+    vi.stubGlobal('fetch', request)
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const args = { ownerId: userId, to: 'test@example.com', name: '<Ada & "friends">' }
+    const deliveryId = await t.mutation(internal.emails.enqueueWelcome, args)
+    expect(await t.mutation(internal.emails.enqueueWelcome, args)).toBe(deliveryId)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([
+      { status: 'sent', providerId: 'email_test' },
+    ])
+    const body = JSON.parse(request.mock.calls[0]![1].body as string)
+    expect(body.html).toContain('&lt;Ada &amp; &quot;friends&quot;&gt;')
+    await t.mutation(internal.emails.markFailed, {
+      deliveryId,
+      ownerId: 'another-user',
+      error: 'wrong owner',
+    })
+    await t.mutation(internal.emails.markSent, {
+      deliveryId,
+      ownerId: 'another-user',
+      providerId: 'wrong owner',
+    })
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([
+      { status: 'sent', providerId: 'email_test' },
+    ])
+  })
+
+  it('records a failed email provider response', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('RESEND_API_KEY', 're_test_only')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json(
+            { name: 'validation_error', message: 'Invalid sender', statusCode: 422 },
+            { status: 422 }
+          )
+        )
+    )
+    const { t, asUser } = await createAuthenticatedTest()
+    await asUser.mutation(api.emails.requestTest)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([
+      { status: 'error', error: 'Invalid sender' },
+    ])
+  })
+
+  it('updates checkout records and resolves webhook owners by customer ID', async () => {
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const checkout = {
+      ownerId: userId,
+      stripeCustomerId: 'cus_test',
+      checkoutSessionId: 'cs_first',
+      priceId: 'price_test',
+    }
+    const id = await t.mutation(internal.billing.saveCheckout, checkout)
+    expect(
+      await t.mutation(internal.billing.saveCheckout, {
+        ...checkout,
+        checkoutSessionId: 'cs_second',
+      })
+    ).toBe(id)
+    expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toMatchObject({
+      checkoutSessionId: 'cs_second',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_customer',
+      eventType: 'customer.subscription.updated',
+      stripeCustomerId: 'cus_test',
+      stripeSubscriptionId: 'sub_test',
+      status: 'active',
+    })
+    expect(await asUser.query(api.billing.current)).toMatchObject({
+      checkoutSessionId: 'cs_second',
+      priceId: 'price_test',
+      status: 'active',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_unknown',
+      eventType: 'customer.subscription.updated',
+      stripeCustomerId: 'cus_unknown',
+      status: 'active',
+    })
+    expect(await t.run((ctx) => ctx.db.query('billingSubscriptions').collect())).toHaveLength(1)
+  })
   it('records a clear AI configuration error from the scheduled action', async () => {
     vi.useFakeTimers()
     const { t, asUser } = await createAuthenticatedTest()

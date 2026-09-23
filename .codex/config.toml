@@ -1,0 +1,4 @@
+# Operational Cloudflare tools are scoped to this trusted Cloudflare project.
+# Generic Cloudflare documentation remains available from the global config.
+[mcp_servers.cloudflare]
+url = "https://mcp.cloudflare.com/mcp"

@@ -760,7 +760,7 @@ export const Route = createFileRoute('/dashboard')({
 All custom function wrappers from `lib/customFunctions.ts` include a **global exception filter** that:
 
 1. Logs errors via `console.error` (visible in Convex dashboard logs)
-2. Normalizes all errors to `ConvexError` for safe client transport
+2. Preserves intentional `ConvexError` messages and sanitizes unexpected errors into an opaque `INTERNAL_ERROR` with a server-log correlation ID.
 
 For domain-specific errors, use `ConvexError` directly:
 
@@ -778,7 +778,7 @@ export const myMutation = authMutation({
 })
 ```
 
-The global exception filter in `customFunctions.ts` catches any unhandled errors automatically — you don't need manual try/catch in every handler.
+The global exception filter in `customFunctions.ts` catches errors from both authentication and application handlers. Convex still handles argument and return-value validation. Functions imported directly from `_generated/server` do not use this boundary.
 
 ### Frontend Error Handling
 
@@ -896,15 +896,11 @@ export default {
 
 ## Cloudflare Workers Gotchas
 
-### `nodejs_compat_v2` Flag
+### Node.js Compatibility
 
-The Cloudflare Vite plugin automatically adds `nodejs_compat`. If you also specify it manually in `wrangler.jsonc`, you'll get a duplicate flag error. Use `nodejs_compat_v2` instead:
-
-```jsonc
-{
-  "compatibility_flags": ["nodejs_compat_v2"],
-}
-```
+Keep `compatibility_flags: ["nodejs_compat"]` in `wrangler.jsonc`, matching the checked-in
+configuration. With the current compatibility date, the v2 behavior is included automatically.
+Regenerate `worker-configuration.d.ts` with `npm run cf-typegen` after updating Wrangler or the date.
 
 ### No Dynamic `import.meta.env` Access
 

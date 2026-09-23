@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { AuthControls } from '@/components/AuthControls'
 
 export const Route = createFileRoute('/')({ component: Home })
 
@@ -13,7 +14,8 @@ function Home() {
         TanStack Start, Convex, production authentication, and deployment configuration—composed for
         this project.
       </p>
-      <div className="mt-8">
+      <div className="mt-8 flex items-center justify-between gap-4">
+        <AuthControls />
         <Link
           to="/examples"
           className="rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground"

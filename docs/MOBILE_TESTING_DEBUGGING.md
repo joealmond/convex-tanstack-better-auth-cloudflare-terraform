@@ -26,10 +26,11 @@ Platform-specific issues, testing procedures, and debugging techniques for Capac
 4. Close and run (Cmd+R)
 
 **When to Use Debug vs Release**:
-| Build Config | Logs | Use Case |
-|-------------|------|----------|
-| **Debug** | Verbose (includes session tokens) | Active development, debugging Capacitor bridge |
-| **Release** | Minimal (no sensitive data) | **All testing**, TestFlight, App Store |
+
+| Build Config | Logs                              | Use Case                                       |
+| ------------ | --------------------------------- | ---------------------------------------------- |
+| **Debug**    | Verbose (includes session tokens) | Active development, debugging Capacitor bridge |
+| **Release**  | Minimal (no sensitive data)       | **All testing**, TestFlight, App Store         |
 
 **Important**: NEVER submit a build with Debug configuration to TestFlight or App Store. Apple's review may flag security concerns.
 

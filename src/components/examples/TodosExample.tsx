@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  flexRender,
+  createSortedRowModel,
+  rowSortingFeature,
+  tableFeatures,
+  sortFn_text,
+  useTable,
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
@@ -32,6 +33,11 @@ import {
 } from '@/components/ui/dialog'
 
 const PAGE_SIZE = 10
+const features = tableFeatures({
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { text: sortFn_text },
+})
 
 export function TodosExample() {
   const { data: session, isPending: sessionPending } = useSession()
@@ -55,7 +61,7 @@ export function TodosExample() {
   const [editing, setEditing] = useState<Doc<'todos'> | null>(null)
   const [editTitle, setEditTitle] = useState('')
 
-  const columns = useMemo<ColumnDef<Doc<'todos'>>[]>(
+  const columns = useMemo<ColumnDef<typeof features, Doc<'todos'>>[]>(
     () => [
       {
         id: 'completed',
@@ -75,6 +81,7 @@ export function TodosExample() {
       },
       {
         accessorKey: 'title',
+        sortFn: 'text',
         header: ({ column }) => (
           <button
             type="button"
@@ -136,13 +143,12 @@ export function TodosExample() {
     [removeTodo, setCompleted]
   )
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: pagination.results,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   })
 
   const submitTodo = async (event: React.FormEvent) => {
@@ -238,9 +244,7 @@ export function TodosExample() {
                   <tr key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
                       <th key={header.id} className="px-4 py-3 font-medium">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                       </th>
                     ))}
                   </tr>
@@ -249,9 +253,9 @@ export function TodosExample() {
               <tbody>
                 {table.getRowModel().rows.map((row) => (
                   <tr key={row.id} className="border-t border-border">
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getAllCells().map((cell) => (
                       <td key={cell.id} className="px-4 py-3">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        <table.FlexRender cell={cell} />
                       </td>
                     ))}
                   </tr>

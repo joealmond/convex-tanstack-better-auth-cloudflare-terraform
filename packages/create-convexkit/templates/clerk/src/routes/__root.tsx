@@ -20,7 +20,7 @@ import '../styles/globals.css'
 
 const fetchClerkAuth = createServerFn({ method: 'GET' }).handler(async () => {
   const { userId, getToken } = await auth()
-  return { userId, token: await getToken() }
+  return { userId, token: await getToken({ template: 'convex' }) }
 })
 
 export const Route = createRootRouteWithContext<{

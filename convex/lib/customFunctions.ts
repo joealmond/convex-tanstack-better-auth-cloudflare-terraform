@@ -45,10 +45,11 @@
  *
  * ## Error Handling
  *
- * All wrappers pass through `handleServerError()` which:
+ * All wrappers catch authentication and handler errors with `handleServerError()` which:
  * 1. Logs the error with a context label (visible in Convex dashboard logs)
  * 2. Re-throws `ConvexError` instances as-is (preserves client-readable messages)
- * 3. Wraps raw `Error` in `ConvexError` for safe client transport
+ * 3. Logs unexpected errors server-side and returns an opaque error ID to clients
+ * Argument/return validation is still handled by Convex itself.
  */
 
 import { customQuery, customMutation, customAction } from 'convex-helpers/server/customFunctions'
@@ -61,6 +62,7 @@ import {
   internalAction as rawInternalAction,
 } from '../_generated/server'
 import { requireAuth, requireAdmin } from './authHelpers'
+import type { QueryCtx, MutationCtx, ActionCtx } from '../_generated/server'
 import { ConvexError } from 'convex/values'
 
 // =============================================================================
@@ -93,143 +95,79 @@ function handleServerError(error: unknown, context: string): never {
   })
 }
 
-// =============================================================================
-// Authenticated Function Wrappers
-// =============================================================================
-
 /**
- * Query that requires authentication.
- * Injects `ctx.user` (AuthUser) and `ctx.userId` (string).
+ * Wrap the application handler. Custom-function input runs before it, so
+ * authentication inputs catch their own errors below.
  */
-export const authQuery = customQuery(query, {
+type Handler = (...args: unknown[]) => unknown
+type Definition = Handler | { handler: Handler; [key: string]: unknown }
+
+function withErrorHandling<Builder extends (definition: never) => unknown>(
+  builder: Builder,
+  context: string
+): Builder {
+  const wrapped = (definition: Definition) => {
+    const handler = typeof definition === 'function' ? definition : definition.handler
+    return Reflect.apply(builder, undefined, [
+      {
+        ...(typeof definition === 'function' ? {} : definition),
+        handler: async (...args: unknown[]) => {
+          try {
+            return await handler(...args)
+          } catch (error) {
+            handleServerError(error, context)
+          }
+        },
+      },
+    ])
+  }
+  // Keep the original generic builder signature, validators, visibility and
+  // inferred arguments/return types. Only handler execution is decorated.
+  return wrapped as unknown as Builder
+}
+
+async function authenticated(ctx: QueryCtx | MutationCtx | ActionCtx) {
+  try {
+    const user = await requireAuth(ctx)
+    return { ctx: { user, userId: user._id }, args: {} }
+  } catch (error) {
+    handleServerError(error, 'authentication')
+  }
+}
+
+async function administrator(ctx: QueryCtx | MutationCtx | ActionCtx) {
+  try {
+    const user = await requireAdmin(ctx)
+    return { ctx: { user, userId: user._id }, args: {} }
+  } catch (error) {
+    handleServerError(error, 'administration')
+  }
+}
+
+export const authQuery = customQuery(withErrorHandling(query, 'authQuery'), {
   args: {},
-  input: async (ctx, _args) => {
-    try {
-      const user = await requireAuth(ctx)
-      return { ctx: { ...ctx, user, userId: user._id }, args: {} }
-    } catch (e) {
-      handleServerError(e, 'authQuery')
-    }
-  },
+  input: authenticated,
+})
+export const authMutation = customMutation(withErrorHandling(mutation, 'authMutation'), {
+  args: {},
+  input: authenticated,
+})
+export const authAction = customAction(withErrorHandling(action, 'authAction'), {
+  args: {},
+  input: authenticated,
+})
+export const adminQuery = customQuery(withErrorHandling(query, 'adminQuery'), {
+  args: {},
+  input: administrator,
+})
+export const adminMutation = customMutation(withErrorHandling(mutation, 'adminMutation'), {
+  args: {},
+  input: administrator,
 })
 
-/**
- * Mutation that requires authentication.
- * Injects `ctx.user` (AuthUser) and `ctx.userId` (string).
- */
-export const authMutation = customMutation(mutation, {
-  args: {},
-  input: async (ctx, _args) => {
-    try {
-      const user = await requireAuth(ctx)
-      return { ctx: { ...ctx, user, userId: user._id }, args: {} }
-    } catch (e) {
-      handleServerError(e, 'authMutation')
-    }
-  },
-})
-
-/** Action that requires authentication and injects ctx.user and ctx.userId. */
-export const authAction = customAction(action, {
-  args: {},
-  input: async (ctx, _args) => {
-    try {
-      const user = await requireAuth(ctx)
-      return { ctx: { ...ctx, user, userId: user._id }, args: {} }
-    } catch (e) {
-      handleServerError(e, 'authAction')
-    }
-  },
-})
-
-// =============================================================================
-// Admin Function Wrappers
-// =============================================================================
-
-/**
- * Query that requires admin privileges.
- * Injects `ctx.user` (AuthUser) and `ctx.userId` (string).
- */
-export const adminQuery = customQuery(query, {
-  args: {},
-  input: async (ctx, _args) => {
-    try {
-      const user = await requireAdmin(ctx)
-      return { ctx: { ...ctx, user, userId: user._id }, args: {} }
-    } catch (e) {
-      handleServerError(e, 'adminQuery')
-    }
-  },
-})
-
-/**
- * Mutation that requires admin privileges.
- * Injects `ctx.user` (AuthUser) and `ctx.userId` (string).
- */
-export const adminMutation = customMutation(mutation, {
-  args: {},
-  input: async (ctx, _args) => {
-    try {
-      const user = await requireAdmin(ctx)
-      return { ctx: { ...ctx, user, userId: user._id }, args: {} }
-    } catch (e) {
-      handleServerError(e, 'adminMutation')
-    }
-  },
-})
-
-// =============================================================================
-// Public Function Wrappers (no auth, but still globally error-handled)
-// =============================================================================
-
-/** Public query — no auth required, global error handling. */
-export const publicQuery = customQuery(query, {
-  args: {},
-  input: async (_ctx, _args) => {
-    return { ctx: {}, args: {} }
-  },
-})
-
-/** Public mutation — no auth required, global error handling. */
-export const publicMutation = customMutation(mutation, {
-  args: {},
-  input: async (_ctx, _args) => {
-    return { ctx: {}, args: {} }
-  },
-})
-
-/** Public action — no auth required, global error handling. */
-export const publicAction = customAction(action, {
-  args: {},
-  input: async (_ctx, _args) => {
-    return { ctx: {}, args: {} }
-  },
-})
-
-// =============================================================================
-// Internal Function Wrappers (not exposed via API, called by scheduler/crons)
-// =============================================================================
-
-/** Internal query — not exposed in public API. */
-export const internalQuery = customQuery(rawInternalQuery, {
-  args: {},
-  input: async (_ctx, _args) => {
-    return { ctx: {}, args: {} }
-  },
-})
-
-/** Internal mutation — not exposed in public API. */
-export const internalMutation = customMutation(rawInternalMutation, {
-  args: {},
-  input: async (_ctx, _args) => {
-    return { ctx: {}, args: {} }
-  },
-})
-
-/** Internal action — not exposed in public API. */
-export const internalAction = customAction(rawInternalAction, {
-  args: {},
-  input: async (_ctx, _args) => {
-    return { ctx: {}, args: {} }
-  },
-})
+export const publicQuery = withErrorHandling(query, 'publicQuery')
+export const publicMutation = withErrorHandling(mutation, 'publicMutation')
+export const publicAction = withErrorHandling(action, 'publicAction')
+export const internalQuery = withErrorHandling(rawInternalQuery, 'internalQuery')
+export const internalMutation = withErrorHandling(rawInternalMutation, 'internalMutation')
+export const internalAction = withErrorHandling(rawInternalAction, 'internalAction')

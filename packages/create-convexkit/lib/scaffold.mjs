@@ -19,6 +19,8 @@ const ALL_EXAMPLES = ['chat', 'files', 'admin', 'forms', 'todos', 'ai', 'billing
 const VALID_AUTH = ['better-auth', 'clerk']
 const VALID_DEPLOY = ['cloudflare', 'vercel', 'netlify']
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const cliVersion = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version
+const defaultTemplateRef = `create-convexkit-v${cliVersion}`
 
 const featureFiles = {
   chat: [
@@ -44,6 +46,7 @@ const featureFiles = {
   todos: [
     'src/routes/examples.todos.tsx',
     'src/components/examples/TodosExample.tsx',
+    'src/components/examples/TodosExample.test.tsx',
     'convex/todos.ts',
     'convex/todos.test.ts',
   ],
@@ -80,14 +83,14 @@ Options:
   --terraform, --no-terraform      Include Terraform (default: no)
   --install, --no-install          Install dependencies (default: install)
   --template-dir <path>            Use a local template checkout (testing/contributing)
-  --template-ref <ref>             Git branch or tag (default: main)
+  --template-ref <ref>             Git branch or tag (default: ${defaultTemplateRef})
   --yes, -y                        Accept defaults without prompts
   --help, -h                       Show this help
 `
 }
 
 function parseArgs(argv) {
-  const result = { install: true, terraform: false, yes: false, templateRef: 'main' }
+  const result = { install: true, terraform: false, yes: false, templateRef: defaultTemplateRef }
   const positional = []
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
@@ -170,6 +173,39 @@ function runCommand(command, args, cwd) {
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed`)
 }
 
+// Local template copies must never carry credentials, deployment state or caches.
+function isTemplatePath(source, path) {
+  if (path === source) return true
+  const name = basename(path)
+  if (
+    [
+      '.git',
+      '.agent',
+      '.agents',
+      '.codex',
+      '.convex',
+      '.wrangler',
+      '.terraform',
+      '.tanstack',
+      '.output',
+      '.netlify',
+      '.vercel',
+      'node_modules',
+      'dist',
+      'cache',
+      'coverage',
+      'output',
+      'playwright-report',
+      'test-results',
+      '.DS_Store',
+    ].includes(name)
+  )
+    return false
+  if ((name.startsWith('.env') && name !== '.env.example') || name.startsWith('.dev.vars'))
+    return false
+  return !/\.tfstate(?:\.|$)|\.tfvars$|\.log$|\.tgz$/.test(name)
+}
+
 function acquireTemplate(options) {
   mkdirSync(dirname(options.target), { recursive: true })
   if (options.templateDir) {
@@ -179,10 +215,7 @@ function acquireTemplate(options) {
     mkdirSync(options.target, { recursive: true })
     cpSync(source, options.target, {
       recursive: true,
-      filter: (path) =>
-        !['.git', '.env.local', 'node_modules', 'coverage', 'output', 'playwright-report'].includes(
-          basename(path)
-        ),
+      filter: (path) => isTemplatePath(source, path),
     })
     return
   }
@@ -208,7 +241,11 @@ function replaceFeatureBlock(path, feature) {
     `^[\\t ]*// <convexkit:${escapeRegExp(feature)}>\\n[\\s\\S]*?^[\\t ]*// </convexkit:${escapeRegExp(feature)}>\\n?`,
     'gm'
   )
-  writeFileSync(path, source.replace(pattern, ''))
+  const jsxPattern = new RegExp(
+    `^[\\t ]*\\{/\\* <convexkit:${escapeRegExp(feature)}> \\*/\\}\\n[\\s\\S]*?^[\\t ]*\\{/\\* </convexkit:${escapeRegExp(feature)}> \\*/\\}\\n?`,
+    'gm'
+  )
+  writeFileSync(path, source.replace(pattern, '').replace(jsxPattern, ''))
 }
 
 function escapeRegExp(value) {
@@ -245,6 +282,13 @@ const cards = {
 }
 
 function renderExamplesIndex(selected) {
+  if (!selected.length)
+    return `import { createFileRoute, Link } from '@tanstack/react-router'
+export const Route = createFileRoute('/examples/')({ component: ExamplesPage })
+function ExamplesPage() {
+  return <main className="container mx-auto px-4 py-10"><h1 className="text-3xl font-bold">Feature Examples</h1><p className="my-4">No examples selected. Your application is ready for your own features.</p><Link to="/">Back home</Link></main>
+}
+`
   const data = selected.map((key) => cards[key])
   return `import { createFileRoute, Link } from '@tanstack/react-router'\n\nexport const Route = createFileRoute('/examples/')({ component: ExamplesPage })\n\nconst examples = ${JSON.stringify(data, null, 2)} as const\n\nfunction ExamplesPage() {\n  return (\n    <main className="container mx-auto min-h-screen px-4 py-10">\n      <div className="flex items-center justify-between gap-4">\n        <div><p className="text-sm text-muted-foreground">ConvexKit</p><h1 className="text-3xl font-bold">Feature Examples</h1></div>\n        <Link to="/" className="rounded-md bg-secondary px-4 py-2 text-sm font-medium">Back home</Link>\n      </div>\n      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">\n        {examples.map(([title, description, href]) => (\n          <Link key={title} to={href} className="rounded-lg border border-border bg-card p-5 shadow-sm hover:border-primary/60">\n            <h2 className="text-lg font-semibold">{title}</h2><p className="mt-2 text-sm text-muted-foreground">{description}</p>\n          </Link>\n        ))}\n      </div>\n    </main>\n  )\n}\n`
 }
@@ -268,13 +312,32 @@ function configurePackage(target, options) {
     deploy: options.deploy,
     examples: options.selectedExamples,
     terraform: options.terraform,
+    cliVersion,
+    templateRef: options.templateDir ? 'local' : options.templateRef,
   }
-  pkg.scripts['test:cli'] = undefined
+  delete pkg.scripts['test:cli']
+  delete pkg.scripts['test:scaffold']
+  delete pkg.scripts['test:e2e:local-auth']
+  delete pkg.scripts['test:setup']
+  delete pkg.scripts['test:guardrails']
+  for (const [feature, dependencies] of Object.entries({
+    billing: ['stripe'],
+    email: ['resend'],
+    todos: ['@tanstack/react-table'],
+    forms: ['@hookform/resolvers', 'react-hook-form'],
+  })) {
+    if (!options.selectedExamples.includes(feature))
+      for (const name of dependencies) delete pkg.dependencies[name]
+  }
+  pkg.scripts.check =
+    'npm run lint -- --max-warnings=0 && npm run test && npm run check:convex-imports && npm run typecheck && npm run build'
+  // The generated dependency graph differs from the repository template.
+  // npm install updates the retained lockfile using exact direct versions.
 
   if (options.auth === 'clerk') {
     delete pkg.dependencies['better-auth']
     delete pkg.dependencies['@convex-dev/better-auth']
-    pkg.dependencies['@clerk/tanstack-react-start'] = '^1.4.17'
+    pkg.dependencies['@clerk/tanstack-react-start'] = '1.5.12'
   }
   if (options.deploy !== 'cloudflare') {
     delete pkg.dependencies['@cloudflare/vite-plugin']
@@ -283,24 +346,18 @@ function configurePackage(target, options) {
     delete pkg.scripts['sync:wrangler-config']
     delete pkg.scripts['deploy:preview']
     delete pkg.scripts['deploy:prod']
+    pkg.scripts['build:preview'] =
+      'vite build --mode preview && node scripts/sanitize-build-output.mjs'
+    pkg.scripts['build:prod'] =
+      'vite build --mode production && node scripts/sanitize-build-output.mjs'
+    pkg.scripts.preview = 'vite preview'
   }
   if (options.deploy === 'vercel') {
-    pkg.dependencies.nitro = '3.0.260610-beta'
+    pkg.dependencies.nitro = '3.0.260903-beta'
     pkg.scripts.deploy = 'npm run build && npx vercel --prod'
   }
   if (options.deploy === 'netlify') {
-    pkg.devDependencies['@netlify/vite-plugin-tanstack-start'] = '1.3.16'
-    // The current Netlify plugin transitively pins pre-fix OpenTelemetry and
-    // esbuild releases. Keep these narrow until upstream dependency ranges move.
-    pkg.overrides = {
-      ...(pkg.overrides ?? {}),
-      '@opentelemetry/core': '2.9.0',
-      '@opentelemetry/resources': '2.9.0',
-      '@opentelemetry/sdk-trace-base': '2.9.0',
-      '@opentelemetry/sdk-trace-node': '2.9.0',
-      '@netlify/edge-bundler': { esbuild: '0.28.1' },
-      '@netlify/zip-it-and-ship-it': { esbuild: '0.28.1' },
-    }
+    pkg.dependencies.nitro = '3.0.260903-beta'
     pkg.scripts.deploy = 'npm run build && npx netlify deploy --prod'
   }
   writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`)
@@ -320,7 +377,7 @@ function configureClerkEnv(target) {
   const path = join(target, '.env.example')
   if (!existsSync(path)) return
   const source = readFileSync(path, 'utf8')
-  const replacement = `# --------------- Clerk Auth ---------------\n+# Create an application at https://dashboard.clerk.com. These values are read by\n+# Clerk's TanStack Start middleware; do not prefix the secret with VITE_.\n+CLERK_PUBLISHABLE_KEY=pk_test_replace_me\n+CLERK_SECRET_KEY=sk_test_replace_me\n+CLERK_JWT_ISSUER_DOMAIN=https://your-clerk-domain.clerk.accounts.dev\n+\n+`
+  const replacement = `# --------------- Clerk Auth ---------------\n# Create an application at https://dashboard.clerk.com. These values are read by\n# Clerk's TanStack Start middleware; do not prefix the secret with VITE_.\nCLERK_PUBLISHABLE_KEY=pk_test_replace_me\nCLERK_SECRET_KEY=sk_test_replace_me\nCLERK_JWT_ISSUER_DOMAIN=https://your-clerk-domain.clerk.accounts.dev\n\n`
   writeFileSync(
     path,
     source.replace(
@@ -355,7 +412,18 @@ function renderMaintenance(selected) {
 }
 
 function compose(options) {
-  remove(options.target, ['.git', 'packages/create-convexkit', 'coverage', 'output'])
+  remove(options.target, [
+    '.git',
+    'packages/create-convexkit',
+    'coverage',
+    'output',
+    '.github/workflows',
+    'scripts/validate-scaffold.mjs',
+    'scripts/validate-local-auth.mjs',
+    'scripts/setup.node-test.mjs',
+    'scripts/sanitize-build-output.test.mjs',
+    'scripts/check-convex-runtime-imports.test.mjs',
+  ])
   if (!options.terraform || options.deploy !== 'cloudflare')
     remove(options.target, ['infrastructure'])
 
@@ -363,10 +431,12 @@ function compose(options) {
     copyOverlay('clerk', options.target)
     remove(options.target, [
       'src/lib/auth-client.ts',
+      'src/components/AuthControls.test.tsx',
       'src/lib/auth-server.ts',
       'src/routes/api/auth',
       'convex/auth.ts',
-      'convex/testUtils.ts',
+      'convex/test.utils.ts',
+      'convex/lib/customFunctions.test.ts',
       'convex/files.test.ts',
       'convex/integrations.test.ts',
       'convex/maintenance.test.ts',
@@ -386,6 +456,10 @@ function compose(options) {
     replaceFeatureBlock(join(options.target, 'convex/schema.ts'), feature)
     replaceFeatureBlock(join(options.target, 'convex/auth.ts'), feature)
     replaceFeatureBlock(join(options.target, 'convex/http.ts'), feature)
+    replaceFeatureBlock(
+      join(options.target, 'src/components/examples/RealtimeChatExample.tsx'),
+      feature
+    )
     pruneGeneratedApi(options.target, feature)
   }
   if (
@@ -408,8 +482,10 @@ function compose(options) {
       )
     )
   }
-  if (!options.selectedExamples.includes('chat'))
+  if (!options.selectedExamples.includes('chat')) {
     remove(options.target, ['convex/seed.ts', 'convex/seed.test.ts'])
+    pruneGeneratedApi(options.target, 'seed')
+  }
   if (!options.selectedExamples.includes('chat') || !options.selectedExamples.includes('files')) {
     remove(options.target, ['convex/maintenance.test.ts'])
   }
@@ -439,10 +515,74 @@ function compose(options) {
     copyOverlay(options.deploy, options.target)
   }
   configurePackage(options.target, options)
+  configureGeneratedChecks(options)
   writeFileSync(
     join(options.target, '.convexkit.json'),
-    `${JSON.stringify({ version: 1, ...options, target: undefined, templateDir: undefined }, null, 2)}\n`
+    `${JSON.stringify({ version: 1, ...options, target: undefined, templateDir: undefined, deployWorkflow: undefined }, null, 2)}\n`
   )
+}
+
+function configureGeneratedChecks(options) {
+  const workflowDir = join(options.target, '.github/workflows')
+  mkdirSync(workflowDir, { recursive: true })
+  writeFileSync(
+    join(workflowDir, 'ci.yml'),
+    `name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      VITE_CONVEX_URL: https://example.convex.cloud
+      VITE_CONVEX_SITE_URL: https://example.convex.site
+      VITE_APP_ENV: preview
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run generate:routes
+      - run: npm run check
+`
+  )
+  // Keep the deployment workflow only for the target it actually supports.
+  if (options.deploy === 'cloudflare') {
+    // The original workflow is saved before repository-only workflows are removed.
+    if (options.deployWorkflow)
+      writeFileSync(join(workflowDir, 'deploy.yml'), options.deployWorkflow)
+  }
+  // Browser smoke tests must only reference routes selected by the caller.
+  const smoke = `import { expect, test } from '@playwright/test'
+
+test('generated application renders its example catalog', async ({ page }) => {
+  await page.goto('/examples')
+  await expect(page.getByRole('heading', { name: 'Feature Examples' })).toBeVisible()
+${options.selectedExamples.map((feature) => `  await expect(page.getByRole('heading', { name: ${JSON.stringify(cards[feature][0])}, exact: true })).toBeVisible()`).join('\n')}
+})
+`
+  writeFileSync(join(options.target, 'e2e/public-smoke.spec.ts'), smoke)
+  if (
+    options.auth !== 'better-auth' ||
+    !['chat', 'files'].every((f) => options.selectedExamples.includes(f))
+  ) {
+    remove(options.target, ['e2e/authenticated-flow.spec.ts'])
+    const path = join(options.target, 'package.json')
+    const pkg = JSON.parse(readFileSync(path, 'utf8'))
+    delete pkg.scripts['test:e2e:auth']
+    const deployPath = join(workflowDir, 'deploy.yml')
+    if (existsSync(deployPath)) {
+      const deployWorkflow = readFileSync(deployPath, 'utf8').replace(
+        / {6}- name: Install Playwright Chromium[\s\S]*?(?= {6}- name: Deployment summary)/,
+        ''
+      )
+      writeFileSync(deployPath, deployWorkflow)
+    }
+    writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n')
+  }
 }
 
 export async function run(argv = process.argv.slice(2)) {
@@ -456,6 +596,8 @@ export async function run(argv = process.argv.slice(2)) {
 
   console.log(`\nCreating ConvexKit app in ${options.target}`)
   acquireTemplate(options)
+  const workflow = join(options.target, '.github/workflows/deploy.yml')
+  if (existsSync(workflow)) options.deployWorkflow = readFileSync(workflow, 'utf8')
   compose(options)
 
   if (options.install) {

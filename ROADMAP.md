@@ -55,7 +55,7 @@ Multiple small, isolated examples — each is one route + one Convex module + a 
 
 ## Phase 4 — Trust: tests & releases (week 5)
 
-- [x] `convex-test` unit tests for every Convex function
+- [x] `convex-test` coverage gates and regression tests for core backend behavior
 - [x] Playwright e2e smoke test: sign up → send message → upload file
 - [x] Remove `--passWithNoTests`; add coverage + CI badges
 - [x] Versioned releases with changesets/release-please; keep CHANGELOG automated
@@ -90,3 +90,14 @@ This is how templates become defaults.
 3. The README sells the template in one screen: pitch → screenshot → live demo → install command.
 
 _Supersedes `docs/FUTURE_ROADMAP.md`._
+
+## Reliability follow-up — September 2026
+
+- [x] Update compatible dependencies, migrate Vite/Table, and refresh provider/runtime types.
+- [x] Require verified email for allowlisted admin access in both auth providers.
+- [x] Catch application-handler failures in the Convex error boundary.
+- [x] Pin published CLI defaults to matching release tags.
+- [x] Validate generated projects using separate installs, tests, builds, audits, and deployment output.
+- [x] Document the release contract and a first-run usability protocol in `docs/VALIDATION.md`.
+- [ ] Complete three observed first-run sessions with developers unfamiliar with the project.
+- [ ] Record a live authenticated preview smoke for the updated release before launch.

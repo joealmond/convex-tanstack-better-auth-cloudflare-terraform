@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const localPort = Number(process.env.E2E_PORT || 4173)
+const localBaseUrl = `http://127.0.0.1:${localPort}`
+
 const liveBaseUrl = process.env.E2E_BASE_URL?.replace(/\/$/, '')
 
 export default defineConfig({
@@ -10,7 +13,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: liveBaseUrl || 'http://127.0.0.1:3000',
+    baseURL: liveBaseUrl || localBaseUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -18,14 +21,16 @@ export default defineConfig({
   webServer: liveBaseUrl
     ? undefined
     : {
-        command: 'npm run dev:web -- --host 127.0.0.1',
-        url: 'http://127.0.0.1:3000/examples',
-        reuseExistingServer: !process.env.CI,
+        command: `npm run dev:web -- --host 127.0.0.1 --port ${localPort} --strictPort`,
+        url: `${localBaseUrl}/examples`,
+        reuseExistingServer: false,
         timeout: 120_000,
         env: {
           VITE_CONVEX_URL: 'https://example.convex.cloud',
           VITE_CONVEX_SITE_URL: 'https://example.convex.site',
           VITE_APP_ENV: 'development',
+          VITE_SENTRY_DSN: '',
+          CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false',
         },
       },
   projects: [

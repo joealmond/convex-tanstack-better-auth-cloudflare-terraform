@@ -190,12 +190,13 @@ mitigation_timeout  = 300    # Block for 5 minutes
 **What**: HTTP headers that protect against common attacks.
 
 **Headers added**:
-| Header | Value | Protects Against |
-|--------|-------|------------------|
-| X-Content-Type-Options | nosniff | MIME sniffing |
-| X-Frame-Options | DENY | Clickjacking |
-| Referrer-Policy | strict-origin-when-cross-origin | Referrer leaks |
-| Permissions-Policy | geolocation=(), etc. | Feature abuse |
+
+| Header                 | Value                           | Protects Against |
+| ---------------------- | ------------------------------- | ---------------- |
+| X-Content-Type-Options | nosniff                         | MIME sniffing    |
+| X-Frame-Options        | DENY                            | Clickjacking     |
+| Referrer-Policy        | strict-origin-when-cross-origin | Referrer leaks   |
+| Permissions-Policy     | geolocation=(), etc.            | Feature abuse    |
 
 **Enable**:
 

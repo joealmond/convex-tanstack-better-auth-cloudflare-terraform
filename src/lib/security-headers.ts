@@ -13,17 +13,33 @@ const BASE_CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline'",
 ]
 
-export function buildContentSecurityPolicy(isHttps: boolean): string {
-  return [...BASE_CONTENT_SECURITY_POLICY, ...(isHttps ? ['upgrade-insecure-requests'] : [])].join(
-    '; '
-  )
+export function buildContentSecurityPolicy(isHttps: boolean, localBackendUrl?: string): string {
+  const directives = [...BASE_CONTENT_SECURITY_POLICY]
+  if (!isHttps && localBackendUrl) {
+    const backend = new URL(localBackendUrl)
+    if (
+      backend.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(backend.hostname)
+    ) {
+      const websocket = new URL(backend.origin)
+      websocket.protocol = 'ws:'
+      directives[2] += ` ${backend.origin} ${websocket.origin}`
+    }
+  }
+  return [...directives, ...(isHttps ? ['upgrade-insecure-requests'] : [])].join('; ')
 }
 
 export function applySecurityHeaders(response: Response, request: Request): Response {
   const headers = new Headers(response.headers)
   const isHttps = new URL(request.url).protocol === 'https:'
 
-  headers.set('Content-Security-Policy', buildContentSecurityPolicy(isHttps))
+  headers.set(
+    'Content-Security-Policy',
+    buildContentSecurityPolicy(
+      isHttps,
+      import.meta.env.DEV ? import.meta.env.VITE_CONVEX_URL : undefined
+    )
+  )
   headers.set('Cross-Origin-Opener-Policy', 'same-origin')
   headers.set('Cross-Origin-Resource-Policy', 'same-origin')
   headers.set('Permissions-Policy', 'camera=(), geolocation=(), microphone=(), payment=()')

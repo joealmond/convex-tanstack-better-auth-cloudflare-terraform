@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { applySecurityHeaders, buildContentSecurityPolicy } from './security-headers'
 
 describe('security headers', () => {
+  it('allows only the configured loopback backend during HTTP development', () => {
+    const policy = buildContentSecurityPolicy(false, 'http://127.0.0.1:3210')
+    expect(policy).toContain('http://127.0.0.1:3210 ws://127.0.0.1:3210')
+    expect(policy).not.toContain('localhost:*')
+    expect(buildContentSecurityPolicy(true, 'http://127.0.0.1:3210')).not.toContain('127.0.0.1')
+    expect(buildContentSecurityPolicy(false, 'http://untrusted.example')).not.toContain(
+      'untrusted.example'
+    )
+  })
+
   it('adds a restrictive policy and HSTS to HTTPS responses', async () => {
     const response = applySecurityHeaders(
       new Response('ok', { headers: { 'content-type': 'text/plain' } }),

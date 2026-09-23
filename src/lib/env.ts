@@ -55,10 +55,10 @@ export type Env = z.infer<typeof envSchema>
 function getEnv(): Env {
   const parsed = envSchema.safeParse({
     VITE_CONVEX_URL: import.meta.env.VITE_CONVEX_URL,
-    VITE_CONVEX_SITE_URL: import.meta.env.VITE_CONVEX_SITE_URL,
+    VITE_CONVEX_SITE_URL: import.meta.env.VITE_CONVEX_SITE_URL || undefined,
     VITE_APP_ENV: import.meta.env.VITE_APP_ENV,
     VITE_GOOGLE_AUTH_ENABLED: import.meta.env.VITE_GOOGLE_AUTH_ENABLED,
-    VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
+    VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN || undefined,
   })
 
   if (!parsed.success) {

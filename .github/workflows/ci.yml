@@ -38,7 +38,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
-          terraform_version: 1.15.8
+          terraform_version: 1.16.1
 
       - name: Install locked dependencies
         run: npm ci
@@ -64,6 +64,12 @@ jobs:
 
       - name: Test create-convexkit composition
         run: npm run test:cli
+
+      - name: Test build and runtime guardrails
+        run: npm run test:guardrails && npm run check:convex-imports
+
+      - name: Test setup wizard
+        run: npm run test:setup
 
       - name: Typecheck
         run: npm run typecheck
@@ -98,3 +104,40 @@ jobs:
 
       - name: Run public browser smoke tests
         run: npm run test:e2e:public
+
+      - name: Verify generated app authentication with a disposable local backend
+        run: npm run test:e2e:local-auth
+
+      - name: Print local authentication failure logs
+        if: failure()
+        run: find /tmp -maxdepth 2 -path '/tmp/convexkit-auth-*/*.log' -exec tail -n 80 {} +
+
+  generated-apps:
+    name: Generated ${{ matrix.auth }} / ${{ matrix.deploy }} / ${{ matrix.examples }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        auth: [better-auth, clerk]
+        deploy: [cloudflare, vercel, netlify]
+        examples: [all, none]
+        include:
+          - { auth: better-auth, deploy: cloudflare, examples: chat }
+          - { auth: better-auth, deploy: cloudflare, examples: files }
+          - { auth: better-auth, deploy: cloudflare, examples: admin }
+          - { auth: better-auth, deploy: cloudflare, examples: forms }
+          - { auth: better-auth, deploy: cloudflare, examples: todos }
+          - { auth: better-auth, deploy: cloudflare, examples: ai }
+          - { auth: better-auth, deploy: cloudflare, examples: billing }
+          - { auth: better-auth, deploy: cloudflare, examples: email }
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Install, lint, test, typecheck, build, and audit generated app
+        run: node scripts/validate-scaffold.mjs '${{ matrix.auth }}' '${{ matrix.deploy }}' '${{ matrix.examples }}'
+      - name: Print failure logs
+        if: failure()
+        run: find /tmp -maxdepth 2 -path '/tmp/convexkit-validate-*/*.log' -exec tail -n 80 {} +

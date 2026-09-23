@@ -25,6 +25,8 @@ export default defineConfig({
           { text: 'Architecture', link: '/ARCHITECTURE' },
           { text: 'Examples', link: '/EXAMPLES' },
           { text: 'Troubleshooting', link: '/TROUBLESHOOTING' },
+          { text: 'Validation and releases', link: '/VALIDATION' },
+          { text: 'Stack upgrade notes', link: '/STACK_UPDATE' },
         ],
       },
       {

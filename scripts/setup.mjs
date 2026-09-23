@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { URL } from 'node:url'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import readline from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
@@ -22,7 +23,7 @@ Usage:
   npm run setup -- --yes
 
 Options:
-  --dry-run   Print the generated .env.local without writing files or running Convex commands.
+  --dry-run   Preview .env.local with secrets redacted; do not write or run Convex commands.
   --yes, -y   Use defaults for prompts. Useful for CI smoke tests.
   --help, -h  Show this help.
 `)
@@ -119,6 +120,21 @@ function runConvexEnvSet(name, value) {
 }
 
 try {
+  const hadEnvFile = existsSync(envPath)
+  if (!hadEnvFile && !dryRun && !assumeYes) {
+    console.log(
+      'First, connect a Convex project. The Convex CLI handles login and project creation.'
+    )
+    const initialize = await confirm('Configure Convex now?', true)
+    if (initialize) {
+      const result = spawnSync('npx', ['convex', 'dev', '--once'], {
+        stdio: 'inherit',
+        shell: false,
+      })
+      if (result.status !== 0)
+        throw new Error('Convex setup failed. Run npx convex dev --once, then rerun npm run setup.')
+    }
+  }
   const existing = parseEnvFile(envPath)
   const example = parseEnvFile(examplePath)
   const defaults = { ...example, ...existing }
@@ -126,7 +142,7 @@ try {
   console.log('ConvexKit setup')
   console.log('This creates .env.local and can optionally set Convex backend env vars.\n')
 
-  if (existsSync(envPath) && !dryRun) {
+  if (hadEnvFile && !dryRun) {
     const overwrite = await confirm(`${envPath} already exists. Overwrite it?`, false)
     if (!overwrite) {
       console.log('Setup cancelled without changes.')
@@ -145,15 +161,21 @@ try {
     ),
     VITE_CONVEX_SITE_URL: await prompt(
       'Convex site/auth URL',
-      defaults.VITE_CONVEX_SITE_URL || 'https://your-deployment.convex.site'
+      realValue(
+        defaults.VITE_CONVEX_SITE_URL?.includes('your-deployment')
+          ? ''
+          : defaults.VITE_CONVEX_SITE_URL
+      ) ||
+        defaults.VITE_CONVEX_URL?.replace(/\.convex\.cloud\/?$/, '.convex.site') ||
+        'https://your-deployment.convex.site'
     ),
     BETTER_AUTH_SECRET: defaults.BETTER_AUTH_SECRET?.startsWith('your-')
       ? generateSecret()
       : defaults.BETTER_AUTH_SECRET || generateSecret(),
     SITE_URL: await prompt('App URL', defaults.SITE_URL || 'http://localhost:3000'),
-    GOOGLE_CLIENT_ID: '',
-    GOOGLE_CLIENT_SECRET: '',
-    VITE_GOOGLE_AUTH_ENABLED: 'false',
+    GOOGLE_CLIENT_ID: existing.GOOGLE_CLIENT_ID || '',
+    GOOGLE_CLIENT_SECRET: existing.GOOGLE_CLIENT_SECRET || '',
+    VITE_GOOGLE_AUTH_ENABLED: existing.VITE_GOOGLE_AUTH_ENABLED || 'false',
     CLOUDFLARE_API_TOKEN: realValue(defaults.CLOUDFLARE_API_TOKEN),
     CLOUDFLARE_ACCOUNT_ID: realValue(defaults.CLOUDFLARE_ACCOUNT_ID),
     CUSTOM_DOMAIN: defaults.CUSTOM_DOMAIN || '',
@@ -172,18 +194,44 @@ try {
       values.GOOGLE_CLIENT_ID && values.GOOGLE_CLIENT_SECRET ? 'true' : 'false'
   }
 
-  const contents = serializeEnv(values)
+  if (!dryRun) {
+    for (const name of ['VITE_CONVEX_URL', 'VITE_CONVEX_SITE_URL', 'SITE_URL']) {
+      let url
+      try {
+        url = new URL(values[name])
+      } catch {
+        throw new Error(
+          `${name} must be a valid URL. Run npx convex dev --once to configure Convex.`
+        )
+      }
+      if (
+        !['http:', 'https:'].includes(url.protocol) ||
+        url.hostname.includes('your-deployment') ||
+        url.hostname.startsWith('example.')
+      ) {
+        throw new Error(
+          `${name} still contains a placeholder or invalid URL. Run npx convex dev --once, then rerun setup.`
+        )
+      }
+    }
+  }
+  const extraValues = Object.entries(existing)
+    .filter(([key]) => !(key in values))
+    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .join('\n')
+  const contents =
+    serializeEnv(values) + (extraValues ? `\n# Preserved project settings\n${extraValues}\n` : '')
 
   if (dryRun) {
     console.log(`\n--- ${envPath} preview ---`)
-    console.log(contents)
+    console.log(contents.replace(/^(.*(?:SECRET|TOKEN|API_KEY).*)=(.*)$/gm, '$1=<redacted>'))
   } else {
-    writeFileSync(envPath, contents)
+    writeFileSync(envPath, contents, { mode: 0o600 })
     console.log(`\nWrote ${envPath}`)
   }
 
   const shouldSetConvexEnv =
-    !dryRun && (await confirm('Set backend env vars on the current Convex deployment?', false))
+    !dryRun && (await confirm('Set backend env vars on the current Convex deployment?', true))
 
   if (shouldSetConvexEnv) {
     const entries = [
@@ -217,6 +265,9 @@ try {
   console.log('\nNext steps:')
   console.log('  npm run dev')
   console.log('  Open http://localhost:3000')
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exitCode = 1
 } finally {
   rl.close()
 }

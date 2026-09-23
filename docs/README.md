@@ -4,14 +4,15 @@ All extended documentation for the template, organized by topic.
 
 ## Core
 
-| Topic              | Link                                         |
-| ------------------ | -------------------------------------------- |
-| Architecture Guide | [ARCHITECTURE.md](ARCHITECTURE.md)           |
-| Auth Solution      | [AUTH_SOLUTION.md](AUTH_SOLUTION.md)         |
-| Rate Limiting ⚡   | [RATE_LIMITING.md](RATE_LIMITING.md)         |
-| RBAC & Permissions | [RBAC.md](RBAC.md)                           |
-| File Uploads       | [FILE_UPLOADS.md](FILE_UPLOADS.md)           |
-| Convex Components  | [CONVEX_COMPONENTS.md](CONVEX_COMPONENTS.md) |
+| Topic                | Link                                               |
+| -------------------- | -------------------------------------------------- |
+| Architecture Guide   | [ARCHITECTURE.md](ARCHITECTURE.md)                 |
+| Product accelerators | [PROJECT_ACCELERATORS.md](PROJECT_ACCELERATORS.md) |
+| Auth Solution        | [AUTH_SOLUTION.md](AUTH_SOLUTION.md)               |
+| Rate Limiting ⚡     | [RATE_LIMITING.md](RATE_LIMITING.md)               |
+| RBAC & Permissions   | [RBAC.md](RBAC.md)                                 |
+| File Uploads         | [FILE_UPLOADS.md](FILE_UPLOADS.md)                 |
+| Convex Components    | [CONVEX_COMPONENTS.md](CONVEX_COMPONENTS.md)       |
 
 ## Deployment
 

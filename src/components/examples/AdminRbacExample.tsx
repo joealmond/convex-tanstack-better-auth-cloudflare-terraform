@@ -62,7 +62,7 @@ export function AdminRbacExample({ backTo = '/' }: AdminRbacExampleProps) {
             <div>
               <h2 className="text-lg font-semibold">Admin Controls</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Admin status comes from the email whitelist in{' '}
+                Admin status comes from the verified email allowlist in{' '}
                 <code className="text-primary">convex/lib/config.ts</code> or a user role. Real
                 admins can toggle the global toolbar into a regular-user view.
               </p>
@@ -91,8 +91,8 @@ export function AdminRbacExample({ backTo = '/' }: AdminRbacExampleProps) {
 
           {!isRealAdmin && (
             <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-              Sign in with an email listed in <code className="text-primary">ADMIN_EMAILS</code> to
-              activate admin-only controls.
+              Sign in with a verified email listed in{' '}
+              <code className="text-primary">ADMIN_EMAILS</code> to activate admin-only controls.
             </p>
           )}
         </section>

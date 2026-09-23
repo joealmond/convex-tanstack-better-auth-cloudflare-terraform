@@ -7,8 +7,8 @@ The edge-ready starter kit for TanStack Start, Convex, Better Auth, and Cloudfla
 [![License: MIT](https://img.shields.io/badge/license-MIT-0f172a.svg)](LICENSE)
 [![CI](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml/badge.svg)](https://github.com/joealmond/convex-tanstack-better-auth-cloudflare-terraform/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-2563eb.svg)](CONTRIBUTING.md)
-![Node >=22](https://img.shields.io/badge/node-%3E%3D22-14b8a6.svg)
-![Convex](https://img.shields.io/badge/Convex-1.42-111827.svg)
+![Node >=22.12](https://img.shields.io/badge/node-%3E%3D22.12-14b8a6.svg)
+![Convex](https://img.shields.io/badge/Convex-1.45-111827.svg)
 ![TanStack Start](https://img.shields.io/badge/TanStack_Start-1.168-ef4444.svg)
 ![Better Auth](https://img.shields.io/badge/Better_Auth-1.6-7c3aed.svg)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-ready-f97316.svg)
@@ -90,11 +90,20 @@ npm run setup
 npm run dev
 ```
 
+Use Node 24 LTS (or Node 22.12+). On a fresh project, `npm run setup` offers to run the Convex
+CLI for login/project creation, then configures the app URL and backend auth settings. Regular
+email/password accounts do not need Google OAuth. Admin email allowlists require verified email.
+
 Open [http://localhost:3000](http://localhost:3000)
 
 The interactive generator lets you choose Better Auth or Clerk; Cloudflare Workers, Vercel, or
 Netlify; any combination of the included examples; and optional Terraform. For automation, run
 `npm create convexkit@latest -- --help` to see non-interactive flags.
+
+Cloudflare + Better Auth is the default release path. CI additionally builds all/minimal variants
+for both auth providers on all three targets, plus each individual example on the default stack.
+These are representative build checks, not a claim that every combination has been deployed.
+See [validation and release policy](docs/VALIDATION.md) and [stack upgrade notes](docs/STACK_UPDATE.md).
 
 Prefer cloud dev? See [Codespaces and devcontainers](docs/CODESPACES.md).
 Explore the included examples at [http://localhost:3000/examples](http://localhost:3000/examples),
@@ -140,8 +149,8 @@ Key settings in `wrangler.jsonc`:
 ```jsonc
 {
   "compatibility_flags": ["nodejs_compat"],
-  "compatibility_date": "2026-07-13",
-  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-09-05",
+  "main": "./src/server.ts",
 }
 ```
 
@@ -224,6 +233,7 @@ Terraform provisions only optional account-level services. Wrangler owns and dep
 | ------------------------ | ---------------------------------------------------------------------------------- |
 | **Docs Site**            | [VitePress source](docs/index.md)                                                  |
 | **Architecture Guide**   | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                       |
+| **Product accelerators** | [docs/PROJECT_ACCELERATORS.md](docs/PROJECT_ACCELERATORS.md)                       |
 | **Preview Checklist** ⚡ | [docs/PUBLIC_PREVIEW_CHECKLIST.md](docs/PUBLIC_PREVIEW_CHECKLIST.md)               |
 | **Production Checklist** | [docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) |
 | **Rate Limiting** ⚡     | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)                                     |

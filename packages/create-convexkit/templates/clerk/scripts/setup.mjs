@@ -22,6 +22,13 @@ async function ask(label, fallback = '') {
 }
 
 try {
+  if (existsSync('.env.local') && !dryRun) {
+    const overwrite = await ask('.env.local exists. Overwrite it? [y/N]', 'n')
+    if (!['y', 'yes'].includes(overwrite.toLowerCase())) {
+      console.log('Setup cancelled without changes.')
+      process.exit(0)
+    }
+  }
   const values = {
     CONVEX_DEPLOYMENT: await ask('Convex deployment', valueFromExample('CONVEX_DEPLOYMENT')),
     VITE_CONVEX_URL: await ask('Convex realtime URL', valueFromExample('VITE_CONVEX_URL')),
@@ -36,12 +43,21 @@ try {
   const contents = `${Object.entries(values)
     .map(([key, value]) => `${key}=${value}`)
     .join('\n')}\nVITE_APP_ENV=development\nVITE_SENTRY_DSN=\n`
-  if (dryRun) console.log(contents)
+  if (dryRun) console.log(contents.replace(/^(.*SECRET.*)=(.*)$/gm, '$1=<redacted>'))
   else {
-    writeFileSync('.env.local', contents)
+    for (const [key, value] of Object.entries(values)) {
+      if (!value || /your-|replace_me/.test(value))
+        throw new Error(
+          `${key} needs your project value. Configure Convex with npx convex dev --once and copy Clerk keys from the dashboard.`
+        )
+    }
+    writeFileSync('.env.local', contents, { mode: 0o600 })
     console.log('Wrote .env.local')
     console.log('Set CLERK_JWT_ISSUER_DOMAIN in Convex before using authenticated functions.')
   }
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exitCode = 1
 } finally {
   rl.close()
 }

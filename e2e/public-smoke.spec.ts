@@ -1,15 +1,30 @@
 import { expect, test } from '@playwright/test'
 
-test('landing page and example catalog render', async ({ page }) => {
-  const response = await page.goto('/')
+let pageErrors: string[] = []
 
-  expect(response).not.toBeNull()
+test.beforeEach(async ({ page }) => {
+  pageErrors = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  if (!process.env.E2E_BASE_URL) {
+    // These routes do not need backend data. Keep the placeholder subscription
+    // offline; real realtime/auth behavior is exercised by the live smoke.
+    await page.routeWebSocket('wss://example.convex.cloud/**', () => {})
+  }
+})
+
+test.afterEach(() => {
+  expect(pageErrors).toEqual([])
+})
+
+test('public example catalog renders with security headers', async ({ page }) => {
+  const response = await page.goto('/examples')
+
+  expect(response?.status()).toBe(200)
   expect(response?.headers()['content-security-policy']).toContain("default-src 'self'")
   expect(response?.headers()['x-content-type-options']).toBe('nosniff')
   expect(response?.headers()['x-frame-options']).toBe('DENY')
   await expect(page).toHaveTitle(/Convex|TanStack/i)
 
-  await page.goto('/examples')
   await expect(page.getByRole('heading', { name: 'Feature Examples' })).toBeVisible()
   for (const name of [
     'Realtime Chat',

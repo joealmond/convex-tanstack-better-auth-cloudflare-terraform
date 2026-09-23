@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -37,6 +37,12 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.equal(existsSync(join(target, 'convex/todos.ts')), true)
     assert.equal(existsSync(join(target, 'packages/create-convexkit')), false)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
+    assert.match(pkg.scripts.build, /sanitize-build-output/)
+    assert.match(pkg.scripts.check, /check:convex-imports/)
+    assert.equal(pkg.devDependencies.esbuild, '0.27.0')
+    assert.equal(existsSync(join(target, 'scripts/sanitize-build-output.mjs')), true)
+    assert.equal(existsSync(join(target, 'scripts/check-convex-runtime-imports.mjs')), true)
+    assert.equal(existsSync(join(target, 'docs/PROJECT_ACCELERATORS.md')), true)
     assert.deepEqual(pkg.convexkit.examples, [
       'chat',
       'files',
@@ -70,7 +76,8 @@ test('composes only selected examples for Vercel', () => {
     assert.doesNotMatch(readFileSync(join(target, 'convex/schema.ts'), 'utf8'), /stripeEvents/)
     assert.match(readFileSync(join(target, 'src/routes/index.tsx'), 'utf8'), /Your realtime app/)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
-    assert.equal(pkg.dependencies.nitro, '3.0.260610-beta')
+    assert.equal(pkg.dependencies.nitro, '3.0.260903-beta')
+    assert.match(pkg.scripts['build:prod'], /sanitize-build-output/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -92,9 +99,101 @@ test('applies Clerk and Netlify provider overlays', () => {
     assert.match(readFileSync(join(target, 'src/routes/__root.tsx'), 'utf8'), /ClerkProvider/)
     assert.match(readFileSync(join(target, 'convex/lib/authHelpers.ts'), 'utf8'), /getUserIdentity/)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
-    assert.equal(pkg.dependencies['@clerk/tanstack-react-start'], '^1.4.17')
+    assert.equal(pkg.dependencies['@clerk/tanstack-react-start'], '1.5.12')
     assert.equal(pkg.dependencies['@convex-dev/better-auth'], undefined)
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('pins the template ref to the CLI release and emits target-specific checks', () => {
+  const { root, target } = scaffold(['--examples', 'none'])
+  try {
+    const metadata = JSON.parse(readFileSync(join(target, '.convexkit.json'), 'utf8'))
+    const cliPackage = JSON.parse(
+      readFileSync(join(repository, 'packages/create-convexkit/package.json'), 'utf8')
+    )
+    assert.equal(metadata.templateRef, `create-convexkit-v${cliPackage.version}`)
+    const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
+    assert.doesNotMatch(pkg.scripts.check, /test:cli|test:scaffold|test:setup/)
+    assert.equal(pkg.scripts['test:guardrails'], undefined)
+    assert.equal(existsSync(join(target, '.github/workflows/publish-cli.yml')), false)
+    assert.equal(existsSync(join(target, 'convex/seed.ts')), false)
+    assert.doesNotMatch(
+      readFileSync(join(target, 'convex/_generated/api.d.ts'), 'utf8'),
+      /typeof seed/
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('local templates exclude secrets, runtime state, and build output', () => {
+  const root = mkdtempSync(join(tmpdir(), 'convexkit-isolation-'))
+  const source = join(root, 'source')
+  const target = join(root, 'app')
+  try {
+    cpSync(repository, source, {
+      recursive: true,
+      filter: (path) =>
+        ![
+          'node_modules',
+          '.git',
+          '.env.local',
+          '.convex',
+          '.wrangler',
+          '.tanstack',
+          'dist',
+          'coverage',
+          'output',
+        ].includes(path.split('/').at(-1)),
+    })
+    for (const name of [
+      '.env',
+      '.env.production',
+      '.dev.vars',
+      'terraform.tfvars',
+      'state.tfstate',
+    ])
+      writeFileSync(join(source, name), 'private-fixture-value')
+    const result = spawnSync(
+      process.execPath,
+      [cli, target, '--yes', '--no-install', '--template-dir', source],
+      { encoding: 'utf8' }
+    )
+    assert.equal(result.status, 0, result.stderr)
+    for (const name of [
+      '.env',
+      '.env.production',
+      '.dev.vars',
+      'terraform.tfvars',
+      'state.tfstate',
+    ])
+      assert.equal(existsSync(join(target, name)), false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('chat-only output omits file links and minimal output retains authentication', () => {
+  const chat = scaffold(['--examples', 'chat'])
+  const minimal = scaffold(['--examples', 'none'])
+  try {
+    assert.doesNotMatch(
+      readFileSync(join(chat.target, 'src/components/examples/RealtimeChatExample.tsx'), 'utf8'),
+      /to="\/files"/
+    )
+    assert.match(
+      readFileSync(join(minimal.target, 'src/routes/index.tsx'), 'utf8'),
+      /<AuthControls/
+    )
+    assert.equal(existsSync(join(minimal.target, 'src/components/AuthControls.tsx')), true)
+    const pkg = JSON.parse(readFileSync(join(minimal.target, 'package.json'), 'utf8'))
+    assert.equal(pkg.dependencies.stripe, undefined)
+    assert.equal(pkg.dependencies.resend, undefined)
+    assert.equal(pkg.dependencies['@tanstack/react-table'], undefined)
+  } finally {
+    rmSync(chat.root, { recursive: true, force: true })
+    rmSync(minimal.root, { recursive: true, force: true })
   }
 })

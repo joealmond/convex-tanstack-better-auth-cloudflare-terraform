@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing create-convexkit-vX.Y.Z release tag to publish'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -25,11 +30,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+        with:
+          ref: ${{ inputs.release_tag || github.event.release.tag_name }}
+          fetch-depth: 0
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
           registry-url: https://registry.npmjs.org
+
+      - name: Verify matching immutable template release
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs'
+          import { execFileSync } from 'node:child_process'
+          const { version } = JSON.parse(readFileSync('packages/create-convexkit/package.json', 'utf8'))
+          const tag = `create-convexkit-v${version}`
+          if (process.env.RELEASE_TAG !== tag) throw new Error(`Expected release tag ${tag}`)
+          const tagged = execFileSync('git', ['rev-parse', `refs/tags/${tag}^{commit}`], { encoding: 'utf8' }).trim()
+          const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+          if (tagged !== head) throw new Error('Publish checkout does not match the template tag')
+          JS
+
+      - name: Validate the default generated application
+        run: node scripts/validate-scaffold.mjs better-auth cloudflare all
 
       - name: Verify package contents
         working-directory: packages/create-convexkit

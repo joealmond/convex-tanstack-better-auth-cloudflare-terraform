@@ -10,13 +10,13 @@
  * Admin Email Whitelist
  * ---------------------
  *
- * Users with these email addresses automatically get admin privileges.
+ * Users with these verified email addresses get admin privileges.
  * This is the easiest way to set up your first admin account.
  *
  * How to use:
  * 1. Add your email address to the array below
  * 2. Deploy with `npx convex deploy` or let `npx convex dev` sync
- * 3. Sign in with that email - you're now an admin!
+ * 3. Sign in with that email verified by your authentication provider.
  *
  * This is the recommended approach — it's simple, safe, and doesn't
  * expose a public mutation for role changes.

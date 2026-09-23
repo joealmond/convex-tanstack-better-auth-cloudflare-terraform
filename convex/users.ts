@@ -22,7 +22,7 @@
  *
  * ## Making a User Admin
  *
- * Option 1: Add their email to ADMIN_EMAILS in convex/lib/config.ts
+ * Option 1: Add their verified email to ADMIN_EMAILS in convex/lib/config.ts
  * Option 2: Use Better Auth's admin plugin (requires additional setup)
  */
 
@@ -46,7 +46,7 @@ export const current = publicQuery({
  * Check if the current user is an admin.
  *
  * Admin status is determined by:
- * 1. Email whitelist (ADMIN_EMAILS in lib/config.ts)
+ * 1. Verified email allowlist (ADMIN_EMAILS in lib/config.ts)
  * 2. Role field on user record (role === 'admin')
  *
  * @returns true if user is an admin, false otherwise

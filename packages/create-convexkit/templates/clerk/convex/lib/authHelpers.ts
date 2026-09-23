@@ -8,6 +8,7 @@ export interface AuthUser {
   _id: string
   name: string
   email: string
+  emailVerified?: boolean
   image?: string | null
   role?: string | null
 }
@@ -20,6 +21,7 @@ export async function getAuthUser(ctx: AuthContext): Promise<AuthUser | null> {
     _id: identity.subject,
     name: identity.name ?? identity.nickname ?? 'User',
     email: identity.email ?? '',
+    emailVerified: identity.emailVerified === true,
     image: identity.pictureUrl,
     role: typeof claims.role === 'string' ? claims.role : null,
   }
@@ -40,7 +42,7 @@ export async function requireAuth(ctx: AuthContext): Promise<AuthUser> {
 }
 
 export function isAdmin(user: AuthUser): boolean {
-  return ADMIN_EMAILS.includes(user.email) || user.role === 'admin'
+  return (user.emailVerified === true && ADMIN_EMAILS.includes(user.email)) || user.role === 'admin'
 }
 
 export async function requireAdmin(ctx: AuthContext): Promise<AuthUser> {
