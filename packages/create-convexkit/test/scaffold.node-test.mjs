@@ -56,6 +56,8 @@ test('team-saas preset includes organization authorization foundation', () => {
   try {
     assert.equal(existsSync(join(target, 'convex/organizations.ts')), true)
     assert.match(readFileSync(join(target, 'convex/schema.ts'), 'utf8'), /organizationMembers/)
+    assert.match(readFileSync(join(target, 'convex/_generated/api.d.ts'), 'utf8'), /organizations: typeof organizations/)
+    assert.equal(existsSync(join(target, 'convex/organizations.test.ts')), true)
     assert.match(readFileSync(join(target, 'docs/CONFIGURATION.md'), 'utf8'), /requireOrganizationRole/)
   } finally {
     rmSync(root, { recursive: true, force: true })

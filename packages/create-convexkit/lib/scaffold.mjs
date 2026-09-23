@@ -405,6 +405,14 @@ function configureClerkGeneratedApi(target) {
   writeFileSync(path, source)
 }
 
+function configureTeamGeneratedApi(target) {
+  const path = join(target, 'convex/_generated/api.d.ts')
+  const source = readFileSync(path, 'utf8')
+    .replace('import type * as users from "../users.js";', 'import type * as organizations from "../organizations.js";\nimport type * as users from "../users.js";')
+    .replace('  users: typeof users;', '  organizations: typeof organizations;\n  users: typeof users;')
+  writeFileSync(path, source)
+}
+
 function configureClerkEnv(target) {
   const path = join(target, '.env.example')
   if (!existsSync(path)) return
@@ -536,7 +544,10 @@ function compose(options) {
     renderMaintenance(options.selectedExamples)
   )
   if (!options.selectedExamples.includes('chat')) copyOverlay('no-chat', options.target)
-  if (options.preset === 'team-saas') copyOverlay('team-saas', options.target)
+  if (options.preset === 'team-saas') {
+    copyOverlay('team-saas', options.target)
+    configureTeamGeneratedApi(options.target)
+  }
   if (!options.selectedExamples.includes('files') && !options.selectedExamples.includes('admin')) {
     remove(options.target, ['src/routes/_authenticated.tsx'])
   }
