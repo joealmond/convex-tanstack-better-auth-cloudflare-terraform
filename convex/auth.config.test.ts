@@ -1,4 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
+// <convexkit:billing>
+import { internal } from './_generated/api'
+// </convexkit:billing>
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -59,3 +62,25 @@ it('passes an email to account cleanup only after mailbox verification', async (
     { userId: 'user-2', email: 'person@example.com' },
   ])
 })
+
+// <convexkit:billing>
+it('guards billable account deletion before creating a webhook tombstone', async () => {
+  vi.stubEnv('AUTH_EMAIL_PROVIDER', 'disabled')
+  const { createAuth } = await import('./auth')
+  const runQuery = vi.fn().mockResolvedValue(undefined)
+  const runMutation = vi.fn().mockResolvedValue(undefined)
+  const auth = createAuth({ runQuery, runMutation } as never)
+  await auth.options.user?.deleteUser?.beforeDelete?.({ id: 'user-1' } as never)
+  expect(runQuery).toHaveBeenCalledWith(internal.billing.assertAccountDeletionAllowed, {
+    ownerId: 'user-1',
+  })
+  expect(runMutation).toHaveBeenCalledWith(internal.billing.prepareAccountDeletion, {
+    ownerId: 'user-1',
+  })
+  runQuery.mockRejectedValueOnce(new Error('active subscription'))
+  await expect(
+    auth.options.user?.deleteUser?.beforeDelete?.({ id: 'user-2' } as never)
+  ).rejects.toThrow('active subscription')
+  expect(runMutation).toHaveBeenCalledTimes(1)
+})
+// </convexkit:billing>

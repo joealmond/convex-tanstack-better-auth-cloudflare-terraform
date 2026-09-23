@@ -1,5 +1,8 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { api } from './_generated/api'
+// <convexkit:billing>
+import { internal } from './_generated/api'
+// </convexkit:billing>
 import { createAuthenticatedTest, createTestBackend } from './test.utils'
 import { isAdmin } from './lib/authHelpers'
 import { ADMIN_EMAILS } from './lib/config'
@@ -51,4 +54,29 @@ describe('users', () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers)
     expect(await t.query(api.messages.list)).toEqual([])
   })
+
+  // <convexkit:billing>
+  it('blocks Clerk-style account deletion while a subscription can charge', async () => {
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId: userId,
+      stripeCustomerId: 'cus_user_guard',
+      checkoutSessionId: 'cs_user_guard',
+      priceId: 'price_test',
+    })
+    await expect(asUser.mutation(api.users.prepareAccountDeletion)).rejects.toThrow(
+      'billing portal'
+    )
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_user_guard_expired',
+      eventType: 'checkout.session.expired',
+      ownerId: userId,
+      stripeCustomerId: 'cus_user_guard',
+      checkoutSessionId: 'cs_user_guard',
+      status: 'checkout_expired',
+    })
+    await asUser.mutation(api.users.prepareAccountDeletion)
+    expect(await t.query(internal.billing.getDeletionTombstone, { ownerId: userId })).not.toBeNull()
+  })
+  // </convexkit:billing>
 })

@@ -39,6 +39,10 @@ export const createCheckout = authAction({
     await rateLimiter.limit(ctx, 'stripeSession', { key: ctx.userId, throws: true })
 
     const existing = await ctx.runQuery(internal.billing.getByOwner, { ownerId: ctx.userId })
+    const deleting = await ctx.runQuery(internal.billing.getDeletionTombstone, {
+      ownerId: ctx.userId,
+    })
+    if (deleting) throw new ConvexError('This account is being deleted')
     if (canStillCharge(existing))
       throw new ConvexError(
         'Manage your existing Stripe subscription in the billing portal before starting another Checkout session.'

@@ -23,6 +23,7 @@ All extended documentation for the template, organized by topic.
 | Cloudflare Features    | [CLOUDFLARE_FEATURES.md](CLOUDFLARE_FEATURES.md)                                                                                         |
 | Production Operations  | [OPERATIONS.md](OPERATIONS.md)                                                                                                           |
 | Privacy Implementation | [PRIVACY.md](PRIVACY.md)                                                                                                                 |
+| Legal document drafts  | [Legal starter kit](legal-templates/README.md)                                                                                           |
 | Troubleshooting        | [TROUBLESHOOTING.md](TROUBLESHOOTING.md)                                                                                                 |
 | Vercel Deploy          | [VERCEL_SETUP.md](VERCEL_SETUP.md)                                                                                                       |
 | Netlify Deploy         | [NETLIFY_SETUP.md](NETLIFY_SETUP.md)                                                                                                     |

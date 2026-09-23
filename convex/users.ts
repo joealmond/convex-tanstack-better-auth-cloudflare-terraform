@@ -69,3 +69,18 @@ export const requestAccountDataDeletion = authMutation({
     })
   },
 })
+
+/** Guard provider obligations, then queue application cleanup before Clerk deletes identity. */
+export const prepareAccountDeletion = authMutation({
+  args: {},
+  handler: async (ctx) => {
+    // <convexkit:billing>
+    await ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: ctx.userId })
+    await ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: ctx.userId })
+    // </convexkit:billing>
+    await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
+      userId: ctx.userId,
+      email: ctx.user.emailVerified ? ctx.user.email : undefined,
+    })
+  },
+})

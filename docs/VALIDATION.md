@@ -19,9 +19,10 @@ adding new providers or examples. Build validation does not replace a deployed a
   and perform a Worker deployment dry run. No cloud resources are deployed.
 - CI repeats generated-app checks for both auth providers, each of the three targets, and
   `all`/`none` examples. It also checks each individual example with Better Auth + Cloudflare.
-- The preview deployment workflow runs the authenticated smoke when `E2E_BASE_URL_PREVIEW`
-  is configured. It signs up, reloads, signs out/in, sends a message, and uploads a file to the
-  dedicated test backend. Use a disposable preview backend; the test creates account and file data.
+- The Deploy workflow always runs a read-only smoke against the selected public app and Convex
+  health endpoint. Run `E2E_RUN_AUTH=true E2E_BASE_URL=https://your-preview-host npm run test:e2e:auth`
+  separately on a disposable preview backend when live authenticated verification is needed;
+  it creates account, message, and file data.
 - Account-email tests use a fake Resend response to complete sign-up verification, password
   reset, and confirmed account deletion. Before the first public production release, repeat
   those clicks on a protected preview deployment with a disposable inbox. CI does not send live

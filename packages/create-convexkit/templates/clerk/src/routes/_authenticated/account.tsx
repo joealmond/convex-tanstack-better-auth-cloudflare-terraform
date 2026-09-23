@@ -11,7 +11,7 @@ export const Route = createFileRoute('/_authenticated/account')({ component: Acc
 function AccountPage() {
   const { user } = useUser()
   const convex = useConvex()
-  const requestDataDeletion = useMutation(api.users.requestAccountDataDeletion)
+  const prepareAccountDeletion = useMutation(api.users.prepareAccountDeletion)
   const [notice, setNotice] = useState('')
   const [pending, setPending] = useState(false)
 
@@ -35,7 +35,7 @@ function AccountPage() {
       return
     setPending(true)
     try {
-      await requestDataDeletion({})
+      await prepareAccountDeletion({})
       await user.delete()
       location.href = '/'
     } catch (error) {
@@ -67,6 +67,14 @@ function AccountPage() {
       </div>
       <div className="mt-10 border-t pt-6">
         <h2 className="text-xl font-semibold">Delete account</h2>
+        {/* <convexkit:billing> */}
+        <p className="mt-2">
+          Cancel an active subscription in the billing portal before deleting your account.
+        </p>
+        <Link to="/examples/billing" className="mt-2 inline-block underline">
+          Manage billing
+        </Link>
+        {/* </convexkit:billing> */}
         <button
           type="button"
           disabled={pending || !user}

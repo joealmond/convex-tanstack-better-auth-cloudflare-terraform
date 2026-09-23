@@ -491,9 +491,16 @@ function configureClerkEnv(target) {
   )
 }
 
-function renderMaintenance(selected) {
+function renderMaintenance(selected, target) {
   const files = selected.includes('files')
   const chat = selected.includes('chat')
+  const billingWork = selected.includes('billing')
+    ? readFileSync(join(target, 'convex/maintenance.ts'), 'utf8')
+        .match(/\/\/ <convexkit:billing>\n([\s\S]*?)\s*\/\/ <\/convexkit:billing>/)?.[1]
+        ?.trimEnd()
+    : ''
+  if (selected.includes('billing') && !billingWork)
+    throw new Error('Billing cleanup block is missing from the template')
   const expiryWork = [
     files
       ? `    const intents = await ctx.db.query('uploadIntents').withIndex('by_expiry', (query) => query.lt('expiresAt', now)).take(BATCH_SIZE)\n    for (const intent of intents) await ctx.db.delete(intent._id)`
@@ -509,23 +516,19 @@ function renderMaintenance(selected) {
     chat
       ? `    const messages = await ctx.db.query('messages').withIndex('by_author', (query) => query.eq('authorId', userId)).take(BATCH_SIZE)\n    for (const message of messages) await ctx.db.delete(message._id)`
       : '    const messages: Array<never> = []',
-    ...['todos', 'aiRuns', 'emailDeliveries', 'billingSubscriptions'].map((table) => {
-      const feature =
-        table === 'aiRuns'
-          ? 'ai'
-          : table === 'emailDeliveries'
-            ? 'email'
-            : table === 'billingSubscriptions'
-              ? 'billing'
-              : 'todos'
+    ...['todos', 'aiRuns', 'emailDeliveries'].map((table) => {
+      const feature = table === 'aiRuns' ? 'ai' : table === 'emailDeliveries' ? 'email' : 'todos'
       return selected.includes(feature)
         ? `    const ${table} = await ctx.db.query('${table}').withIndex('by_owner', (query) => query.eq('ownerId', userId)).take(BATCH_SIZE)\n    for (const item of ${table}) await ctx.db.delete(item._id)`
         : `    const ${table}: Array<never> = []`
     }),
+    billingWork,
   ].join('\n\n')
   const retentionConstant = chat ? 'const MESSAGE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000\n' : ''
   const now = files || chat ? '    const now = Date.now()\n' : ''
-  return `import { v } from 'convex/values'\nimport { internal } from './_generated/api'\nimport { internalMutation } from './_generated/server'\n\n${retentionConstant}const BATCH_SIZE = 100\n\nexport const deleteExpiredData = internalMutation({\n  args: {},\n  handler: async (ctx) => {\n${now}${expiryWork}\n    if (intents.length === BATCH_SIZE || expiredMessages.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.maintenance.deleteExpiredData)\n  },\n})\n\nexport const deleteUserDataBatch = internalMutation({\n  args: { userId: v.string(), email: v.optional(v.string()) },\n  handler: async (ctx, { userId }) => {\n${userWork}\n    if ([files, messages, intents, todos, aiRuns, emailDeliveries, billingSubscriptions].some((items) => items.length === BATCH_SIZE)) await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, { userId })\n  },\n})\n`
+  const billingHasMore = selected.includes('billing') ? '    let hasMore = false\n' : ''
+  const billingContinuation = selected.includes('billing') ? 'hasMore || ' : ''
+  return `import { v } from 'convex/values'\nimport { internal } from './_generated/api'\nimport { internalMutation } from './_generated/server'\n\n${retentionConstant}const BATCH_SIZE = 100\n\nexport const deleteExpiredData = internalMutation({\n  args: {},\n  handler: async (ctx) => {\n${now}${expiryWork}\n    if (intents.length === BATCH_SIZE || expiredMessages.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.maintenance.deleteExpiredData)\n  },\n})\n\nexport const deleteUserDataBatch = internalMutation({\n  args: { userId: v.string(), email: v.optional(v.string()) },\n  handler: async (ctx, { userId }) => {\n${billingHasMore}${userWork}\n    if (${billingContinuation}[files, messages, intents, todos, aiRuns, emailDeliveries].some((items) => items.length === BATCH_SIZE)) await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, { userId })\n  },\n})\n`
 }
 
 function compose(options) {
@@ -591,6 +594,10 @@ function compose(options) {
     remove(options.target, featureFiles[feature])
     replaceFeatureBlock(join(options.target, 'convex/schema.ts'), feature)
     replaceFeatureBlock(join(options.target, 'convex/auth.ts'), feature)
+    replaceFeatureBlock(join(options.target, 'convex/users.ts'), feature)
+    replaceFeatureBlock(join(options.target, 'convex/auth.config.test.ts'), feature)
+    replaceFeatureBlock(join(options.target, 'convex/users.test.ts'), feature)
+    replaceFeatureBlock(join(options.target, 'src/routes/_authenticated/account.tsx'), feature)
     replaceFeatureBlock(join(options.target, 'convex/http.ts'), feature)
     replaceFeatureBlock(join(options.target, 'convex/userExport.ts'), feature)
     replaceFeatureBlock(
@@ -634,7 +641,7 @@ function compose(options) {
   }
   writeFileSync(
     join(options.target, 'convex/maintenance.ts'),
-    renderMaintenance(options.selectedExamples)
+    renderMaintenance(options.selectedExamples, options.target)
   )
   if (!options.selectedExamples.includes('chat')) copyOverlay('no-chat', options.target)
   if (options.preset === 'team-saas') {
@@ -690,7 +697,7 @@ function compose(options) {
   writeFileSync(join(options.target, 'docs/CONFIGURATION.md'), renderConfigurationGuide(options))
   writeFileSync(
     join(options.target, 'docs/README.md'),
-    `# ${basename(options.target)} documentation\n\n- [Configuration](CONFIGURATION.md)\n${options.auth === 'better-auth' ? '- [Account email](AUTH_EMAIL.md)\n' : ''}- [Deployment](${options.deploy === 'cloudflare' ? 'PRODUCTION_DEPLOYMENT_CHECKLIST.md' : options.deploy === 'vercel' ? 'VERCEL_SETUP.md' : 'NETLIFY_SETUP.md'})\n- [Project accelerators](PROJECT_ACCELERATORS.md)\n`
+    `# ${basename(options.target)} documentation\n\n- [Configuration](CONFIGURATION.md)\n${options.auth === 'better-auth' ? '- [Account email](AUTH_EMAIL.md)\n' : ''}- [Deployment](${options.deploy === 'cloudflare' ? 'PRODUCTION_DEPLOYMENT_CHECKLIST.md' : options.deploy === 'vercel' ? 'VERCEL_SETUP.md' : 'NETLIFY_SETUP.md'})\n- [Project accelerators](PROJECT_ACCELERATORS.md)\n- [Legal document drafts](legal-templates/README.md)\n`
   )
   writeFileSync(
     join(options.target, '.convexkit.json'),
@@ -768,11 +775,14 @@ async function formatGeneratedFiles(target) {
   for (const relative of [
     'convex/schema.ts',
     'convex/auth.ts',
+    'convex/auth.config.test.ts',
+    'convex/users.test.ts',
     'convex/http.ts',
     'convex/maintenance.ts',
     'convex/userExport.ts',
     'src/components/examples/RealtimeChatExample.tsx',
     'src/routes/examples.index.tsx',
+    'src/routes/_authenticated/account.tsx',
     'src/lib/export-kinds.ts',
     'e2e/public-smoke.spec.ts',
     '.convexkit.json',

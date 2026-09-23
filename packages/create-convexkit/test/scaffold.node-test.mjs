@@ -49,6 +49,13 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.match(readFileSync(join(target, 'docs/README.md'), 'utf8'), /app documentation/)
     assert.equal(existsSync(join(target, 'docs/CONFIGURATION.md')), true)
     assert.equal(existsSync(join(target, 'docs/AUTH_EMAIL.md')), true)
+    assert.equal(existsSync(join(target, 'docs/legal-templates/README.md')), true)
+    assert.equal(existsSync(join(target, 'docs/legal-templates/public/PRIVACY.hu.md')), true)
+    assert.equal(
+      existsSync(join(target, 'docs/legal-templates/internal/OPERATOR_RUNBOOK.md')),
+      true
+    )
+    assert.match(readFileSync(join(target, 'docs/README.md'), 'utf8'), /legal-templates/)
     assert.equal(existsSync(join(target, 'src/routes/reset-password.tsx')), true)
     assert.equal(existsSync(join(target, 'src/routes/_authenticated/account.tsx')), true)
     assert.doesNotMatch(
@@ -289,6 +296,10 @@ test('chat-only output omits file links and minimal output retains authenticatio
     assert.equal(pkg.dependencies.stripe, undefined)
     assert.equal(pkg.dependencies.resend, undefined)
     assert.equal(existsSync(join(minimal.target, 'convex/authEmails.ts')), true)
+    assert.doesNotMatch(
+      readFileSync(join(minimal.target, 'src/routes/_authenticated/account.tsx'), 'utf8'),
+      /Manage billing/
+    )
     assert.equal(pkg.dependencies['@tanstack/react-table'], undefined)
   } finally {
     rmSync(chat.root, { recursive: true, force: true })
@@ -302,6 +313,7 @@ test('generated account cleanup covers every selected owner-scoped example', () 
     const maintenance = readFileSync(join(target, 'convex/maintenance.ts'), 'utf8')
     for (const table of ['todos', 'aiRuns', 'emailDeliveries', 'billingSubscriptions'])
       assert.match(maintenance, new RegExp(`query\\('${table}'\\)`))
+    assert.match(maintenance, /billingDeletionTombstones/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

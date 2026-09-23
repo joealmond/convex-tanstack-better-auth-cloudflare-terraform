@@ -89,6 +89,14 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     user: {
       deleteUser: {
         enabled: true,
+        // <convexkit:billing>
+        beforeDelete: async (user) => {
+          if (!('runQuery' in ctx) || !('runMutation' in ctx))
+            throw new Error('Account deletion requires an action context')
+          await ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: user.id })
+          await ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: user.id })
+        },
+        // </convexkit:billing>
         sendDeleteAccountVerification: envConfig.authEmailEnabled
           ? ({ user, url }) => sendAuthEmail('delete', user.email, url)
           : undefined,

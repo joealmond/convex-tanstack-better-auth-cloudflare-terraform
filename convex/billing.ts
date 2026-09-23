@@ -3,6 +3,8 @@ import { authQuery, internalMutation, internalQuery } from './lib/customFunction
 
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(['canceled', 'cancelled', 'incomplete_expired'])
 const TERMINAL_CHECKOUT_STATUSES = new Set(['checkout_expired'])
+const DELETE_BLOCKED_MESSAGE =
+  'Wait for a pending Stripe Checkout to expire or cancel your subscription in the billing portal before deleting this account.'
 
 export function canStillCharge(
   subscription: {
@@ -52,10 +54,7 @@ export const assertAccountDeletionAllowed = internalQuery({
       .query('billingSubscriptions')
       .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
       .unique()
-    if (canStillCharge(subscription))
-      throw new ConvexError(
-        'Cancel your Stripe subscription in the billing portal before deleting this account.'
-      )
+    if (canStillCharge(subscription)) throw new ConvexError(DELETE_BLOCKED_MESSAGE)
   },
 })
 
@@ -80,10 +79,7 @@ export const prepareAccountDeletion = internalMutation({
       .query('billingSubscriptions')
       .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
       .unique()
-    if (canStillCharge(subscription))
-      throw new ConvexError(
-        'Cancel your Stripe subscription in the billing portal before deleting this account.'
-      )
+    if (canStillCharge(subscription)) throw new ConvexError(DELETE_BLOCKED_MESSAGE)
 
     const tombstone = await ctx.db
       .query('billingDeletionTombstones')
@@ -113,11 +109,17 @@ export const saveCheckout = internalMutation({
     priceId: v.string(),
   },
   handler: async (ctx, args) => {
+    const deleted = await ctx.db
+      .query('billingDeletionTombstones')
+      .withIndex('by_owner', (query) => query.eq('ownerId', args.ownerId))
+      .unique()
+    if (deleted) throw new ConvexError('This account is being deleted')
     const existing = await ctx.db
       .query('billingSubscriptions')
       .withIndex('by_owner', (query) => query.eq('ownerId', args.ownerId))
       .unique()
-    if (existing && canStillCharge(existing)) return existing._id
+    if (existing && canStillCharge(existing))
+      throw new ConvexError('A Stripe Checkout or subscription already exists for this account')
     const values = {
       stripeCustomerId: args.stripeCustomerId,
       checkoutSessionId: args.checkoutSessionId,
@@ -194,7 +196,9 @@ export const applyStripeEvent = internalMutation({
       stripeSubscriptionId: checkoutCannotReplaceSubscription
         ? existing?.stripeSubscriptionId
         : args.stripeSubscriptionId,
-      checkoutSessionId: args.checkoutSessionId ?? existing?.checkoutSessionId,
+      checkoutSessionId: checkoutCannotReplaceSubscription
+        ? existing?.checkoutSessionId
+        : (args.checkoutSessionId ?? existing?.checkoutSessionId),
       priceId: args.priceId ?? existing?.priceId,
       status: checkoutCannotReplaceSubscription ? (existing?.status ?? args.status) : args.status,
       currentPeriodEnd: checkoutCannotReplaceSubscription

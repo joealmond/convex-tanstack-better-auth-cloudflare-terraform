@@ -98,6 +98,14 @@ function AccountPage() {
       <div className="mt-10 border-t pt-6">
         <h2 className="text-xl font-semibold">Delete account</h2>
         <p className="mt-2">This permanently removes your account and its application data.</p>
+        {/* <convexkit:billing> */}
+        <p className="mt-2">
+          Cancel an active subscription in the billing portal before deleting your account.
+        </p>
+        <Link to="/examples/billing" className="mt-2 inline-block underline">
+          Manage billing
+        </Link>
+        {/* </convexkit:billing> */}
         <button
           type="button"
           disabled={pending}

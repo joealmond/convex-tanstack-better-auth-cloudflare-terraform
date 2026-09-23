@@ -128,13 +128,13 @@ describe('optional integrations', () => {
       checkoutSessionId: 'cs_first',
       priceId: 'price_test',
     }
-    const id = await t.mutation(internal.billing.saveCheckout, checkout)
-    expect(
-      await t.mutation(internal.billing.saveCheckout, {
+    await t.mutation(internal.billing.saveCheckout, checkout)
+    await expect(
+      t.mutation(internal.billing.saveCheckout, {
         ...checkout,
         checkoutSessionId: 'cs_second',
       })
-    ).toBe(id)
+    ).rejects.toThrow('already exists')
     expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toMatchObject({
       checkoutSessionId: 'cs_first',
     })
@@ -220,10 +220,10 @@ describe('optional integrations', () => {
 
       await expect(
         t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
-      ).rejects.toThrow('Cancel your Stripe subscription')
+      ).rejects.toThrow('billing portal')
       await expect(
         t.mutation(internal.billing.prepareAccountDeletion, { ownerId: userId })
-      ).rejects.toThrow('Cancel your Stripe subscription')
+      ).rejects.toThrow('billing portal')
     }
   )
 
@@ -238,7 +238,7 @@ describe('optional integrations', () => {
 
     await expect(
       t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
-    ).rejects.toThrow('Cancel your Stripe subscription')
+    ).rejects.toThrow('billing portal')
 
     await t.mutation(internal.billing.applyStripeEvent, {
       eventId: 'evt_checkout_expired',
@@ -277,13 +277,12 @@ describe('optional integrations', () => {
       status: 'active',
     })
 
-    const activeBilling = await t.query(internal.billing.getByOwner, { ownerId: userId })
-    expect(
-      await t.mutation(internal.billing.saveCheckout, {
+    await expect(
+      t.mutation(internal.billing.saveCheckout, {
         ...checkout,
         checkoutSessionId: 'cs_second',
       })
-    ).toBe(activeBilling!._id)
+    ).rejects.toThrow('already exists')
     await t.mutation(internal.billing.applyStripeEvent, {
       eventId: 'evt_checkout_expired_late',
       eventType: 'checkout.session.expired',
@@ -296,7 +295,7 @@ describe('optional integrations', () => {
     expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toMatchObject({
       stripeSubscriptionId: 'sub_active',
       status: 'active',
-      checkoutSessionId: 'cs_second',
+      checkoutSessionId: 'cs_first',
     })
     await expect(asUser.action(api.stripe.createCheckout)).rejects.toThrow(
       'existing Stripe subscription'
@@ -304,7 +303,7 @@ describe('optional integrations', () => {
     expect(fetch).not.toHaveBeenCalled()
     await expect(
       t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
-    ).rejects.toThrow('Cancel your Stripe subscription')
+    ).rejects.toThrow('billing portal')
   })
 
   it('allows a cancelled subscription, keeps a tombstone, and ignores a delayed webhook', async () => {
@@ -328,6 +327,14 @@ describe('optional integrations', () => {
       t.query(internal.billing.assertAccountDeletionAllowed, { ownerId: userId })
     ).resolves.toBeNull()
     await t.mutation(internal.billing.prepareAccountDeletion, { ownerId: userId })
+    await expect(
+      t.mutation(internal.billing.saveCheckout, {
+        ownerId: userId,
+        stripeCustomerId: 'cus_deleted',
+        checkoutSessionId: 'cs_new_after_delete',
+        priceId: 'price_test',
+      })
+    ).rejects.toThrow('being deleted')
     await t.mutation(internal.maintenance.deleteUserDataBatch, { userId })
     expect(await t.query(internal.billing.getByOwner, { ownerId: userId })).toBeNull()
     expect(await t.query(internal.billing.getDeletionTombstone, { ownerId: userId })).toMatchObject(
