@@ -671,6 +671,8 @@ function compose(options) {
       '.github/workflows/deploy.yml',
       'scripts/infra-bootstrap.mjs',
       'scripts/deploy-preflight.mjs',
+      'scripts/resolve-deploy-target.mjs',
+      'scripts/verify-worker-origin.mjs',
       'scripts/deploy-preview.mjs',
       'scripts/deploy-production.mjs',
       'scripts/deploy.sh',

@@ -3,8 +3,18 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs'
 
 const environment = process.env.DEPLOY_ENVIRONMENT || 'preview'
-const commit =
-  process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+let checkoutSha = ''
+try {
+  checkoutSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim()
+} catch {
+  // A newly generated local app may not be a Git checkout yet.
+}
+if (checkoutSha && process.env.DEPLOYED_SHA && checkoutSha !== process.env.DEPLOYED_SHA)
+  throw new Error('Release record checkout does not match the deployed commit')
+const commit = checkoutSha || process.env.DEPLOYED_SHA || process.env.GITHUB_SHA || 'unversioned'
 const workerVersion =
   process.env.WORKER_VERSION_ID ||
   process.env.WRANGLER_OUTPUT?.match(/(?:Current )?Version ID:\s*([^\s]+)/i)?.[1] ||
@@ -18,7 +28,7 @@ const record = {
   convexUrl: process.env.VITE_CONVEX_URL || '',
   workerName: process.env.CLOUDFLARE_WORKER_NAME || '',
   workerVersion,
-  workerBuildIdentity: process.env.GITHUB_SHA || commit,
+  workerBuildIdentity: commit,
   status: process.env.RELEASE_STATUS || 'success',
   smoke: process.env.SMOKE_STATUS || 'success',
 }

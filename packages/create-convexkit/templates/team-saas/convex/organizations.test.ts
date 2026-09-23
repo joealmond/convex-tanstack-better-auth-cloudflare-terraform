@@ -167,4 +167,45 @@ describe('organizations', () => {
       vi.useRealTimers()
     }
   })
+
+  it('keeps invitations for unverified email claims and removes verified ones', async () => {
+    const owner = await createAuthenticatedTest()
+    const organizationId = await owner.asUser.mutation(api.organizations.create, {
+      name: 'Acme',
+      slug: 'acme',
+    })
+    await owner.asUser.mutation(api.organizations.invite, {
+      organizationId,
+      email: 'unverified@example.com',
+      role: 'member',
+    })
+    await owner.asUser.mutation(api.organizations.invite, {
+      organizationId,
+      email: 'verified@example.com',
+      role: 'member',
+    })
+    const unverified = await addUser(owner.t, 'unverified@example.com', false)
+    const verified = await addUser(owner.t, 'verified@example.com', true)
+    await owner.t.mutation(internal.maintenance.deleteUserDataBatch, { userId: unverified.userId })
+    await owner.t.run(async (ctx) => {
+      expect(
+        await ctx.db
+          .query('organizationInvitations')
+          .withIndex('by_email', (q) => q.eq('email', 'unverified@example.com'))
+          .unique()
+      ).not.toBeNull()
+    })
+    await owner.t.mutation(internal.maintenance.deleteUserDataBatch, {
+      userId: verified.userId,
+      email: 'verified@example.com',
+    })
+    await owner.t.run(async (ctx) => {
+      expect(
+        await ctx.db
+          .query('organizationInvitations')
+          .withIndex('by_email', (q) => q.eq('email', 'verified@example.com'))
+          .unique()
+      ).toBeNull()
+    })
+  })
 })

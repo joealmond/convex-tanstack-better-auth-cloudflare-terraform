@@ -86,6 +86,25 @@ export function normalizeUrl(value) {
   return url.toString().replace(/\/$/, '')
 }
 
+export function assertDeployedOrigin(appUrl, config, output) {
+  const url = new URL(appUrl)
+  if (url.protocol !== 'https:' || url.pathname !== '/' || url.search || url.hash || url.port)
+    throw new Error('APP_URL must be the deployed HTTPS origin without a path or port')
+  const domain = config.routes?.find((route) => route.custom_domain)?.pattern
+  if (domain) {
+    if (url.hostname !== domain)
+      throw new Error(`APP_URL must match the deployed Custom Domain: https://${domain}`)
+    return
+  }
+  if (!url.hostname.startsWith(`${config.name}.`) || !url.hostname.endsWith('.workers.dev'))
+    throw new Error(`APP_URL must use the deployed Worker name: ${config.name}`)
+  if (output !== undefined) {
+    const workersUrl = output.match(/https:\/\/[^\s]+\.workers\.dev\b/)?.[0]
+    if (!workersUrl || normalizeUrl(workersUrl) !== normalizeUrl(appUrl))
+      throw new Error("APP_URL does not match Wrangler's deployed workers.dev URL")
+  }
+}
+
 export async function verifyDeployment(appUrl, convexSiteUrl, fetcher = fetch) {
   const app = await fetcher(appUrl, { redirect: 'error', signal: AbortSignal.timeout(15_000) })
   if (!app.ok) throw new Error(`App smoke failed: ${app.status} ${app.statusText}`)

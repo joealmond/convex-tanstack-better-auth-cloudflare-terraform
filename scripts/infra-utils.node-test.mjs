@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import test from 'node:test'
 import {
+  assertDeployedOrigin,
   configuredUrl,
   isConvexCloudPreview,
   verifyDeployment,
@@ -40,6 +41,36 @@ test('remote smoke checks the app policy and backend health', async () => {
       async () => new Response('ok')
     ),
     /content-security-policy/
+  )
+})
+
+test('Worker origin validation rejects stale or mismatched deployment URLs', () => {
+  const custom = {
+    name: 'app-production',
+    routes: [{ pattern: 'new.example.com', custom_domain: true }],
+  }
+  assert.throws(() => assertDeployedOrigin('https://old.example.com', custom), /Custom Domain/)
+  assert.doesNotThrow(() => assertDeployedOrigin('https://new.example.com', custom))
+  const workers = { name: 'app-production' }
+  assert.throws(
+    () => assertDeployedOrigin('https://old.example.workers.dev', workers),
+    /Worker name/
+  )
+  assert.throws(
+    () =>
+      assertDeployedOrigin(
+        'https://app-production.account.workers.dev',
+        workers,
+        'https://other.account.workers.dev'
+      ),
+    /does not match/
+  )
+  assert.doesNotThrow(() =>
+    assertDeployedOrigin(
+      'https://app-production.account.workers.dev',
+      workers,
+      'https://app-production.account.workers.dev'
+    )
   )
 })
 
@@ -171,6 +202,104 @@ test('release record retains identity and outcome without secrets', () => {
     assert.equal(record.commit, 'commit-fixture')
     assert.equal(record.smoke, 'success')
     assert.doesNotMatch(contents, /never-record-this/)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('release record uses the checked-out commit instead of a workflow event SHA', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'convexkit-checkout-'))
+  try {
+    assert.equal(spawnSync('git', ['init', '-q'], { cwd: directory }).status, 0)
+    assert.equal(
+      spawnSync(
+        'git',
+        [
+          '-c',
+          'user.name=Test',
+          '-c',
+          'user.email=test@example.com',
+          'commit',
+          '--allow-empty',
+          '-qm',
+          'fixture',
+        ],
+        { cwd: directory }
+      ).status,
+      0
+    )
+    const sha = spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: directory,
+      encoding: 'utf8',
+    }).stdout.trim()
+    const run = (deployedSha) =>
+      spawnSync(process.execPath, [resolve('scripts/write-release-record.mjs')], {
+        cwd: directory,
+        env: { PATH: process.env.PATH, GITHUB_SHA: 'wrong-event-sha', DEPLOYED_SHA: deployedSha },
+        encoding: 'utf8',
+      })
+    assert.equal(run(sha).status, 0)
+    const record = JSON.parse(
+      readFileSync(join(directory, '.convexkit/releases/preview-latest.json'), 'utf8')
+    )
+    assert.equal(record.commit, sha)
+    assert.equal(record.workerBuildIdentity, sha)
+    assert.notEqual(run('wrong-checkout-sha').status, 0)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('production target resolution fails closed when any selected value is missing', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'convexkit-target-'))
+  try {
+    const output = join(directory, 'github-env')
+    const base = {
+      PATH: process.env.PATH,
+      ENVIRONMENT: 'production',
+      CONVEX_HOSTING: 'cloud',
+      GITHUB_ENV: output,
+      CLOUDFLARE_API_TOKEN: 'cf-fixture',
+      CLOUDFLARE_ACCOUNT_ID: 'account-fixture',
+      APP_URL_PREVIEW: 'https://app-preview.example.com',
+      APP_URL_PROD: 'https://app.example.com',
+      CLOUDFLARE_WORKER_NAME_PREVIEW: 'app-preview',
+      CLOUDFLARE_WORKER_NAME_PROD: 'app-production',
+      CLOUDFLARE_CUSTOM_DOMAIN_PREVIEW: 'app-preview.example.com',
+      CLOUDFLARE_CUSTOM_DOMAIN_PROD: 'app.example.com',
+      VITE_CONVEX_URL_PREVIEW: 'https://preview.convex.cloud',
+      VITE_CONVEX_URL_PROD: 'https://production.convex.cloud',
+      VITE_CONVEX_SITE_URL_PREVIEW: 'https://preview.convex.site',
+      VITE_CONVEX_SITE_URL_PROD: 'https://production.convex.site',
+      CONVEX_DEPLOY_KEY_PREVIEW: 'preview-key',
+      CONVEX_DEPLOY_KEY_PROD: 'production-key',
+    }
+    const run = (changes = {}) => {
+      writeFileSync(output, '')
+      return spawnSync(process.execPath, [resolve('scripts/resolve-deploy-target.mjs')], {
+        cwd: directory,
+        env: { ...base, ...changes },
+        encoding: 'utf8',
+      })
+    }
+    for (const name of [
+      'APP_URL_PROD',
+      'CLOUDFLARE_WORKER_NAME_PROD',
+      'VITE_CONVEX_URL_PROD',
+      'CONVEX_DEPLOY_KEY_PROD',
+    ]) {
+      const result = run({ [name]: '' })
+      assert.notEqual(result.status, 0, name)
+      assert.equal(readFileSync(output, 'utf8'), '')
+    }
+    assert.notEqual(run({ VITE_CONVEX_URL_PROD: base.VITE_CONVEX_URL_PREVIEW }).status, 0)
+    assert.notEqual(run({ CLOUDFLARE_CUSTOM_DOMAIN_PROD: 'other.example.com' }).status, 0)
+    const result = run()
+    assert.equal(result.status, 0, result.stderr)
+    const selected = readFileSync(output, 'utf8')
+    assert.match(selected, /CLOUDFLARE_WORKER_NAME=app-production/)
+    assert.match(selected, /CONVEX_DEPLOY_KEY=production-key/)
+    assert.doesNotMatch(selected, /CONVEX_DEPLOY_KEY=preview-key/)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

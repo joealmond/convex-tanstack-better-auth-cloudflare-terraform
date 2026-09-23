@@ -97,7 +97,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
           if ('scheduler' in ctx) {
             await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
               userId: user.id,
-              email: user.email,
+              email: user.emailVerified ? user.email : undefined,
             })
           }
         },

@@ -56,11 +56,19 @@ test('creates the default Better Auth + Cloudflare application', () => {
       /query\('todos'\)/
     )
     assert.match(readFileSync(join(target, 'src/lib/export-kinds.ts'), 'utf8'), /\['account'\]/)
-    assert.match(
-      readFileSync(join(target, '.github/workflows/deploy.yml'), 'utf8'),
-      /Preflight deployment configuration/
-    )
+    const deployWorkflow = readFileSync(join(target, '.github/workflows/deploy.yml'), 'utf8')
+    assert.match(deployWorkflow, /Preflight deployment configuration/)
+    assert.match(deployWorkflow, /resolve-deploy-target\.mjs/)
+    assert.equal(existsSync(join(target, 'scripts/resolve-deploy-target.mjs')), true)
+    assert.match(deployWorkflow, /verify-worker-origin\.mjs/)
+    assert.equal(existsSync(join(target, 'scripts/verify-worker-origin.mjs')), true)
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
+    for (const [, script] of deployWorkflow.matchAll(/npm run ([\w:-]+)/g))
+      assert.equal(
+        typeof pkg.scripts[script],
+        'string',
+        `Deploy workflow references missing ${script}`
+      )
     assert.match(pkg.scripts.build, /sanitize-build-output/)
     assert.match(pkg.scripts.check, /check:convex-imports/)
     assert.equal(pkg.scripts['docs:build'], undefined)

@@ -45,3 +45,17 @@ it('enables verification, reset, and deletion mail with complete server configur
     { kind: 'delete', to: user.email, url },
   ])
 })
+
+it('passes an email to account cleanup only after mailbox verification', async () => {
+  vi.stubEnv('AUTH_EMAIL_PROVIDER', 'disabled')
+  const { createAuth } = await import('./auth')
+  const runAfter = vi.fn()
+  const auth = createAuth({ scheduler: { runAfter } } as never)
+  const afterDelete = auth.options.user?.deleteUser?.afterDelete
+  await afterDelete?.({ id: 'user-1', email: 'person@example.com', emailVerified: false } as never)
+  await afterDelete?.({ id: 'user-2', email: 'person@example.com', emailVerified: true } as never)
+  expect(runAfter.mock.calls.map((call) => call[2])).toEqual([
+    { userId: 'user-1', email: undefined },
+    { userId: 'user-2', email: 'person@example.com' },
+  ])
+})

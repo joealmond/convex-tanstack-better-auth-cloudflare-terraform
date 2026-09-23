@@ -2,10 +2,10 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import {
+  assertDeployedOrigin,
   authProvider,
   configuredUrl,
   isConvexCloudPreview,
-  normalizeUrl,
   readEnv,
 } from './infra-utils.mjs'
 
@@ -34,6 +34,14 @@ if (!isConvexCloudPreview(env)) {
     'Preview deploy requires a Convex cloud development deployment, not a local backend.'
   )
 }
+const customDomain = new URL(appUrl).hostname.endsWith('.workers.dev')
+  ? ''
+  : new URL(appUrl).hostname
+const selectedDomain = process.env.CLOUDFLARE_CUSTOM_DOMAIN || customDomain
+assertDeployedOrigin(appUrl, {
+  name: workerName,
+  routes: selectedDomain ? [{ pattern: selectedDomain, custom_domain: true }] : [],
+})
 
 run('node', ['scripts/deploy-preflight.mjs', '--environment', 'preview'], {
   stdio: 'pipe',
@@ -54,11 +62,11 @@ run('npm', ['run', 'sync:wrangler-config'], {
     ...process.env,
     CLOUDFLARE_WORKER_NAME: workerName,
     CLERK_PUBLISHABLE_KEY: selectedAuth === 'clerk' ? env.CLERK_PUBLISHABLE_KEY : '',
-    CLOUDFLARE_CUSTOM_DOMAIN:
-      process.env.CLOUDFLARE_CUSTOM_DOMAIN ||
-      (new URL(appUrl).hostname.endsWith('.workers.dev') ? '' : new URL(appUrl).hostname),
+    CLOUDFLARE_CUSTOM_DOMAIN: selectedDomain,
   },
 })
+const config = JSON.parse(readFileSync('dist/server/wrangler.json', 'utf8'))
+assertDeployedOrigin(appUrl, config)
 const output = run('npx', ['wrangler', 'deploy', '--config', 'dist/server/wrangler.json'], {
   stdio: 'pipe',
 })
@@ -71,20 +79,7 @@ if (selectedAuth === 'clerk')
       input: env.CLERK_SECRET_KEY,
     }
   )
-const config = JSON.parse(readFileSync('dist/server/wrangler.json', 'utf8'))
-const configuredDomain = config.routes?.find((route) => route.custom_domain)?.pattern
-if (configuredDomain && new URL(appUrl).hostname !== configuredDomain) {
-  throw new Error(`APP_URL must match the deployed Custom Domain: https://${configuredDomain}`)
-}
-const workersUrl = output.match(/https:\/\/[^\s]+\.workers\.dev\b/)?.[0]
-if (!configuredDomain && workersUrl && normalizeUrl(appUrl) !== normalizeUrl(workersUrl)) {
-  throw new Error(`APP_URL does not match Wrangler's deployed URL: ${workersUrl}`)
-}
-if (!configuredDomain && !workersUrl) {
-  throw new Error(
-    'Wrangler did not report a workers.dev URL. Configure a Custom Domain or retry the deployment.'
-  )
-}
+assertDeployedOrigin(appUrl, config, output)
 const workerVersion =
   selectedAuth === 'clerk'
     ? 'unavailable'

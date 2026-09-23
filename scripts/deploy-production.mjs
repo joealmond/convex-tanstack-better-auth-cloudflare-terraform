@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { authProvider, configuredUrl, readEnv, workerName } from './infra-utils.mjs'
+import {
+  assertDeployedOrigin,
+  authProvider,
+  configuredUrl,
+  readEnv,
+  workerName,
+} from './infra-utils.mjs'
 
 const required = [
   'APP_URL',
@@ -37,23 +43,29 @@ const env = {
   REQUIRE_APP_URL: 'true',
   OTHER_CONVEX_URL: process.env.OTHER_CONVEX_URL || localPreview || '',
 }
+const customDomain = new URL(appUrl).hostname.endsWith('.workers.dev')
+  ? ''
+  : new URL(appUrl).hostname
+const selectedDomain = process.env.CLOUDFLARE_CUSTOM_DOMAIN || customDomain
+assertDeployedOrigin(appUrl, {
+  name: process.env.CLOUDFLARE_WORKER_NAME,
+  routes: selectedDomain ? [{ pattern: selectedDomain, custom_domain: true }] : [],
+})
 run('node', ['scripts/deploy-preflight.mjs', '--environment', 'production'], env)
 run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl], env)
 if (selectedAuth === 'clerk')
   run('npx', ['convex', 'env', 'set', 'CLERK_JWT_ISSUER_DOMAIN', env.CLERK_JWT_ISSUER_DOMAIN], env)
 run('npx', ['convex', 'deploy', '--yes'], env)
 run('npm', ['run', 'build:prod'], env)
-const customDomain = new URL(appUrl).hostname.endsWith('.workers.dev')
-  ? ''
-  : new URL(appUrl).hostname
 run('npm', ['run', 'sync:wrangler-config'], {
   ...env,
-  CLOUDFLARE_CUSTOM_DOMAIN: process.env.CLOUDFLARE_CUSTOM_DOMAIN || customDomain,
+  CLOUDFLARE_CUSTOM_DOMAIN: selectedDomain,
 })
 const config = JSON.parse(readFileSync('dist/server/wrangler.json', 'utf8'))
 if (config.name !== process.env.CLOUDFLARE_WORKER_NAME) {
   throw new Error('Generated Worker name does not match CLOUDFLARE_WORKER_NAME.')
 }
+assertDeployedOrigin(appUrl, config)
 const output = run('npx', ['wrangler', 'deploy', '--config', 'dist/server/wrangler.json'], env)
 if (selectedAuth === 'clerk') {
   const result = spawnSync(
@@ -63,6 +75,7 @@ if (selectedAuth === 'clerk') {
   )
   if (result.status !== 0) throw new Error('Unable to install the Clerk Worker secret.')
 }
+assertDeployedOrigin(appUrl, config, output)
 const version =
   selectedAuth === 'clerk'
     ? 'unavailable'
