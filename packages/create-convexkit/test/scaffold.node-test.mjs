@@ -51,6 +51,11 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.equal(existsSync(join(target, 'docs/AUTH_EMAIL.md')), true)
     assert.equal(existsSync(join(target, 'src/routes/reset-password.tsx')), true)
     assert.equal(existsSync(join(target, 'src/routes/_authenticated/account.tsx')), true)
+    assert.doesNotMatch(
+      readFileSync(join(target, 'convex/userExport.ts'), 'utf8'),
+      /query\('todos'\)/
+    )
+    assert.match(readFileSync(join(target, 'src/lib/export-kinds.ts'), 'utf8'), /\['account'\]/)
     assert.match(
       readFileSync(join(target, '.github/workflows/deploy.yml'), 'utf8'),
       /Preflight deployment configuration/
@@ -81,6 +86,10 @@ test('team-saas preset includes organization authorization foundation', () => {
       /organizations: typeof organizations/
     )
     assert.equal(existsSync(join(target, 'convex/organizations.test.ts')), true)
+    assert.match(
+      readFileSync(join(target, 'src/lib/export-kinds.ts'), 'utf8'),
+      /organizationMembers/
+    )
     assert.match(
       readFileSync(join(target, 'docs/CONFIGURATION.md'), 'utf8'),
       /requireOrganizationRole/
@@ -167,6 +176,8 @@ test('applies Clerk and Netlify provider overlays', () => {
     assert.equal(pkg.dependencies.resend, undefined)
     assert.equal(existsSync(join(target, 'convex/authEmails.ts')), false)
     assert.equal(existsSync(join(target, 'src/routes/reset-password.tsx')), false)
+    assert.equal(existsSync(join(target, 'src/routes/_authenticated/account.tsx')), true)
+    assert.equal(existsSync(join(target, 'convex/userExport.ts')), true)
     assert.equal(existsSync(join(target, 'docs/AUTH_EMAIL.md')), false)
   } finally {
     rmSync(root, { recursive: true, force: true })

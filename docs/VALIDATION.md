@@ -26,6 +26,8 @@ adding new providers or examples. Build validation does not replace a deployed a
   reset, and confirmed account deletion. Before the first public production release, repeat
   those clicks on a protected preview deployment with a disposable inbox. CI does not send live
   account email.
+- Account export tests page through more than 100 owned records, check every included feature
+  table, and embed selected file bytes without retaining signed download URLs in the exported JSON.
 
 The matrix covers representative boundaries, not every feature subset. When a composition bug
 is reported, add its exact selection as a regression case. Temporary failures retain their logs

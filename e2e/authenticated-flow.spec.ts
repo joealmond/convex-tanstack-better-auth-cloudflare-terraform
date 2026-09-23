@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 
 test.describe('live authenticated smoke', () => {
   test.skip(
@@ -49,5 +50,23 @@ test.describe('live authenticated smoke', () => {
     await page.goto('/account')
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
     await expect(page.getByText(email)).toBeVisible()
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Download data' }).click(),
+    ])
+    const exported = JSON.parse(readFileSync((await download.path())!, 'utf8'))
+    expect(exported.data.messages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ content: message })])
+    )
+    expect(exported.data.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: fileName,
+          contentBase64: Buffer.from('ConvexKit authenticated upload smoke test').toString(
+            'base64'
+          ),
+        }),
+      ])
+    )
   })
 })

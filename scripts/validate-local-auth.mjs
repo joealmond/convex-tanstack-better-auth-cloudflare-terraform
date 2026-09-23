@@ -154,7 +154,7 @@ try {
     E2E_RUN_AUTH: 'true',
   })
   passed = true
-  console.log('[local-auth] Signup, reload, sign-in, chat, upload, and account page passed.')
+  console.log('[local-auth] Signup, reload, sign-in, chat, upload, and account export passed.')
 } catch (error) {
   console.error(error.message)
   process.exitCode = 1

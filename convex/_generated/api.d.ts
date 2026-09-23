@@ -28,6 +28,7 @@ import type * as seed from "../seed.js";
 import type * as stripe from "../stripe.js";
 import type * as todos from "../todos.js";
 import type * as users from "../users.js";
+import type * as userExport from "../userExport.js";
 
 import type {
   ApiFromModules,
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   stripe: typeof stripe;
   todos: typeof todos;
   users: typeof users;
+  userExport: typeof userExport;
 }>;
 
 /**

@@ -87,6 +87,12 @@ describe('organizations', () => {
     })
     await verified.asUser.mutation(api.organizations.acceptInvitation, { organizationId })
     expect(
+      (await verified.asUser.query(api.userExport.page, { kind: 'organizationMembers' })).page
+    ).toHaveLength(1)
+    expect(
+      (await unverified.asUser.query(api.userExport.page, { kind: 'organizationInvitations' })).page
+    ).toEqual([])
+    expect(
       await verified.asUser.query(api.organizations.hasEntitlement, {
         organizationId,
         key: 'advanced',

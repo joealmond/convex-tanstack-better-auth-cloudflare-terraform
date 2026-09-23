@@ -71,6 +71,15 @@ const featureFiles = {
   ],
 }
 
+const exportKindsByFeature = {
+  chat: ['messages'],
+  files: ['files', 'uploadIntents', 'fileUsage'],
+  todos: ['todos'],
+  ai: ['aiRuns'],
+  email: ['emailDeliveries'],
+  billing: ['billingSubscriptions'],
+}
+
 function usage() {
   return `create-convexkit
 
@@ -202,7 +211,7 @@ function renderConfigurationGuide(options) {
       : 'Run `npm run setup`; it creates a local auth secret and can set backend values on Convex.'
   const team =
     options.preset === 'team-saas'
-      ? '\n## Team SaaS\n\n`convex/organizations.ts` owns organization creation, membership roles, invitations, and organization-scoped authorization. The `/teams` page manages teams and invitations. Invitation acceptance requires a verified email; configure verification delivery for email/password accounts before production. Add product tables with an `organizationId` and call `requireOrganizationRole` before reading or changing them.\n'
+      ? '\n## Team SaaS\n\n`convex/organizations.ts` owns organization creation, membership roles, invitations, and organization-scoped authorization. The `/teams` page manages teams and invitations. Invitation acceptance requires a verified email; configure verification delivery for email/password accounts before production. `/account` exports the user’s account-linked data; define a separate organization export policy before adding product-owned tables. Add product tables with an `organizationId` and call `requireOrganizationRole` before reading or changing them.\n'
       : ''
   return `# Configuration\n\n## Local development\n\nCopy no secrets by hand: ${auth}\n\nRequired browser values: VITE_CONVEX_URL and VITE_CONVEX_SITE_URL. SITE_URL is a backend value and must equal the URL users open.\n\n## Production\n\nUse distinct Convex deployments and auth secrets for preview and production. Set SITE_URL on each Convex deployment to its public Worker or hosting URL. Never prefix a secret with VITE_. ${options.auth === 'better-auth' ? 'Configure [account verification and recovery email](AUTH_EMAIL.md) before production.' : 'Configure Clerk production keys and verified domains before production.'}\n${team}`
 }
@@ -554,13 +563,13 @@ function compose(options) {
       'src/components/AuthControls.test.tsx',
       'src/lib/auth-server.ts',
       'src/routes/reset-password.tsx',
-      'src/routes/_authenticated/account.tsx',
       'src/routes/api/auth',
       'convex/auth.ts',
       'convex/auth.config.test.ts',
       'convex/auth-flow.test.ts',
       'convex/authEmails.ts',
       'convex/authEmails.test.ts',
+      'convex/userExport.test.ts',
       'docs/AUTH_EMAIL.md',
       'convex/test.utils.ts',
       'convex/lib/customFunctions.test.ts',
@@ -583,6 +592,7 @@ function compose(options) {
     replaceFeatureBlock(join(options.target, 'convex/schema.ts'), feature)
     replaceFeatureBlock(join(options.target, 'convex/auth.ts'), feature)
     replaceFeatureBlock(join(options.target, 'convex/http.ts'), feature)
+    replaceFeatureBlock(join(options.target, 'convex/userExport.ts'), feature)
     replaceFeatureBlock(
       join(options.target, 'src/components/examples/RealtimeChatExample.tsx'),
       feature
@@ -598,6 +608,14 @@ function compose(options) {
       join(options.target, 'convex/schema.ts'),
       "import { defineSchema } from 'convex/server'\n\nexport default defineSchema({})\n"
     )
+    const exportPath = join(options.target, 'convex/userExport.ts')
+    writeFileSync(
+      exportPath,
+      readFileSync(exportPath, 'utf8')
+        .replace('const PAGE_SIZE = 100\n\n', '')
+        .replace('handler: async (ctx, { kind, cursor })', 'handler: async (ctx, { kind })')
+        .replace('    const paginationOpts = { cursor: cursor ?? null, numItems: PAGE_SIZE }\n', '')
+    )
   }
   if (!options.selectedExamples.includes('chat')) {
     remove(options.target, ['convex/seed.ts', 'convex/seed.test.ts'])
@@ -608,7 +626,7 @@ function compose(options) {
       options.selectedExamples.includes(feature)
     )
   ) {
-    remove(options.target, ['convex/maintenance.test.ts'])
+    remove(options.target, ['convex/maintenance.test.ts', 'convex/userExport.test.ts'])
   }
   if (!options.selectedExamples.includes('chat')) remove(options.target, ['convex/users.test.ts'])
   if (!['ai', 'billing', 'email'].every((feature) => options.selectedExamples.includes(feature))) {
@@ -623,14 +641,24 @@ function compose(options) {
     copyOverlay('team-saas', options.target)
     configureTeamGeneratedApi(options.target)
   }
-  if (
-    options.auth === 'clerk' &&
-    options.preset !== 'team-saas' &&
-    !options.selectedExamples.includes('files') &&
-    !options.selectedExamples.includes('admin')
-  ) {
-    remove(options.target, ['src/routes/_authenticated.tsx'])
-  }
+  const exportKinds =
+    options.preset === 'team-saas'
+      ? [
+          'account',
+          'organizations',
+          'organizationMembers',
+          'organizationInvitations',
+          'sentInvitations',
+          'organizationAuditEvents',
+        ]
+      : [
+          'account',
+          ...options.selectedExamples.flatMap((feature) => exportKindsByFeature[feature] || []),
+        ]
+  writeFileSync(
+    join(options.target, 'src/lib/export-kinds.ts'),
+    `export const exportKinds = ${JSON.stringify(exportKinds)} as const\n`
+  )
   writeFileSync(
     join(options.target, 'src/routes/examples.index.tsx'),
     renderExamplesIndex(options.selectedExamples)
@@ -740,8 +768,10 @@ async function formatGeneratedFiles(target) {
     'convex/auth.ts',
     'convex/http.ts',
     'convex/maintenance.ts',
+    'convex/userExport.ts',
     'src/components/examples/RealtimeChatExample.tsx',
     'src/routes/examples.index.tsx',
+    'src/lib/export-kinds.ts',
     'e2e/public-smoke.spec.ts',
     '.convexkit.json',
   ]) {

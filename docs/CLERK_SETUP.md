@@ -46,6 +46,10 @@ For GitHub deployment, set `CLERK_SECRET_KEY` as a protected Environment Secret 
 Clerk hosts account management, so the Better Auth API route and component are not included in a
 Clerk-generated project.
 
+The generated `/account` page exports Convex application data. Its delete action queues Convex
+data cleanup before requesting Clerk identity deletion. If Clerk rejects that second step, the
+page reports the partial result so the user can retry or contact support.
+
 See the current [Clerk TanStack Start quickstart](https://clerk.com/docs/tanstack-react-start/getting-started/quickstart)
 and [Convex TanStack Start with Clerk guide](https://docs.convex.dev/client/tanstack/tanstack-start/clerk).
 
