@@ -62,6 +62,10 @@ test('creates the default Better Auth + Cloudflare application', () => {
     assert.equal(existsSync(join(target, 'scripts/resolve-deploy-target.mjs')), true)
     assert.match(deployWorkflow, /verify-worker-origin\.mjs/)
     assert.equal(existsSync(join(target, 'scripts/verify-worker-origin.mjs')), true)
+    assert.ok(
+      deployWorkflow.indexOf('Resolve deployment target before any cloud mutation') <
+        deployWorkflow.indexOf('Set deployed app URL on Convex')
+    )
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
     for (const [, script] of deployWorkflow.matchAll(/npm run ([\w:-]+)/g))
       assert.equal(

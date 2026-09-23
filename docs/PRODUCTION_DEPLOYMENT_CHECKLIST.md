@@ -85,6 +85,8 @@ Before using the production deploy workflow, add these repository secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
+Set `APP_URL_PROD` and `CLOUDFLARE_WORKER_NAME_PROD` as repository variables. Keep the corresponding preview values and Convex URLs distinct. For a Custom Domain, set `CLOUDFLARE_CUSTOM_DOMAIN_PROD` to the exact `APP_URL_PROD` hostname. The workflow stops before changing Convex or Cloudflare when a selected production value is absent or points at preview.
+
 Before deployment, confirm that email-allowlisted administrators have verified email ownership.
 An unverified email/password signup must remain a regular user even when the email is allowlisted.
 Run the authenticated smoke test against a dedicated preview backend with
