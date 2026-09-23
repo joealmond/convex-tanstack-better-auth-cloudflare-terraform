@@ -7,7 +7,7 @@ The working example lives at `/examples/ai` with backend code in `convex/ai.ts`.
 Keep provider credentials in Convex; never use a `VITE_` variable for them.
 
 ```bash
-npx convex env set OPENAI_API_KEY "sk-..."
+npx convex env set OPENAI_API_KEY  # paste at the prompt
 npx convex env set OPENAI_MODEL "gpt-5.4-mini"
 ```
 

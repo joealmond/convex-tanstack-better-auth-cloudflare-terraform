@@ -82,7 +82,10 @@ const secret =
     ? env.BETTER_AUTH_SECRET
     : randomBytes(32).toString('base64url')
 updateEnv('.env.local', { BETTER_AUTH_SECRET: secret, VITE_APP_ENV: 'preview' })
-run('npx', ['convex', 'env', 'set', 'BETTER_AUTH_SECRET', secret])
+run('npx', ['convex', 'env', 'set', 'BETTER_AUTH_SECRET'], {
+  input: secret,
+  stdio: ['pipe', 'inherit', 'inherit'],
+})
 run('npx', ['convex', 'env', 'set', 'SITE_URL', appUrl])
 // Push again after setting the auth origin, so the deployable backend reads it.
 run('npx', ['convex', 'dev', '--once'])

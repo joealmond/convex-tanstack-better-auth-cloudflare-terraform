@@ -8,7 +8,7 @@ the Node action that calls Resend lives in `convex/emailActions.ts`.
 Verify a sending domain in Resend, then set Convex variables:
 
 ```bash
-npx convex env set RESEND_API_KEY "re_..."
+npx convex env set RESEND_API_KEY  # paste at the prompt
 npx convex env set RESEND_FROM_EMAIL "ConvexKit <hello@your-domain.example>"
 ```
 

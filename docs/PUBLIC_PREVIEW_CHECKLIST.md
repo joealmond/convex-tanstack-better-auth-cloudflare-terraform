@@ -73,10 +73,10 @@ Wrangler and the Deploy workflow create the Worker. Set the preview Custom Domai
 
 ```bash
 npx convex env set SITE_URL "$SITE_URL"
-npx convex env set BETTER_AUTH_SECRET "$BETTER_AUTH_SECRET"
+printf %s "$BETTER_AUTH_SECRET" | npx convex env set BETTER_AUTH_SECRET
 # Optional, only when Google OAuth is enabled:
 npx convex env set GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
-npx convex env set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+printf %s "$GOOGLE_CLIENT_SECRET" | npx convex env set GOOGLE_CLIENT_SECRET
 ```
 
 ## 5. Optionally configure Google OAuth for preview

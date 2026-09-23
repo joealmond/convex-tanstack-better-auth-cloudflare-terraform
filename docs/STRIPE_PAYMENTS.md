@@ -8,8 +8,8 @@ in `convex/stripe.ts`; subscription persistence lives in `convex/billing.ts`.
 Create one recurring Price in Stripe, then set server-only Convex variables:
 
 ```bash
-npx convex env set STRIPE_SECRET_KEY "sk_test_..."
-npx convex env set STRIPE_WEBHOOK_SECRET "whsec_..."
+npx convex env set STRIPE_SECRET_KEY  # paste at the prompt
+npx convex env set STRIPE_WEBHOOK_SECRET  # paste at the prompt
 npx convex env set STRIPE_PRICE_ID "price_..."
 npx convex env set SITE_URL "https://your-app.example"
 ```

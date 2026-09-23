@@ -168,8 +168,8 @@ Set in Convex:
 ```bash
 npx convex env set SITE_URL "http://localhost:3000"
 npx convex env set GOOGLE_CLIENT_ID "your-client-id"
-npx convex env set GOOGLE_CLIENT_SECRET "GOCSPX-your-secret"
-npx convex env set BETTER_AUTH_SECRET "your-generated-secret"
+npx convex env set GOOGLE_CLIENT_SECRET  # paste at the prompt
+npx convex env set BETTER_AUTH_SECRET  # paste at the prompt
 ```
 
 ## Dependencies

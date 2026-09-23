@@ -70,7 +70,7 @@ Then set the backend env vars:
 
 ```bash
 npx convex env set GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
-npx convex env set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+printf %s "$GOOGLE_CLIENT_SECRET" | npx convex env set GOOGLE_CLIENT_SECRET
 ```
 
 Anonymous realtime messages work without Google OAuth.
@@ -89,7 +89,7 @@ Symptoms:
 Fix:
 
 ```bash
-npx convex env set BETTER_AUTH_SECRET "$BETTER_AUTH_SECRET"
+printf %s "$BETTER_AUTH_SECRET" | npx convex env set BETTER_AUTH_SECRET
 npx convex env set SITE_URL "$SITE_URL"
 ```
 
@@ -97,7 +97,7 @@ If Google OAuth is enabled:
 
 ```bash
 npx convex env set GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
-npx convex env set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+printf %s "$GOOGLE_CLIENT_SECRET" | npx convex env set GOOGLE_CLIENT_SECRET
 ```
 
 ## Wrangler Deploy Cannot Find `dist/server/wrangler.json`

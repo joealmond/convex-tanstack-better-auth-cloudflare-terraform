@@ -111,8 +111,9 @@ VITE_SENTRY_DSN=${values.VITE_SENTRY_DSN}
 function runConvexEnvSet(name, value) {
   if (!value) return true
 
-  const result = spawnSync('npx', ['convex', 'env', 'set', name, value], {
-    stdio: 'inherit',
+  const result = spawnSync('npx', ['convex', 'env', 'set', name], {
+    input: value,
+    stdio: ['pipe', 'inherit', 'inherit'],
     shell: false,
   })
 
@@ -256,10 +257,10 @@ try {
   } else if (!dryRun) {
     console.log('\nSkipped Convex backend env setup.')
     console.log('Run these later after `npx convex login` if needed:')
-    console.log('  npx convex env set BETTER_AUTH_SECRET "<value>"')
+    console.log('  npx convex env set BETTER_AUTH_SECRET  # paste at the prompt')
     console.log('  npx convex env set SITE_URL "<value>"')
     console.log('  npx convex env set GOOGLE_CLIENT_ID "<value>"')
-    console.log('  npx convex env set GOOGLE_CLIENT_SECRET "<value>"')
+    console.log('  npx convex env set GOOGLE_CLIENT_SECRET  # paste at the prompt')
   }
 
   console.log('\nNext steps:')
