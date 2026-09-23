@@ -68,7 +68,22 @@ describe('users', () => {
       checkoutSessionId: 'cs_user_guard',
       priceId: 'price_test',
     })
-    await expect(asUser.action(api.users.prepareAccountDeletion)).rejects.toThrow('billing portal')
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          Response.json({
+            object: 'list',
+            data: [{ id: 'sub_active', status: 'active' }],
+            has_more: false,
+          })
+        )
+      )
+    )
+    await expect(asUser.action(api.users.prepareAccountDeletion)).rejects.toThrow(
+      'Cancel all Stripe subscriptions'
+    )
     await t.mutation(internal.billing.applyStripeEvent, {
       eventId: 'evt_user_guard_expired',
       eventType: 'checkout.session.expired',
@@ -77,7 +92,6 @@ describe('users', () => {
       checkoutSessionId: 'cs_user_guard',
       status: 'checkout_expired',
     })
-    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
     vi.stubGlobal(
       'fetch',
       vi

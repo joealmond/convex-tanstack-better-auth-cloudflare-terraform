@@ -81,10 +81,11 @@ it('guards billable account deletion before creating a webhook tombstone', async
   expect(runMutation).toHaveBeenCalledWith(internal.billing.prepareAccountDeletion, {
     ownerId: 'user-1',
   })
-  runQuery.mockRejectedValueOnce(new Error('active subscription'))
+  runAction.mockRejectedValueOnce(new Error('active subscription'))
   await expect(
     auth.options.user?.deleteUser?.beforeDelete?.({ id: 'user-2' } as never)
   ).rejects.toThrow('active subscription')
+  expect(runQuery).toHaveBeenCalledTimes(1)
   expect(runMutation).toHaveBeenCalledTimes(1)
 })
 // </convexkit:billing>

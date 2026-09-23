@@ -101,9 +101,11 @@ export const deleteUserDataBatch = internalMutation({
       .take(BATCH_SIZE)
     for (const subscription of subscriptions) {
       const canStillCharge = subscription.stripeSubscriptionId
-        ? !['canceled', 'cancelled', 'incomplete_expired'].includes(subscription.status)
+        ? !['canceled', 'cancelled', 'incomplete_expired', 'provider_clear'].includes(
+            subscription.status
+          )
         : Boolean(subscription.stripeCustomerId || subscription.checkoutSessionId) &&
-          subscription.status !== 'checkout_expired'
+          !['checkout_expired', 'provider_clear'].includes(subscription.status)
       if (canStillCharge) continue
       const tombstone = await ctx.db
         .query('billingDeletionTombstones')

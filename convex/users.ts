@@ -83,8 +83,8 @@ export const prepareAccountDeletion = authAction({
   args: {},
   handler: async (ctx) => {
     // <convexkit:billing>
-    await ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: ctx.userId })
     await ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: ctx.userId })
+    await ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: ctx.userId })
     await ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: ctx.userId })
     // </convexkit:billing>
     await ctx.runMutation(internal.users.queueAccountCleanup, {

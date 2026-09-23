@@ -34,10 +34,14 @@ export const assertNoProviderObligations = internalAction({
   args: { ownerId: v.string() },
   handler: async (ctx, { ownerId }) => {
     const billing = await ctx.runQuery(internal.billing.getByOwner, { ownerId })
-    if (!billing?.stripeCustomerId) return
+    const tombstone = billing
+      ? null
+      : await ctx.runQuery(internal.billing.getDeletionTombstone, { ownerId })
+    const customerId = billing?.stripeCustomerId ?? tombstone?.stripeCustomerId
+    if (!customerId) return
     const stripe = createStripeClient()
     const subscriptions = await stripe.subscriptions.list({
-      customer: billing.stripeCustomerId,
+      customer: customerId,
       status: 'all',
       limit: 100,
     })
@@ -48,12 +52,19 @@ export const assertNoProviderObligations = internalAction({
       throw new ConvexError('Cancel all Stripe subscriptions before deleting this account')
     }
     const openCheckouts = await stripe.checkout.sessions.list({
-      customer: billing.stripeCustomerId,
+      customer: customerId,
       status: 'open',
       limit: 1,
     })
     if (openCheckouts.data.length || openCheckouts.has_more)
       throw new ConvexError('Wait for open Stripe Checkout sessions to expire before deletion')
+    if (billing && canStillCharge(billing))
+      await ctx.runMutation(internal.billing.markProviderClear, {
+        ownerId,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: billing.stripeSubscriptionId,
+        checkoutSessionId: billing.checkoutSessionId,
+      })
   },
 })
 
@@ -167,15 +178,22 @@ export const webhook = httpAction(async (ctx, request) => {
       const session = event.data.object
       const customerId = id(session.customer)
       if (customerId) {
+        const subscriptionId = id(session.subscription)
+        const subscription =
+          event.type === 'checkout.session.completed' && subscriptionId
+            ? await stripe.subscriptions.retrieve(subscriptionId)
+            : null
         await ctx.runMutation(internal.billing.applyStripeEvent, {
           eventId: event.id,
           eventType: event.type,
           ownerId: session.metadata?.userId || session.client_reference_id || undefined,
           stripeCustomerId: customerId,
-          stripeSubscriptionId: id(session.subscription) || undefined,
+          stripeSubscriptionId: subscriptionId || undefined,
           checkoutSessionId: session.id,
           status:
-            event.type === 'checkout.session.expired' ? 'checkout_expired' : 'checkout_completed',
+            event.type === 'checkout.session.expired'
+              ? 'checkout_expired'
+              : (subscription?.status ?? 'checkout_completed'),
         })
       }
     } else if (

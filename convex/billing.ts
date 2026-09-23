@@ -1,8 +1,13 @@
 import { ConvexError, v } from 'convex/values'
 import { authQuery, internalMutation, internalQuery } from './lib/customFunctions'
 
-const TERMINAL_SUBSCRIPTION_STATUSES = new Set(['canceled', 'cancelled', 'incomplete_expired'])
-const TERMINAL_CHECKOUT_STATUSES = new Set(['checkout_expired'])
+const TERMINAL_SUBSCRIPTION_STATUSES = new Set([
+  'canceled',
+  'cancelled',
+  'incomplete_expired',
+  'provider_clear',
+])
+const TERMINAL_CHECKOUT_STATUSES = new Set(['checkout_expired', 'provider_clear'])
 const DELETE_BLOCKED_MESSAGE =
   'Wait for a pending Stripe Checkout to expire or cancel your subscription in the billing portal before deleting this account.'
 
@@ -69,6 +74,31 @@ export const getDeletionTombstone = internalQuery({
       .query('billingDeletionTombstones')
       .withIndex('by_owner', (query) => query.eq('ownerId', ownerId))
       .unique()
+  },
+})
+
+/** Called only after Stripe confirms no subscriptions or open Checkout sessions. */
+export const markProviderClear = internalMutation({
+  args: {
+    ownerId: v.string(),
+    stripeCustomerId: v.string(),
+    checkoutSessionId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const current = await ctx.db
+      .query('billingSubscriptions')
+      .withIndex('by_owner', (query) => query.eq('ownerId', args.ownerId))
+      .unique()
+    if (
+      !current ||
+      current.stripeCustomerId !== args.stripeCustomerId ||
+      current.checkoutSessionId !== args.checkoutSessionId ||
+      current.stripeSubscriptionId !== args.stripeSubscriptionId
+    ) {
+      throw new ConvexError('Billing changed during deletion; retry the request')
+    }
+    await ctx.db.patch(current._id, { status: 'provider_clear', updatedAt: Date.now() })
   },
 })
 
@@ -209,7 +239,13 @@ export const applyStripeEvent = internalMutation({
       existing?.stripeSubscriptionId &&
       args.stripeSubscriptionId !== existing.stripeSubscriptionId
     const wrongCustomer = existing && existing.stripeCustomerId !== args.stripeCustomerId
-    if (staleCheckout || unboundSubscription || staleSubscription || wrongCustomer) {
+    if (
+      existing?.status === 'provider_clear' ||
+      staleCheckout ||
+      unboundSubscription ||
+      staleSubscription ||
+      wrongCustomer
+    ) {
       await ctx.db.insert('stripeEvents', {
         eventId: args.eventId,
         eventType: args.eventType,

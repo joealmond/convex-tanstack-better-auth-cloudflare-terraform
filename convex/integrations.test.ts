@@ -470,6 +470,86 @@ describe('optional integrations', () => {
     await expect(
       t.action(internal.stripe.assertNoProviderObligations, { ownerId })
     ).rejects.toThrow('open Stripe Checkout')
+
+    fetch
+      .mockResolvedValueOnce(Response.json({ object: 'list', data: [], has_more: false }))
+      .mockResolvedValueOnce(Response.json({ object: 'list', data: [], has_more: false }))
+    await t.action(internal.stripe.assertNoProviderObligations, { ownerId })
+    await t.mutation(internal.billing.prepareAccountDeletion, { ownerId })
+    await t.mutation(internal.maintenance.deleteUserDataBatch, { userId: ownerId })
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toBeNull()
+    expect(await t.query(internal.billing.getDeletionTombstone, { ownerId })).toMatchObject({
+      stripeCustomerId: 'cus_provider_check',
+    })
+    fetch.mockResolvedValueOnce(
+      Response.json({
+        object: 'list',
+        data: [{ id: 'sub_late', status: 'active' }],
+        has_more: false,
+      })
+    )
+    await expect(
+      t.action(internal.stripe.assertNoProviderObligations, { ownerId })
+    ).rejects.toThrow('Cancel all Stripe subscriptions')
+  })
+
+  it('reconciles a missed terminal webhook against Stripe before deletion', async () => {
+    const { t, userId: ownerId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId: 'cus_missed_terminal',
+      checkoutSessionId: 'cs_missed_terminal',
+      priceId: 'price_test',
+    })
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(Response.json({ object: 'list', data: [], has_more: false }))
+        )
+    )
+    await t.action(internal.stripe.assertNoProviderObligations, { ownerId })
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toMatchObject({
+      status: 'provider_clear',
+    })
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId })
+    ).resolves.toBeNull()
+    await t.mutation(internal.billing.prepareAccountDeletion, { ownerId })
+    await t.mutation(internal.maintenance.deleteUserDataBatch, { userId: ownerId })
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toBeNull()
+  })
+
+  it('accepts the current terminal subscription state when Checkout completion arrives late', async () => {
+    const { t, userId: ownerId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId: 'cus_late_completion',
+      checkoutSessionId: 'cs_late_completion',
+      priceId: 'price_test',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_canceled_before_completion',
+      eventType: 'customer.subscription.deleted',
+      ownerId,
+      stripeCustomerId: 'cus_late_completion',
+      stripeSubscriptionId: 'sub_late_completion',
+      status: 'canceled',
+    })
+    await t.mutation(internal.billing.applyStripeEvent, {
+      eventId: 'evt_late_completion',
+      eventType: 'checkout.session.completed',
+      ownerId,
+      stripeCustomerId: 'cus_late_completion',
+      checkoutSessionId: 'cs_late_completion',
+      stripeSubscriptionId: 'sub_late_completion',
+      status: 'canceled',
+    })
+    await expect(
+      t.query(internal.billing.assertAccountDeletionAllowed, { ownerId })
+    ).resolves.toBeNull()
   })
 
   it('keeps subscription state when a Checkout event arrives late and blocks duplicate Checkout', async () => {

@@ -1,6 +1,6 @@
 # Legal document starter kit
 
-These are editable **drafts**, adapted from the Ujfocim project's legal and operations materials. They are not published policies or legal advice. Keep only modules that match the generated app. Replace every `{{PLACEHOLDER}}`, verify each statement against the deployed product and provider agreements, and obtain local legal/accounting review before publishing or taking payments.
+These are editable **drafts**, adapted from the Ujfocim project's legal and operations materials. They are not published policies or legal advice. Keep only modules that match the generated app. Replace every `[PLACEHOLDER]`, verify each statement against the deployed product and provider agreements, and obtain local legal/accounting review before publishing or taking payments.
 
 ## Start here
 
