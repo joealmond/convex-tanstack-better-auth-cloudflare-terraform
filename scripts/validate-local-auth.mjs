@@ -111,6 +111,8 @@ try {
       '--no-install',
       '--template-dir',
       repository,
+      '--examples',
+      'chat,files',
     ],
     repository
   )

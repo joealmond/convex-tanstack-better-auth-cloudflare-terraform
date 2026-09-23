@@ -594,7 +594,11 @@ function compose(options) {
     remove(options.target, ['convex/seed.ts', 'convex/seed.test.ts'])
     pruneGeneratedApi(options.target, 'seed')
   }
-  if (!options.selectedExamples.includes('chat') || !options.selectedExamples.includes('files')) {
+  if (
+    !['chat', 'files', 'todos', 'ai', 'billing', 'email'].every((feature) =>
+      options.selectedExamples.includes(feature)
+    )
+  ) {
     remove(options.target, ['convex/maintenance.test.ts'])
   }
   if (!options.selectedExamples.includes('chat')) remove(options.target, ['convex/users.test.ts'])
