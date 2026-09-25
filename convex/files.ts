@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values'
-import type { MutationCtx } from './_generated/server'
+import { internalMutation, type MutationCtx } from './_generated/server'
+import { internal } from './_generated/api'
 import { authMutation, authQuery } from './lib/customFunctions'
 import {
   assertWithinStorageQuota,
@@ -159,6 +160,33 @@ export const deleteFile = authMutation({
         totalBytes: Math.max(0, usage.totalBytes - file.size),
         fileCount: Math.max(0, usage.fileCount - 1),
         updatedAt: Date.now(),
+      })
+    }
+  },
+})
+
+// Storage is owned exclusively by `files` in this template. Add other storage
+// references here before introducing another feature that persists blobs.
+export const deleteAbandonedUploads = internalMutation({
+  args: { cursor: v.optional(v.string()), cutoff: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    // Leave a full day for active uploads and metadata registration.
+    const cutoff = args.cutoff ?? Date.now() - 24 * 60 * 60 * 1000
+    const result = await ctx.db.system
+      .query('_storage')
+      .withIndex('by_creation_time', (q) => q.lt('_creationTime', cutoff))
+      .paginate({ cursor: args.cursor ?? null, numItems: 100 })
+    for (const object of result.page) {
+      const registered = await ctx.db
+        .query('files')
+        .withIndex('by_storage', (q) => q.eq('storageId', object._id))
+        .first()
+      if (!registered) await ctx.storage.delete(object._id)
+    }
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.files.deleteAbandonedUploads, {
+        cursor: result.continueCursor,
+        cutoff,
       })
     }
   },

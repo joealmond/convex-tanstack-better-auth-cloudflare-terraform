@@ -11,6 +11,8 @@ handoffs:
 
 # Reviewer Agent
 
+Apply the required Effect policy in the repository's `AGENTS.md` when reviewing application logic and integrations.
+
 You review code for quality, security, and adherence to best practices in this TanStack Start + Convex + Cloudflare Workers stack.
 
 ## Review Checklist

@@ -54,29 +54,40 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
     setUploadProgress('Getting upload URL...')
 
     try {
-      const { uploadUrl, intentId } = await generateUploadUrl()
-
-      setUploadProgress('Uploading file...')
-
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      })
-
-      if (!response.ok) {
-        throw new Error('Upload failed')
-      }
-
-      const { storageId } = uploadResponseSchema.parse(await response.json())
-
-      setUploadProgress('Saving metadata...')
-
-      await saveFile({
-        intentId,
-        storageId,
-        name: file.name,
-      })
+      const Effect = await import('@/lib/effect-runtime')
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const { uploadUrl, intentId } = yield* Effect.tryPromise({
+            try: () => generateUploadUrl(),
+            catch: (error) => error,
+          })
+          yield* Effect.sync(() => setUploadProgress('Uploading file...'))
+          const response = yield* Effect.tryPromise({
+            try: (signal) =>
+              fetch(uploadUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': file.type },
+                body: file,
+                signal,
+              }),
+            catch: (error) => error,
+          })
+          if (!response.ok) return yield* Effect.fail(new Error('Upload failed'))
+          const json: unknown = yield* Effect.tryPromise({
+            try: () => response.json(),
+            catch: (error) => error,
+          })
+          const { storageId } = yield* Effect.trySync({
+            try: () => uploadResponseSchema.parse(json),
+            catch: (error) => error,
+          })
+          yield* Effect.sync(() => setUploadProgress('Saving metadata...'))
+          yield* Effect.tryPromise({
+            try: () => saveFile({ intentId, storageId, name: file.name }),
+            catch: (error) => error,
+          })
+        })
+      )
 
       setUploadProgress('')
       toast.success('File uploaded successfully!')

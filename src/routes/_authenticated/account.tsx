@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useConvex } from 'convex/react'
 import { api } from '@convex/_generated/api'
@@ -13,18 +13,32 @@ function AccountPage() {
   const convex = useConvex()
   const [notice, setNotice] = useState('')
   const [pending, setPending] = useState(false)
+  const exportController = useRef<AbortController | null>(null)
+
+  useEffect(() => () => exportController.current?.abort(), [])
 
   async function downloadData() {
+    const controller = new AbortController()
+    exportController.current = controller
     setPending(true)
     setNotice('Preparing your data export…')
     try {
-      await downloadAccountData(exportKinds, (kind, cursor) =>
-        convex.query(api.userExport.page, { kind, cursor })
+      await downloadAccountData(
+        exportKinds,
+        (kind, cursor) => convex.query(api.userExport.page, { kind, cursor }),
+        { signal: controller.signal }
       )
       setNotice('Your data export is ready.')
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Data export failed')
+      setNotice(
+        controller.signal.aborted
+          ? 'Data export canceled.'
+          : error instanceof Error
+            ? error.message
+            : 'Data export failed'
+      )
     } finally {
+      exportController.current = null
       setPending(false)
     }
   }
@@ -94,6 +108,15 @@ function AccountPage() {
         >
           Download data
         </button>
+        {pending && exportController.current && (
+          <button
+            type="button"
+            onClick={() => exportController.current?.abort()}
+            className="ml-3 rounded border px-4 py-2"
+          >
+            Cancel export
+          </button>
+        )}
       </div>
       <div className="mt-10 border-t pt-6">
         <h2 className="text-xl font-semibold">Delete account</h2>

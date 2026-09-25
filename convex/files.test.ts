@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import { api } from './_generated/api'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { api, internal } from './_generated/api'
 import { createAuthenticatedTest } from './test.utils'
+
+afterEach(() => vi.useRealTimers())
 
 describe('files', () => {
   it('authorizes, records, lists, downloads, and deletes a stored file', async () => {
@@ -53,5 +55,32 @@ describe('files', () => {
     await expect(
       asUser.mutation(api.files.saveFile, { intentId, storageId, name: 'notes.txt' })
     ).rejects.toThrow('Upload authorization expired')
+  })
+})
+
+it('collects abandoned uploads across pages while preserving registered and recent files', async () => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+  const { t, userId } = await createAuthenticatedTest()
+  const ids = await t.run(async (ctx) => {
+    const ids = []
+    for (let i = 0; i < 105; i++) ids.push(await ctx.storage.store(new Blob(['orphan'])))
+    await ctx.db.insert('files', {
+      storageId: ids[0]!,
+      name: 'keep.txt',
+      type: 'text/plain',
+      size: 6,
+      uploadedBy: userId,
+    })
+    return ids
+  })
+  vi.setSystemTime(new Date('2026-01-03T00:00:00Z'))
+  const recent = await t.run((ctx) => ctx.storage.store(new Blob(['in flight'])))
+  await t.mutation(internal.files.deleteAbandonedUploads, {})
+  await t.finishAllScheduledFunctions(vi.runAllTimers)
+  await t.run(async (ctx) => {
+    expect(await ctx.storage.get(ids[0]!)).not.toBeNull()
+    expect(await ctx.storage.get(recent)).not.toBeNull()
+    for (const id of ids.slice(1)) expect(await ctx.storage.get(id)).toBeNull()
   })
 })

@@ -11,6 +11,8 @@ handoffs:
 
 # Architect Agent
 
+Follow the required Effect policy in the repository's `AGENTS.md` when designing application logic and integrations.
+
 You provide architectural guidance for this full-stack application using TanStack Start, Convex, and Cloudflare Workers.
 
 ## Responsibilities

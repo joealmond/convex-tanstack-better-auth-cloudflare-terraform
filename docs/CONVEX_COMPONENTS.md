@@ -50,7 +50,7 @@ Integrates Stripe payments, subscriptions, and billing into your Convex applicat
 Send reliable transactional emails to your users.
 
 - **Use Case**: Welcome emails, password resets, notification digests.
-- **Why it matters**: Encapsulates the Resend SDK and tracks email statuses within Convex.
+- **Why it matters**: Encapsulates Resend delivery with idempotency and tracks email statuses within Convex.
 
 ## 4. Community & UX
 

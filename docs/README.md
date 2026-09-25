@@ -7,6 +7,7 @@ All extended documentation for the template, organized by topic.
 | Topic                | Link                                               |
 | -------------------- | -------------------------------------------------- |
 | Architecture Guide   | [ARCHITECTURE.md](ARCHITECTURE.md)                 |
+| Effect workflows     | [EFFECT.md](EFFECT.md)                             |
 | Product accelerators | [PROJECT_ACCELERATORS.md](PROJECT_ACCELERATORS.md) |
 | Auth Solution        | [AUTH_SOLUTION.md](AUTH_SOLUTION.md)               |
 | Rate Limiting ⚡     | [RATE_LIMITING.md](RATE_LIMITING.md)               |

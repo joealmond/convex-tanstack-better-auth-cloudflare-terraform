@@ -95,3 +95,16 @@ export const markFailed = internalMutation({
     })
   },
 })
+
+export const markUnknown = internalMutation({
+  args: { deliveryId: v.id('emailDeliveries'), ownerId: v.string() },
+  handler: async (ctx, args) => {
+    const delivery = await ctx.db.get(args.deliveryId)
+    if (!delivery || delivery.ownerId !== args.ownerId || delivery.status === 'sent') return
+    await ctx.db.patch(args.deliveryId, {
+      status: 'unknown',
+      error: 'Email delivery status could not be confirmed.',
+      updatedAt: Date.now(),
+    })
+  },
+})

@@ -65,11 +65,11 @@
     "better-auth": "1.6.33",
     "convex": "1.46.0",
     "convex-helpers": "0.1.124",
+    "effect": "3.22.2",
     "lucide-react": "1.47.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "7.88.0",
-    "resend": "6.28.1",
     "sonner": "2.0.8",
     "stripe": "22.6.2",
     "zod": "4.6.5"

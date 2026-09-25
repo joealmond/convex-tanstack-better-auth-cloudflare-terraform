@@ -41,6 +41,7 @@ This template embodies **opinionated simplicity**:
 | **Framework** | TanStack Start     | Modern React SSR with file-based routing      |
 | **Database**  | Convex             | Real-time sync, serverless, TypeScript-native |
 | **Auth**      | Better Auth        | Free, self-hosted, data ownership             |
+| **Logic**     | Effect v3          | Typed workflows for application integrations  |
 | **Edge**      | Cloudflare Workers | Fast, cheap, global edge network              |
 | **Styling**   | Tailwind CSS v4    | Utility-first, zero-runtime                   |
 | **IaC**       | Terraform          | Declarative infrastructure                    |

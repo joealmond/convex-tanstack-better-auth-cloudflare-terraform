@@ -6,6 +6,8 @@ import { components, internal } from './_generated/api'
 import { query } from './_generated/server'
 import type { GenericCtx } from '@convex-dev/better-auth'
 import type { DataModel } from './_generated/dataModel'
+import { Effect } from 'effect'
+import { runEffect } from './lib/runEffect'
 
 // =============================================================================
 // Environment Variable Helpers
@@ -62,7 +64,12 @@ export const authComponent = createClient<DataModel>(components.betterAuth)
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   const sendAuthEmail = async (kind: 'verify' | 'reset' | 'delete', to: string, url: string) => {
     if (!('runAction' in ctx)) throw new Error('Account email requires an HTTP action context')
-    await ctx.runAction(internal.authEmails.send, { kind, to, url })
+    await runEffect(
+      Effect.tryPromise({
+        try: () => ctx.runAction(internal.authEmails.send, { kind, to, url }),
+        catch: (error) => error,
+      })
+    )
   }
   return betterAuth({
     baseURL: envConfig.siteUrl,
@@ -90,12 +97,28 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       deleteUser: {
         enabled: true,
         // <convexkit:billing>
-        beforeDelete: async (user) => {
+        beforeDelete: (user) => {
           if (!('runQuery' in ctx) || !('runAction' in ctx) || !('runMutation' in ctx))
             throw new Error('Account deletion requires an action context')
-          await ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: user.id })
-          await ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: user.id })
-          await ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: user.id })
+          return runEffect(
+            Effect.gen(function* () {
+              yield* Effect.tryPromise({
+                try: () =>
+                  ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: user.id }),
+                catch: (error) => error,
+              })
+              yield* Effect.tryPromise({
+                try: () =>
+                  ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: user.id }),
+                catch: (error) => error,
+              })
+              yield* Effect.tryPromise({
+                try: () =>
+                  ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: user.id }),
+                catch: (error) => error,
+              })
+            })
+          )
         },
         // </convexkit:billing>
         sendDeleteAccountVerification: envConfig.authEmailEnabled
@@ -104,10 +127,16 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         deleteTokenExpiresIn: 60 * 60,
         afterDelete: async (user) => {
           if ('scheduler' in ctx) {
-            await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
-              userId: user.id,
-              email: user.emailVerified ? user.email : undefined,
-            })
+            await runEffect(
+              Effect.tryPromise({
+                try: () =>
+                  ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
+                    userId: user.id,
+                    email: user.emailVerified ? user.email : undefined,
+                  }),
+                catch: (error) => error,
+              })
+            )
           }
         },
       },
@@ -131,11 +160,17 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         create: {
           after: async (user) => {
             if ('scheduler' in ctx) {
-              await ctx.scheduler.runAfter(0, internal.emails.enqueueWelcome, {
-                ownerId: user.id,
-                to: user.email,
-                name: user.name,
-              })
+              await runEffect(
+                Effect.tryPromise({
+                  try: () =>
+                    ctx.scheduler.runAfter(0, internal.emails.enqueueWelcome, {
+                      ownerId: user.id,
+                      to: user.email,
+                      name: user.name,
+                    }),
+                  catch: (error) => error,
+                })
+              )
             }
           },
         },

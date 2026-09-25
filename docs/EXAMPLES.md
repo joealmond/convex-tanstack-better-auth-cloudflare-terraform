@@ -36,8 +36,9 @@ optimistic completion mutation that rolls back on failure.
 
 ## AI Streaming
 
-AI streaming uses a Convex action to consume the OpenAI Responses API SSE stream, batches deltas
-into persisted output, and lets subscriptions update the UI without exposing the API key.
+AI streaming uses a Convex action to consume the OpenAI Responses API SSE stream. Effect owns its
+deadline and cancellation; the action batches deltas into persisted output, and subscriptions
+update the UI without exposing the API key.
 
 ## Stripe Billing
 
@@ -46,5 +47,5 @@ sessions, raw-body webhook verification, event idempotency, and realtime subscri
 
 ## Transactional Email
 
-Email demonstrates a Better Auth post-create hook, scheduled Resend action, escaped HTML, and
-persisted queued/sent/error delivery status.
+Email demonstrates a Better Auth post-create hook, scheduled Resend action, escaped HTML, stable
+idempotency keys, bounded transient retries, and queued/sent/error/unknown delivery status.

@@ -2,6 +2,8 @@
 
 Best practices for working with AI coding assistants (GitHub Copilot, Claude, Cursor, etc.) on this codebase.
 
+Follow the mandatory Effect rules in the root `AGENTS.md` and the version-matched reference in [EFFECT.md](EFFECT.md).
+
 ## 🎯 Quick Reference: Copy-Paste Prompts
 
 Use these prompts when asking AI to generate code for this project:

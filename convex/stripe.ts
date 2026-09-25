@@ -1,18 +1,32 @@
 import Stripe from 'stripe'
 import { ConvexError } from 'convex/values'
 import { v } from 'convex/values'
+import { Effect } from 'effect'
 import { internal } from './_generated/api'
 import { canStillCharge, isTerminalStripeSubscription } from './billing'
 import { httpAction } from './_generated/server'
 import { authAction, internalAction } from './lib/customFunctions'
 import { rateLimiter } from './lib/services/rateLimitService'
+import { runEffect } from './lib/runEffect'
 
 const MAX_WEBHOOK_BYTES = 1_000_000
+const WEBHOOK_BODY_TIMEOUT_MS = 10_000
+const STRIPE_REQUEST_TIMEOUT_MS = 30_000
+const PROVIDER_CHECK_TIMEOUT_MS = 45_000
+
+class WebhookBodyTimeoutError extends Error {}
+
+function stripeRequest<A>(request: () => Promise<A>) {
+  return runEffect(Effect.tryPromise({ try: request, catch: (error) => error }))
+}
 
 function createStripeClient() {
   const secret = process.env.STRIPE_SECRET_KEY
   if (!secret) throw new ConvexError('STRIPE_SECRET_KEY is not configured')
-  return new Stripe(secret, { httpClient: Stripe.createFetchHttpClient() })
+  return new Stripe(secret, {
+    httpClient: Stripe.createFetchHttpClient(),
+    timeout: STRIPE_REQUEST_TIMEOUT_MS,
+  })
 }
 
 function publicSiteUrl() {
@@ -40,40 +54,65 @@ export const assertNoProviderObligations = internalAction({
     const customerId = billing?.stripeCustomerId ?? tombstone?.stripeCustomerId
     if (!customerId) return
     const stripe = createStripeClient()
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: 'all',
-      limit: 100,
-    })
-    if (
-      subscriptions.has_more ||
-      subscriptions.data.some((subscription) => !isTerminalStripeSubscription(subscription.status))
-    ) {
-      throw new ConvexError('Cancel all Stripe subscriptions before deleting this account')
-    }
-    const openCheckouts = await stripe.checkout.sessions.list({
-      customer: customerId,
-      status: 'open',
-      limit: 1,
-    })
-    if (openCheckouts.data.length || openCheckouts.has_more)
-      throw new ConvexError('Wait for open Stripe Checkout sessions to expire before deletion')
-    if (billing?.checkoutSessionId && canStillCharge(billing)) {
-      // The session may have completed between the subscription and open-session lists.
-      const session = await stripe.checkout.sessions.retrieve(billing.checkoutSessionId)
-      if (session.status === 'open')
-        throw new ConvexError('Wait for open Stripe Checkout sessions to expire before deletion')
-      if (session.status === 'complete') {
-        const subscriptionId = id(session.subscription)
-        if (!subscriptionId)
-          throw new ConvexError('Stripe Checkout completion is not reconciled yet')
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-        if (!isTerminalStripeSubscription(subscription.status))
-          throw new ConvexError('Cancel all Stripe subscriptions before deleting this account')
-      } else if (session.status !== 'expired') {
-        throw new ConvexError('Stripe Checkout status is not reconciled yet')
-      }
-    }
+    await runEffect(
+      Effect.tryPromise({
+        try: async (signal) => {
+          const subscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'all',
+            limit: 100,
+          })
+          signal.throwIfAborted()
+          if (
+            subscriptions.has_more ||
+            subscriptions.data.some(
+              (subscription) => !isTerminalStripeSubscription(subscription.status)
+            )
+          ) {
+            throw new ConvexError('Cancel all Stripe subscriptions before deleting this account')
+          }
+          const openCheckouts = await stripe.checkout.sessions.list({
+            customer: customerId,
+            status: 'open',
+            limit: 1,
+          })
+          signal.throwIfAborted()
+          if (openCheckouts.data.length || openCheckouts.has_more)
+            throw new ConvexError(
+              'Wait for open Stripe Checkout sessions to expire before deletion'
+            )
+          if (billing?.checkoutSessionId && canStillCharge(billing)) {
+            // The session may have completed between the subscription and open-session lists.
+            const session = await stripe.checkout.sessions.retrieve(billing.checkoutSessionId)
+            signal.throwIfAborted()
+            if (session.status === 'open')
+              throw new ConvexError(
+                'Wait for open Stripe Checkout sessions to expire before deletion'
+              )
+            if (session.status === 'complete') {
+              const subscriptionId = id(session.subscription)
+              if (!subscriptionId)
+                throw new ConvexError('Stripe Checkout completion is not reconciled yet')
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+              signal.throwIfAborted()
+              if (!isTerminalStripeSubscription(subscription.status))
+                throw new ConvexError(
+                  'Cancel all Stripe subscriptions before deleting this account'
+                )
+            } else if (session.status !== 'expired') {
+              throw new ConvexError('Stripe Checkout status is not reconciled yet')
+            }
+          }
+        },
+        catch: (error) => error,
+      }).pipe(
+        Effect.timeoutFail({
+          duration: PROVIDER_CHECK_TIMEOUT_MS,
+          onTimeout: () =>
+            new ConvexError('Unable to confirm Stripe billing status; retry deletion'),
+        })
+      )
+    )
     if (billing && canStillCharge(billing))
       await ctx.runMutation(internal.billing.markProviderClear, {
         ownerId,
@@ -86,7 +125,7 @@ export const assertNoProviderObligations = internalAction({
 
 export const createCheckout = authAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ url: string }> => {
     const priceId = process.env.STRIPE_PRICE_ID
     const siteUrl = publicSiteUrl()
     if (!priceId || !/^price_[a-zA-Z0-9]+$/.test(priceId)) {
@@ -107,25 +146,29 @@ export const createCheckout = authAction({
     const stripe = createStripeClient()
     let customerId = existing?.stripeCustomerId
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: ctx.user.email,
-        name: ctx.user.name,
-        metadata: { userId: ctx.userId },
-      })
+      const customer = await stripeRequest(() =>
+        stripe.customers.create({
+          email: ctx.user.email,
+          name: ctx.user.name,
+          metadata: { userId: ctx.userId },
+        })
+      )
       customerId = customer.id
     }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
-      allow_promotion_codes: true,
-      client_reference_id: ctx.userId,
-      metadata: { userId: ctx.userId },
-      subscription_data: { metadata: { userId: ctx.userId } },
-      success_url: `${siteUrl}/examples/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/examples/billing?checkout=cancelled`,
-    })
+    const session = await stripeRequest(() =>
+      stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer: customerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        allow_promotion_codes: true,
+        client_reference_id: ctx.userId,
+        metadata: { userId: ctx.userId },
+        subscription_data: { metadata: { userId: ctx.userId } },
+        success_url: `${siteUrl}/examples/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${siteUrl}/examples/billing?checkout=cancelled`,
+      })
+    )
     if (!session.url) throw new ConvexError('Stripe did not return a Checkout URL')
 
     await ctx.runMutation(internal.billing.saveCheckout, {
@@ -140,33 +183,55 @@ export const createCheckout = authAction({
 
 export const createPortal = authAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ url: string }> => {
     const siteUrl = publicSiteUrl()
     await rateLimiter.limit(ctx, 'stripeSession', { key: ctx.userId, throws: true })
     const billing = await ctx.runQuery(internal.billing.getByOwner, { ownerId: ctx.userId })
     if (!billing?.stripeCustomerId) throw new ConvexError('No Stripe customer exists yet')
-    const session = await createStripeClient().billingPortal.sessions.create({
-      customer: billing.stripeCustomerId,
-      return_url: `${siteUrl}/examples/billing`,
-    })
+    const session = await stripeRequest(() =>
+      createStripeClient().billingPortal.sessions.create({
+        customer: billing.stripeCustomerId,
+        return_url: `${siteUrl}/examples/billing`,
+      })
+    )
     return { url: session.url }
   },
 })
 
-async function readBoundedBody(request: Request) {
-  if (!request.body) return ''
+function readBoundedBody(request: Request) {
+  if (!request.body) return Promise.resolve('')
   const reader = request.body.getReader()
-  const decoder = new TextDecoder()
-  let size = 0
-  let body = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    size += value.byteLength
-    if (size > MAX_WEBHOOK_BYTES) throw new Error('Webhook payload is too large')
-    body += decoder.decode(value, { stream: true })
-  }
-  return body + decoder.decode()
+  return runEffect(
+    Effect.tryPromise({
+      try: async (signal) => {
+        const decoder = new TextDecoder()
+        let size = 0
+        let body = ''
+        const cancel = () => void reader.cancel().catch(() => {})
+        signal.addEventListener('abort', cancel, { once: true })
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            size += value.byteLength
+            if (size > MAX_WEBHOOK_BYTES) throw new Error('Webhook payload is too large')
+            body += decoder.decode(value, { stream: true })
+          }
+          return body + decoder.decode()
+        } finally {
+          signal.removeEventListener('abort', cancel)
+          await reader.cancel().catch(() => {})
+          reader.releaseLock()
+        }
+      },
+      catch: (error) => error,
+    }).pipe(
+      Effect.timeoutFail({
+        duration: WEBHOOK_BODY_TIMEOUT_MS,
+        onTimeout: () => new WebhookBodyTimeoutError('Webhook body read timed out'),
+      })
+    )
+  )
 }
 
 function id(value: string | { id: string } | null) {
@@ -182,12 +247,14 @@ export const webhook = httpAction(async (ctx, request) => {
   try {
     const payload = await readBoundedBody(request)
     const stripe = createStripeClient()
-    const event = await stripe.webhooks.constructEventAsync(
-      payload,
-      signature,
-      webhookSecret,
-      undefined,
-      Stripe.createSubtleCryptoProvider()
+    const event = await stripeRequest(() =>
+      stripe.webhooks.constructEventAsync(
+        payload,
+        signature,
+        webhookSecret,
+        undefined,
+        Stripe.createSubtleCryptoProvider()
+      )
     )
 
     if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.expired') {
@@ -197,7 +264,7 @@ export const webhook = httpAction(async (ctx, request) => {
         const subscriptionId = id(session.subscription)
         const subscription =
           event.type === 'checkout.session.completed' && subscriptionId
-            ? await stripe.subscriptions.retrieve(subscriptionId)
+            ? await stripeRequest(() => stripe.subscriptions.retrieve(subscriptionId))
             : null
         await ctx.runMutation(internal.billing.applyStripeEvent, {
           eventId: event.id,
@@ -248,6 +315,8 @@ export const webhook = httpAction(async (ctx, request) => {
         error: error instanceof Error ? error.message : String(error),
       })
     )
-    return new Response('Invalid webhook', { status: 400 })
+    return error instanceof WebhookBodyTimeoutError
+      ? new Response('Webhook request timed out', { status: 503 })
+      : new Response('Invalid webhook', { status: 400 })
   }
 })

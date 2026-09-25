@@ -68,6 +68,77 @@ describe('optional integrations', () => {
     ])
   })
 
+  it('aborts a stalled AI request and records a timeout', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    const aborted = vi.fn()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url, options: RequestInit) => {
+        options.signal?.addEventListener('abort', aborted)
+        return new Promise<Response>(() => {})
+      })
+    )
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const runId = await asUser.mutation(api.ai.start, { prompt: 'wait' })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(aborted).toHaveBeenCalledOnce()
+    expect(await asUser.query(api.ai.listRecent)).toMatchObject([
+      { status: 'error', error: expect.stringContaining('timed out') },
+    ])
+    await t.mutation(internal.ai.appendOutput, {
+      runId,
+      ownerId: userId,
+      chunk: 'late',
+      model: 'test',
+    })
+    expect(await asUser.query(api.ai.listRecent)).toMatchObject([{ status: 'error', output: '' }])
+  })
+
+  it('cancels malformed AI streams and records the parse error', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    const cancel = vi.fn()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {broken}\n\n'))
+      },
+      cancel,
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream)))
+    const { t, asUser } = await createAuthenticatedTest()
+    await asUser.mutation(api.ai.start, { prompt: 'parse' })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(await asUser.query(api.ai.listRecent)).toMatchObject([
+      { status: 'error', error: expect.stringContaining('JSON') },
+    ])
+  })
+
+  it('stops and cancels an AI stream at the output limit', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    const cancel = vi.fn()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: 'x'.repeat(17_000) })}\n\n`
+          )
+        )
+      },
+      cancel,
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream)))
+    const { t, asUser } = await createAuthenticatedTest()
+    await asUser.mutation(api.ai.start, { prompt: 'long' })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    const [run] = await asUser.query(api.ai.listRecent)
+    expect(run).toMatchObject({ status: 'completed' })
+    expect(run?.output).toHaveLength(16_000)
+    expect(cancel).toHaveBeenCalledOnce()
+  })
+
   it('deduplicates welcome mail, escapes HTML, and records delivery ownership', async () => {
     vi.useFakeTimers()
     vi.stubEnv('RESEND_API_KEY', 're_test_only')
@@ -83,6 +154,9 @@ describe('optional integrations', () => {
     ])
     const body = JSON.parse(request.mock.calls[0]![1].body as string)
     expect(body.html).toContain('&lt;Ada &amp; &quot;friends&quot;&gt;')
+    expect(new Headers(request.mock.calls[0]![1].headers).get('Idempotency-Key')).toBe(
+      `convexkit/email-delivery/${deliveryId}`
+    )
     await t.mutation(internal.emails.markFailed, {
       deliveryId,
       ownerId: 'another-user',
@@ -93,6 +167,8 @@ describe('optional integrations', () => {
       ownerId: 'another-user',
       providerId: 'wrong owner',
     })
+    await t.mutation(internal.emails.markUnknown, { deliveryId, ownerId: 'another-user' })
+    await t.mutation(internal.emails.markUnknown, { deliveryId, ownerId: userId })
     expect(await asUser.query(api.emails.listMine)).toMatchObject([
       { status: 'sent', providerId: 'email_test' },
     ])
@@ -101,23 +177,120 @@ describe('optional integrations', () => {
   it('records a failed email provider response', async () => {
     vi.useFakeTimers()
     vi.stubEnv('RESEND_API_KEY', 're_test_only')
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          Response.json(
-            { name: 'validation_error', message: 'Invalid sender', statusCode: 422 },
-            { status: 422 }
-          )
+    const request = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          { name: 'validation_error', message: 'Invalid sender', statusCode: 422 },
+          { status: 422 }
         )
-    )
+      )
+    vi.stubGlobal('fetch', request)
     const { t, asUser } = await createAuthenticatedTest()
     await asUser.mutation(api.emails.requestTest)
     await t.finishAllScheduledFunctions(vi.runAllTimers)
     expect(await asUser.query(api.emails.listMine)).toMatchObject([
       { status: 'error', error: 'Invalid sender' },
     ])
+    expect(request).toHaveBeenCalledOnce()
+  })
+
+  it('does not retry a mismatched Resend idempotency request', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('RESEND_API_KEY', 're_test_only')
+    const request = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          { name: 'invalid_idempotent_request', message: 'Payload changed', statusCode: 409 },
+          { status: 409 }
+        )
+      )
+    vi.stubGlobal('fetch', request)
+    const { t, asUser } = await createAuthenticatedTest()
+    await asUser.mutation(api.emails.requestTest)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(request).toHaveBeenCalledOnce()
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([
+      { status: 'error', error: 'Payload changed' },
+    ])
+  })
+
+  it.each([
+    [503, 'internal_server_error'],
+    [429, 'rate_limit_exceeded'],
+    [409, 'concurrent_idempotent_requests'],
+  ])('retries transient Resend %i with the same key', async (status, name) => {
+    vi.useFakeTimers()
+    vi.stubEnv('RESEND_API_KEY', 're_test_only')
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ name, message: 'Try again', statusCode: status }, { status })
+      )
+      .mockResolvedValueOnce(Response.json({ id: 'email_recovered' }))
+    vi.stubGlobal('fetch', request)
+    const { t, asUser } = await createAuthenticatedTest()
+    const deliveryId = await asUser.mutation(api.emails.requestTest)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(request).toHaveBeenCalledTimes(2)
+    for (const [, options] of request.mock.calls) {
+      expect(new Headers(options.headers).get('Idempotency-Key')).toBe(
+        `convexkit/email-delivery/${deliveryId}`
+      )
+    }
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([
+      { status: 'sent', providerId: 'email_recovered' },
+    ])
+  })
+
+  it('marks delivery unknown after three network failures', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('RESEND_API_KEY', 're_test_only')
+    const request = vi.fn().mockRejectedValue(new Error('connection lost'))
+    vi.stubGlobal('fetch', request)
+    const { t, asUser } = await createAuthenticatedTest()
+    await asUser.mutation(api.emails.requestTest)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(request).toHaveBeenCalledTimes(3)
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([
+      { status: 'unknown', error: 'Email delivery status could not be confirmed.' },
+    ])
+  })
+
+  it('keeps delivery unknown after repeated provider request timeouts', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('RESEND_API_KEY', 're_test_only')
+    const request = vi
+      .fn()
+      .mockImplementation(async () => Response.json({ name: 'request_timeout' }, { status: 408 }))
+    vi.stubGlobal('fetch', request)
+    const { t, asUser } = await createAuthenticatedTest()
+    await asUser.mutation(api.emails.requestTest)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(request).toHaveBeenCalledTimes(3)
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([
+      { status: 'unknown', error: 'Email delivery status could not be confirmed.' },
+    ])
+  })
+
+  it('aborts and bounds stalled Resend attempts', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('RESEND_API_KEY', 're_test_only')
+    const aborted = vi.fn()
+    const request = vi.fn(
+      (_url, options: RequestInit) =>
+        new Promise<Response>(() => {
+          options.signal?.addEventListener('abort', aborted)
+        })
+    )
+    vi.stubGlobal('fetch', request)
+    const { t, asUser } = await createAuthenticatedTest()
+    await asUser.mutation(api.emails.requestTest)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(request).toHaveBeenCalledTimes(3)
+    expect(aborted).toHaveBeenCalledTimes(3)
+    expect(await asUser.query(api.emails.listMine)).toMatchObject([{ status: 'unknown' }])
   })
 
   it('keeps pending checkout records and resolves webhook owners by customer ID', async () => {
@@ -493,6 +666,47 @@ describe('optional integrations', () => {
     ).rejects.toThrow('Cancel all Stripe subscriptions')
   })
 
+  it('bounds the total Stripe deletion check and never clears billing after timeout', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test')
+    const { t, userId: ownerId } = await createAuthenticatedTest()
+    await t.mutation(internal.billing.saveCheckout, {
+      ownerId,
+      stripeCustomerId: 'cus_slow_check',
+      checkoutSessionId: 'cs_slow_check',
+      priceId: 'price_test',
+    })
+    let responses = 0
+    const request = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(
+            () =>
+              resolve(
+                Response.json(
+                  responses++ < 2
+                    ? { object: 'list', data: [], has_more: false }
+                    : { object: 'checkout.session', id: 'cs_slow_check', status: 'expired' }
+                )
+              ),
+            25_000
+          )
+        })
+    )
+    vi.stubGlobal('fetch', request)
+    const result = t.action(internal.stripe.assertNoProviderObligations, { ownerId }).then(
+      () => null,
+      (error: unknown) => error
+    )
+    await vi.advanceTimersByTimeAsync(45_000)
+    expect(String(await result)).toContain('Unable to confirm Stripe billing status')
+    await vi.advanceTimersByTimeAsync(35_000)
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(await t.query(internal.billing.getByOwner, { ownerId })).toMatchObject({
+      status: 'checkout_pending',
+    })
+  })
+
   it('reconciles a missed terminal webhook against Stripe before deletion', async () => {
     const { t, userId: ownerId } = await createAuthenticatedTest()
     await t.mutation(internal.billing.saveCheckout, {
@@ -715,5 +929,28 @@ describe('optional integrations', () => {
     await expect(asUser.action(api.stripe.createCheckout)).rejects.toThrow('STRIPE_PRICE_ID')
     const response = await t.fetch('/api/stripe/webhook', { method: 'POST', body: '{}' })
     expect(response.status).toBe(400)
+  })
+
+  it('cancels a Stripe webhook body that never finishes', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test')
+    const cancel = vi.fn()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{'))
+      },
+      cancel,
+    })
+    const { t } = await createAuthenticatedTest()
+    const responsePromise = t.fetch('/api/stripe/webhook', {
+      method: 'POST',
+      headers: { 'stripe-signature': 't=0,v1=invalid' },
+      body,
+      duplex: 'half',
+    } as RequestInit)
+    await vi.advanceTimersByTimeAsync(10_000)
+    const response = await responsePromise
+    expect(response.status).toBe(503)
+    expect(cancel).toHaveBeenCalledOnce()
   })
 })

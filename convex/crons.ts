@@ -9,4 +9,13 @@ crons.daily(
   internal.maintenance.deleteExpiredData
 )
 
+// <convexkit:files>
+crons.hourly(
+  'delete abandoned uploads',
+  { minuteUTC: 30 },
+  internal.files.deleteAbandonedUploads,
+  {}
+)
+// </convexkit:files>
+
 export default crons

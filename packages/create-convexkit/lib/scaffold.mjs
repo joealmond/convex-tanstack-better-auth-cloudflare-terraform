@@ -538,7 +538,6 @@ function compose(options) {
     'coverage',
     'output',
     '.github',
-    'AGENTS.md',
     'CHANGELOG.md',
     'CODE_OF_CONDUCT.md',
     'CONTRIBUTING.md',
@@ -599,6 +598,7 @@ function compose(options) {
     replaceFeatureBlock(join(options.target, 'convex/users.test.ts'), feature)
     replaceFeatureBlock(join(options.target, 'src/routes/_authenticated/account.tsx'), feature)
     replaceFeatureBlock(join(options.target, 'convex/http.ts'), feature)
+    replaceFeatureBlock(join(options.target, 'convex/crons.ts'), feature)
     replaceFeatureBlock(join(options.target, 'convex/userExport.ts'), feature)
     replaceFeatureBlock(
       join(options.target, 'src/components/examples/RealtimeChatExample.tsx'),
@@ -779,6 +779,7 @@ async function formatGeneratedFiles(target) {
     'convex/users.test.ts',
     'convex/http.ts',
     'convex/maintenance.ts',
+    'convex/crons.ts',
     'convex/userExport.ts',
     'src/components/examples/RealtimeChatExample.tsx',
     'src/routes/examples.index.tsx',

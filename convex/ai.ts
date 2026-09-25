@@ -1,8 +1,10 @@
 import { ConvexError, v } from 'convex/values'
+import { Effect } from 'effect'
 import { internal } from './_generated/api'
 import { internalAction } from './_generated/server'
 import { authMutation, authQuery, internalMutation } from './lib/customFunctions'
 import { rateLimiter } from './lib/services/rateLimitService'
+import { runEffect } from './lib/runEffect'
 
 const MAX_PROMPT_LENGTH = 1_000
 const MAX_OUTPUT_LENGTH = 16_000
@@ -56,7 +58,8 @@ export const appendOutput = internalMutation({
   },
   handler: async (ctx, { runId, ownerId, chunk, model }) => {
     const run = await ctx.db.get(runId)
-    if (!run || run.ownerId !== ownerId || run.status === 'completed') return
+    if (!run || run.ownerId !== ownerId || run.status === 'completed' || run.status === 'error')
+      return
     await ctx.db.patch(runId, {
       output: `${run.output}${chunk}`.slice(0, MAX_OUTPUT_LENGTH),
       status: 'streaming',
@@ -107,84 +110,98 @@ export const generate = internalAction({
     }
 
     try {
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          input: [
-            {
-              role: 'developer',
-              content: 'Answer clearly and concisely. Use Markdown when it improves readability.',
-            },
-            { role: 'user', content: prompt },
-          ],
-          max_output_tokens: 1_000,
-          stream: true,
-        }),
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-      })
+      await runEffect(
+        Effect.tryPromise({
+          try: async (signal) => {
+            const response = await fetch('https://api.openai.com/v1/responses', {
+              method: 'POST',
+              headers: {
+                authorization: `Bearer ${apiKey}`,
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({
+                model,
+                input: [
+                  {
+                    role: 'developer',
+                    content:
+                      'Answer clearly and concisely. Use Markdown when it improves readability.',
+                  },
+                  { role: 'user', content: prompt },
+                ],
+                max_output_tokens: 1_000,
+                stream: true,
+              }),
+              signal,
+            })
 
-      if (!response.ok || !response.body) {
-        await response.body?.cancel()
-        throw new Error(`OpenAI request failed with status ${response.status}`)
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let pendingChunk = ''
-      let outputLength = 0
-
-      const flush = async () => {
-        if (!pendingChunk) return
-        const chunk = pendingChunk
-        pendingChunk = ''
-        await ctx.runMutation(internal.ai.appendOutput, { runId, ownerId, chunk, model })
-      }
-
-      while (true) {
-        const { done, value } = await reader.read()
-        buffer += decoder.decode(value, { stream: !done })
-        if (buffer.length > MAX_SSE_BUFFER_LENGTH) {
-          throw new Error('OpenAI stream event exceeded the safe buffer limit')
-        }
-        const events = buffer.split('\n\n')
-        buffer = events.pop() ?? ''
-
-        for (const event of events) {
-          for (const line of event.split('\n')) {
-            if (!line.startsWith('data:')) continue
-            const data = line.slice(5).trim()
-            if (!data || data === '[DONE]') continue
-            const parsed: unknown = JSON.parse(data)
-            if (
-              typeof parsed === 'object' &&
-              parsed !== null &&
-              'type' in parsed &&
-              parsed.type === 'response.output_text.delta' &&
-              'delta' in parsed &&
-              typeof parsed.delta === 'string'
-            ) {
-              const remaining = MAX_OUTPUT_LENGTH - outputLength
-              if (remaining <= 0) {
-                await reader.cancel()
-                break
-              }
-              const delta = parsed.delta.slice(0, remaining)
-              pendingChunk += delta
-              outputLength += delta.length
-              if (pendingChunk.length >= 80) await flush()
+            if (!response.ok || !response.body) {
+              await response.body?.cancel()
+              throw new Error(`OpenAI request failed with status ${response.status}`)
             }
-          }
-        }
-        if (done) break
-      }
 
-      await flush()
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+            let pendingChunk = ''
+            let outputLength = 0
+
+            const flush = async () => {
+              if (!pendingChunk) return
+              const chunk = pendingChunk
+              pendingChunk = ''
+              await ctx.runMutation(internal.ai.appendOutput, { runId, ownerId, chunk, model })
+            }
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read()
+                buffer += decoder.decode(value, { stream: !done })
+                if (buffer.length > MAX_SSE_BUFFER_LENGTH) {
+                  throw new Error('OpenAI stream event exceeded the safe buffer limit')
+                }
+                const events = buffer.split('\n\n')
+                buffer = events.pop() ?? ''
+
+                for (const event of events) {
+                  for (const line of event.split('\n')) {
+                    if (!line.startsWith('data:')) continue
+                    const data = line.slice(5).trim()
+                    if (!data || data === '[DONE]') continue
+                    const parsed: unknown = JSON.parse(data)
+                    if (
+                      typeof parsed === 'object' &&
+                      parsed !== null &&
+                      'type' in parsed &&
+                      parsed.type === 'response.output_text.delta' &&
+                      'delta' in parsed &&
+                      typeof parsed.delta === 'string'
+                    ) {
+                      const remaining = MAX_OUTPUT_LENGTH - outputLength
+                      if (remaining <= 0) return
+                      const delta = parsed.delta.slice(0, remaining)
+                      pendingChunk += delta
+                      outputLength += delta.length
+                      if (pendingChunk.length >= 80) await flush()
+                      if (outputLength >= MAX_OUTPUT_LENGTH) {
+                        await flush()
+                        return
+                      }
+                    }
+                  }
+                }
+                if (done) break
+              }
+
+              await flush()
+            } finally {
+              await reader.cancel().catch(() => {})
+              reader.releaseLock()
+            }
+          },
+          catch: (error) => error,
+        }).pipe(Effect.timeout(PROVIDER_TIMEOUT_MS))
+      )
       await ctx.runMutation(internal.ai.finish, { runId, ownerId, model })
     } catch (error) {
       await ctx.runMutation(internal.ai.fail, {

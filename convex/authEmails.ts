@@ -1,5 +1,7 @@
 import { v } from 'convex/values'
+import { Effect } from 'effect'
 import { internalAction } from './_generated/server'
+import { runEffect } from './lib/runEffect'
 
 const messages = {
   verify: ['Verify your email address', 'Verify your email address'],
@@ -34,12 +36,19 @@ export const send = internalAction({
     const [subject, prompt] = messages[kind]
     const text = `${prompt}: ${url}\n\nIf you did not request this, you can ignore this email.`
     const html = `<p>${prompt}:</p><p><a href="${escapeHtml(url)}">Continue</a></p><p>If you did not request this, you can ignore this email.</p>`
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to, subject, text, html }),
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!response.ok) throw new Error('Account email delivery failed')
+    await runEffect(
+      Effect.tryPromise({
+        try: async (signal) => {
+          const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from, to, subject, text, html }),
+            signal,
+          })
+          if (!response.ok) throw new Error('Account email delivery failed')
+        },
+        catch: (error) => error,
+      }).pipe(Effect.timeout(10_000))
+    )
   },
 })

@@ -28,8 +28,10 @@
 
 import { internal } from './_generated/api'
 import { v } from 'convex/values'
+import { Effect } from 'effect'
 import { authAction, authMutation, internalMutation, publicQuery } from './lib/customFunctions'
 import { getAuthUserSafe, isAdmin as checkIsAdmin } from './lib/authHelpers'
+import { runEffect } from './lib/runEffect'
 
 /**
  * Get the current authenticated user.
@@ -81,15 +83,34 @@ export const queueAccountCleanup = internalMutation({
 /** Guard provider obligations, then queue application cleanup before Clerk deletes identity. */
 export const prepareAccountDeletion = authAction({
   args: {},
-  handler: async (ctx) => {
-    // <convexkit:billing>
-    await ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: ctx.userId })
-    await ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: ctx.userId })
-    await ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: ctx.userId })
-    // </convexkit:billing>
-    await ctx.runMutation(internal.users.queueAccountCleanup, {
-      userId: ctx.userId,
-      email: ctx.user.emailVerified ? ctx.user.email : undefined,
-    })
-  },
+  handler: (ctx): Promise<void> =>
+    runEffect(
+      Effect.gen(function* () {
+        // <convexkit:billing>
+        yield* Effect.tryPromise({
+          try: () =>
+            ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: ctx.userId }),
+          catch: (error) => error,
+        })
+        yield* Effect.tryPromise({
+          try: () =>
+            ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: ctx.userId }),
+          catch: (error) => error,
+        })
+        yield* Effect.tryPromise({
+          try: () =>
+            ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: ctx.userId }),
+          catch: (error) => error,
+        })
+        // </convexkit:billing>
+        yield* Effect.tryPromise({
+          try: () =>
+            ctx.runMutation(internal.users.queueAccountCleanup, {
+              userId: ctx.userId,
+              email: ctx.user.emailVerified ? ctx.user.email : undefined,
+            }),
+          catch: (error) => error,
+        })
+      })
+    ),
 })

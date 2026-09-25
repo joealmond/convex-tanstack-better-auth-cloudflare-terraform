@@ -1,5 +1,7 @@
 # Convex + TanStack Start + Cloudflare Workers
 
+Read and follow the required Effect policy in the repository's `AGENTS.md` before changing application logic or integrations.
+
 This template provides a modern, production-ready full-stack application with real-time data sync, edge deployment, and type-safe development.
 
 ## Stack Overview

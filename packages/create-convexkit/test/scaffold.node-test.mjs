@@ -40,10 +40,11 @@ test('creates the default Better Auth + Cloudflare application', () => {
     )
     assert.equal(existsSync(join(target, 'infrastructure')), false)
     assert.equal(existsSync(join(target, 'convex/todos.ts')), false)
+    assert.doesNotMatch(readFileSync(join(target, 'convex/crons.ts'), 'utf8'), /internal\.files/)
     assert.equal(existsSync(join(target, 'packages/create-convexkit')), false)
     assert.equal(existsSync(join(target, 'ROADMAP.md')), false)
     assert.equal(existsSync(join(target, 'CONTRIBUTING.md')), false)
-    assert.equal(existsSync(join(target, 'AGENTS.md')), false)
+    assert.match(readFileSync(join(target, 'AGENTS.md'), 'utf8'), /Effect \(required\)/)
     assert.equal(existsSync(join(target, '.github/workflows/ci.yml')), true)
     assert.equal(existsSync(join(target, 'docs/index.md')), false)
     assert.match(readFileSync(join(target, 'docs/README.md'), 'utf8'), /app documentation/)
@@ -74,6 +75,7 @@ test('creates the default Better Auth + Cloudflare application', () => {
         deployWorkflow.indexOf('Set deployed app URL on Convex')
     )
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8'))
+    assert.equal(pkg.dependencies.effect, '3.22.2')
     for (const [, script] of deployWorkflow.matchAll(/npm run ([\w:-]+)/g))
       assert.equal(
         typeof pkg.scripts[script],
@@ -314,6 +316,22 @@ test('generated account cleanup covers every selected owner-scoped example', () 
     for (const table of ['todos', 'aiRuns', 'emailDeliveries', 'billingSubscriptions'])
       assert.match(maintenance, new RegExp(`query\\('${table}'\\)`))
     assert.match(maintenance, /billingDeletionTombstones/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('generated file example schedules orphan cleanup', () => {
+  const { root, target } = scaffold(['--examples', 'files'])
+  try {
+    assert.match(
+      readFileSync(join(target, 'convex/crons.ts'), 'utf8'),
+      /internal\.files\.deleteAbandonedUploads/
+    )
+    assert.match(
+      readFileSync(join(target, 'convex/files.ts'), 'utf8'),
+      /export const deleteAbandonedUploads/
+    )
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

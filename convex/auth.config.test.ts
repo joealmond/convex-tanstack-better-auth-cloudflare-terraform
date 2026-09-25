@@ -22,7 +22,7 @@ it('enables verification, reset, and deletion mail with complete server configur
   vi.stubEnv('RESEND_API_KEY', 're_test_only')
   vi.stubEnv('AUTH_EMAIL_FROM', 'App <auth@example.com>')
   const { createAuth } = await import('./auth')
-  const runAction = vi.fn()
+  const runAction = vi.fn().mockResolvedValue(undefined)
   const auth = createAuth({ runAction } as never)
   expect(auth.options.emailAndPassword?.requireEmailVerification).toBe(true)
   expect(auth.options.emailAndPassword?.revokeSessionsOnPasswordReset).toBe(true)
@@ -52,7 +52,7 @@ it('enables verification, reset, and deletion mail with complete server configur
 it('passes an email to account cleanup only after mailbox verification', async () => {
   vi.stubEnv('AUTH_EMAIL_PROVIDER', 'disabled')
   const { createAuth } = await import('./auth')
-  const runAfter = vi.fn()
+  const runAfter = vi.fn().mockResolvedValue(undefined)
   const auth = createAuth({ scheduler: { runAfter } } as never)
   const afterDelete = auth.options.user?.deleteUser?.afterDelete
   await afterDelete?.({ id: 'user-1', email: 'person@example.com', emailVerified: false } as never)

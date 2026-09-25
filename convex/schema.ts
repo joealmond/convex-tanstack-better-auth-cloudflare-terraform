@@ -40,7 +40,12 @@ export default defineSchema({
     ownerId: v.string(),
     to: v.string(),
     kind: v.union(v.literal('welcome'), v.literal('test')),
-    status: v.union(v.literal('queued'), v.literal('sent'), v.literal('error')),
+    status: v.union(
+      v.literal('queued'),
+      v.literal('sent'),
+      v.literal('error'),
+      v.literal('unknown')
+    ),
     providerId: v.optional(v.string()),
     error: v.optional(v.string()),
     updatedAt: v.number(),

@@ -2,6 +2,19 @@
 
 Handle file uploads with Convex Storage and create drag-and-drop UI components.
 
+## Storage limits and abandoned uploads
+
+The 10 MB file limit, 100-file limit, and 100 MB account quota are enforced when
+`saveFile` registers metadata. Convex direct-upload URLs do not enforce these byte
+limits before storage accepts a transfer. Never treat them as a hard billing cap.
+An hourly job deletes unregistered storage objects older than 24 hours in bounded
+pages, including uploads where the client never calls `saveFile`. Registered and
+recent files are preserved. Storage in this template belongs exclusively to the
+`files` table; extend the cleanup reference check before storing blobs elsewhere.
+For a strict pre-transfer byte cap, replace direct upload URLs with a controlled
+HTTP upload endpoint. Issuance rate limits and cleanup reduce abuse but cannot
+prevent transfer costs incurred before cleanup.
+
 ## Quick Start
 
 Convex Storage is already configured in this template! You just need to build the UI.
