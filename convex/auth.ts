@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth/minimal'
+import { magicLink } from 'better-auth/plugins/magic-link'
 import { createClient } from '@convex-dev/better-auth'
 import { convex } from '@convex-dev/better-auth/plugins'
 import authConfig from './auth.config'
@@ -50,6 +51,8 @@ function getEnvConfig() {
     googleClientId,
     googleClientSecret,
     hasGoogleConfig,
+    appleClientId: process.env.APPLE_CLIENT_ID,
+    appleClientSecret: process.env.APPLE_CLIENT_SECRET,
     authEmailEnabled: authEmailProvider === 'resend',
   }
 }
@@ -62,7 +65,11 @@ export const authComponent = createClient<DataModel>(components.betterAuth)
 
 // Create Better Auth instance with Convex adapter
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
-  const sendAuthEmail = async (kind: 'verify' | 'reset' | 'delete', to: string, url: string) => {
+  const sendAuthEmail = async (
+    kind: 'verify' | 'reset' | 'delete' | 'magic-link',
+    to: string,
+    url: string
+  ) => {
     if (!('runAction' in ctx)) throw new Error('Account email requires an HTTP action context')
     await runEffect(
       Effect.tryPromise({
@@ -73,7 +80,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
   }
   return betterAuth({
     baseURL: envConfig.siteUrl,
-    trustedOrigins: [envConfig.siteUrl],
+    trustedOrigins: [envConfig.siteUrl, 'https://appleid.apple.com'],
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: true,
@@ -97,28 +104,35 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       deleteUser: {
         enabled: true,
         // <convexkit:billing>
-        beforeDelete: (user) => {
-          if (!('runQuery' in ctx) || !('runAction' in ctx) || !('runMutation' in ctx))
+        beforeDelete: async (user) => {
+          if (!('runQuery' in ctx) || !('runAction' in ctx))
             throw new Error('Account deletion requires an action context')
-          return runEffect(
-            Effect.gen(function* () {
-              yield* Effect.tryPromise({
-                try: () =>
-                  ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: user.id }),
-                catch: (error) => error,
+          if (!('runMutation' in ctx))
+            throw new Error('Account deletion requires a mutation context')
+          await ctx.runMutation(internal.billing.beginAccountDeletion, { ownerId: user.id })
+          try {
+            await runEffect(
+              Effect.gen(function* () {
+                yield* Effect.tryPromise({
+                  try: () =>
+                    ctx.runAction(internal.stripe.assertNoProviderObligations, {
+                      ownerId: user.id,
+                    }),
+                  catch: (error) => error,
+                })
+                yield* Effect.tryPromise({
+                  try: () =>
+                    ctx.runQuery(internal.billing.assertAccountDeletionAllowed, {
+                      ownerId: user.id,
+                    }),
+                  catch: (error) => error,
+                })
               })
-              yield* Effect.tryPromise({
-                try: () =>
-                  ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: user.id }),
-                catch: (error) => error,
-              })
-              yield* Effect.tryPromise({
-                try: () =>
-                  ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: user.id }),
-                catch: (error) => error,
-              })
-            })
-          )
+            )
+          } catch (error) {
+            await ctx.runMutation(internal.billing.abandonAccountDeletion, { ownerId: user.id })
+            throw error
+          }
         },
         // </convexkit:billing>
         sendDeleteAccountVerification: envConfig.authEmailEnabled
@@ -126,18 +140,18 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
           : undefined,
         deleteTokenExpiresIn: 60 * 60,
         afterDelete: async (user) => {
-          if ('scheduler' in ctx) {
-            await runEffect(
-              Effect.tryPromise({
-                try: () =>
-                  ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, {
-                    userId: user.id,
-                    email: user.emailVerified ? user.email : undefined,
-                  }),
-                catch: (error) => error,
-              })
-            )
-          }
+          if (!('runMutation' in ctx))
+            throw new Error('Account deletion requires a mutation context')
+          await runEffect(
+            Effect.tryPromise({
+              try: () =>
+                ctx.runMutation(internal.users.confirmAccountDeletion, {
+                  userId: user.id,
+                  email: user.emailVerified ? user.email : undefined,
+                }),
+              catch: (error) => error,
+            })
+          )
         },
       },
     },
@@ -182,15 +196,34 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         ipAddressHeaders: ['cf-connecting-ip'],
       },
     },
-    socialProviders: envConfig.hasGoogleConfig
-      ? {
-          google: {
-            clientId: envConfig.googleClientId!,
-            clientSecret: envConfig.googleClientSecret!,
-          },
-        }
-      : {},
-    plugins: [convex({ authConfig })],
+    socialProviders: {
+      ...(envConfig.hasGoogleConfig
+        ? {
+            google: {
+              clientId: envConfig.googleClientId!,
+              clientSecret: envConfig.googleClientSecret!,
+            },
+          }
+        : {}),
+      ...(envConfig.appleClientId && envConfig.appleClientSecret
+        ? {
+            apple: { clientId: envConfig.appleClientId, clientSecret: envConfig.appleClientSecret },
+          }
+        : {}),
+    },
+    plugins: [
+      ...(envConfig.authEmailEnabled
+        ? [
+            magicLink({
+              expiresIn: 60 * 5,
+              storeToken: 'hashed',
+              rateLimit: { window: 600, max: 5 },
+              sendMagicLink: ({ email, url }) => sendAuthEmail('magic-link', email, url),
+            }),
+          ]
+        : []),
+      convex({ authConfig }),
+    ],
   })
 }
 

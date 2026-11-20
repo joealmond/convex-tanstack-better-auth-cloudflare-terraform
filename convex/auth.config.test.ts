@@ -52,12 +52,12 @@ it('enables verification, reset, and deletion mail with complete server configur
 it('passes an email to account cleanup only after mailbox verification', async () => {
   vi.stubEnv('AUTH_EMAIL_PROVIDER', 'disabled')
   const { createAuth } = await import('./auth')
-  const runAfter = vi.fn().mockResolvedValue(undefined)
-  const auth = createAuth({ scheduler: { runAfter } } as never)
+  const runMutation = vi.fn().mockResolvedValue(undefined)
+  const auth = createAuth({ runMutation } as never)
   const afterDelete = auth.options.user?.deleteUser?.afterDelete
   await afterDelete?.({ id: 'user-1', email: 'person@example.com', emailVerified: false } as never)
   await afterDelete?.({ id: 'user-2', email: 'person@example.com', emailVerified: true } as never)
-  expect(runAfter.mock.calls.map((call) => call[2])).toEqual([
+  expect(runMutation.mock.calls.map((call) => call[1])).toEqual([
     { userId: 'user-1', email: undefined },
     { userId: 'user-2', email: 'person@example.com' },
   ])
@@ -78,14 +78,15 @@ it('guards billable account deletion before creating a webhook tombstone', async
   expect(runAction).toHaveBeenCalledWith(internal.stripe.assertNoProviderObligations, {
     ownerId: 'user-1',
   })
-  expect(runMutation).toHaveBeenCalledWith(internal.billing.prepareAccountDeletion, {
-    ownerId: 'user-1',
-  })
   runAction.mockRejectedValueOnce(new Error('active subscription'))
   await expect(
     auth.options.user?.deleteUser?.beforeDelete?.({ id: 'user-2' } as never)
   ).rejects.toThrow('active subscription')
   expect(runQuery).toHaveBeenCalledTimes(1)
-  expect(runMutation).toHaveBeenCalledTimes(1)
+  expect(runMutation.mock.calls.map((call) => call[1])).toEqual([
+    { ownerId: 'user-1' },
+    { ownerId: 'user-2' },
+    { ownerId: 'user-2' },
+  ])
 })
 // </convexkit:billing>

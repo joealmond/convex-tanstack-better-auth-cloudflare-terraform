@@ -60,6 +60,20 @@ describe('users', () => {
   })
 
   // <convexkit:billing>
+  it('commits the confirmed-deletion tombstone and cleanup together, including replay', async () => {
+    vi.useFakeTimers()
+    const { t, userId } = await createAuthenticatedTest()
+    await t.run((ctx) => ctx.db.insert('messages', { content: 'owned', authorId: userId }))
+    await t.mutation(internal.users.confirmAccountDeletion, { userId })
+    await t.mutation(internal.users.confirmAccountDeletion, { userId })
+    expect(await t.query(internal.billing.getDeletionTombstone, { ownerId: userId })).not.toBeNull()
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await t.query(api.messages.list)).toEqual([])
+    expect(await t.run((ctx) => ctx.db.query('billingDeletionTombstones').collect())).toHaveLength(
+      1
+    )
+  })
+
   it('blocks Clerk-style account deletion while a subscription can charge', async () => {
     const { t, asUser, userId } = await createAuthenticatedTest()
     await t.mutation(internal.billing.saveCheckout, {
@@ -101,7 +115,7 @@ describe('users', () => {
         )
     )
     await asUser.action(api.users.prepareAccountDeletion)
-    expect(await t.query(internal.billing.getDeletionTombstone, { ownerId: userId })).not.toBeNull()
+    expect(await t.query(internal.billing.getDeletionTombstone, { ownerId: userId })).toBeNull()
   })
   // </convexkit:billing>
 })

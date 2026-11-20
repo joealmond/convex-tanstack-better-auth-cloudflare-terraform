@@ -9,8 +9,14 @@ export default defineSchema({
     stripeSubscriptionId: v.optional(v.string()),
     checkoutSessionId: v.optional(v.string()),
     priceId: v.optional(v.string()),
+    checkoutOperationId: v.optional(v.string()),
+    checkoutReservedAt: v.optional(v.number()),
+    checkoutEmail: v.optional(v.string()),
+    checkoutName: v.optional(v.string()),
+    checkoutSiteUrl: v.optional(v.string()),
     status: v.string(),
     currentPeriodEnd: v.optional(v.number()),
+    lastEventCreatedAt: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index('by_owner', ['ownerId'])
@@ -21,7 +27,9 @@ export default defineSchema({
     eventId: v.string(),
     eventType: v.string(),
     processedAt: v.number(),
-  }).index('by_event', ['eventId']),
+  })
+    .index('by_event', ['eventId'])
+    .index('by_processed_at', ['processedAt']),
 
   // Retained after a deleted account's billing row is removed. It contains no
   // account profile data and prevents delayed Stripe events from recreating it.
@@ -33,6 +41,13 @@ export default defineSchema({
   })
     .index('by_owner', ['ownerId'])
     .index('by_customer', ['stripeCustomerId']),
+
+  // A short lease blocks Checkout while Better Auth is between its final
+  // deletion guard and the confirmed afterDelete lifecycle callback.
+  billingDeletionReservations: defineTable({
+    ownerId: v.string(),
+    expiresAt: v.number(),
+  }).index('by_owner', ['ownerId']),
   // </convexkit:billing>
 
   // <convexkit:email>

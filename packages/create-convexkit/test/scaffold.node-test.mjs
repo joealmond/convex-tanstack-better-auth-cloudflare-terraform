@@ -40,6 +40,7 @@ test('creates the default Better Auth + Cloudflare application', () => {
     )
     assert.equal(existsSync(join(target, 'infrastructure')), false)
     assert.equal(existsSync(join(target, 'convex/todos.ts')), false)
+    assert.doesNotMatch(readFileSync(join(target, 'convex/users.ts'), 'utf8'), /internal\.billing/)
     assert.doesNotMatch(readFileSync(join(target, 'convex/crons.ts'), 'utf8'), /internal\.files/)
     assert.equal(existsSync(join(target, 'packages/create-convexkit')), false)
     assert.equal(existsSync(join(target, 'ROADMAP.md')), false)
@@ -185,6 +186,9 @@ test('applies Clerk and Netlify provider overlays', () => {
     assert.equal(existsSync(join(target, 'netlify.toml')), true)
     assert.equal(existsSync(join(target, 'src/lib/auth-client.ts')), false)
     assert.equal(existsSync(join(target, 'convex/auth.ts')), false)
+    assert.equal(existsSync(join(target, 'convex/clerkWebhook.ts')), true)
+    assert.match(readFileSync(join(target, 'convex/http.ts'), 'utf8'), /\/api\/clerk\/webhook/)
+    assert.doesNotMatch(readFileSync(join(target, 'convex/users.ts'), 'utf8'), /internal\.billing/)
     assert.match(readFileSync(join(target, 'src/routes/__root.tsx'), 'utf8'), /ClerkProvider/)
     assert.match(readFileSync(join(target, 'convex/lib/authHelpers.ts'), 'utf8'), /getUserIdentity/)
     assert.match(
@@ -200,6 +204,11 @@ test('applies Clerk and Netlify provider overlays', () => {
     assert.equal(existsSync(join(target, 'src/routes/_authenticated/account.tsx')), true)
     assert.equal(existsSync(join(target, 'convex/userExport.ts')), true)
     assert.equal(existsSync(join(target, 'docs/AUTH_EMAIL.md')), false)
+    assert.match(pkg.scripts.build, /sanitize-build-output\.mjs dist \.netlify/)
+    assert.match(pkg.scripts['build:prod'], /sanitize-build-output\.mjs dist \.netlify/)
+    const guide = readFileSync(join(target, 'docs/NETLIFY_SETUP.md'), 'utf8')
+    assert.match(guide, /npx convex env set SITE_URL https:\/\/preview\.example\.com/)
+    assert.match(guide, /npx convex env set --prod SITE_URL https:\/\/app\.example\.com/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -298,6 +307,8 @@ test('chat-only output omits file links and minimal output retains authenticatio
     assert.equal(pkg.dependencies.stripe, undefined)
     assert.equal(pkg.dependencies.resend, undefined)
     assert.equal(existsSync(join(minimal.target, 'convex/authEmails.ts')), true)
+    assert.equal(existsSync(join(minimal.target, 'convex/emailActions.regression.test.ts')), false)
+    assert.equal(existsSync(join(minimal.target, 'convex/ai.regression.test.ts')), false)
     assert.doesNotMatch(
       readFileSync(join(minimal.target, 'src/routes/_authenticated/account.tsx'), 'utf8'),
       /Manage billing/
@@ -316,6 +327,7 @@ test('generated account cleanup covers every selected owner-scoped example', () 
     for (const table of ['todos', 'aiRuns', 'emailDeliveries', 'billingSubscriptions'])
       assert.match(maintenance, new RegExp(`query\\('${table}'\\)`))
     assert.match(maintenance, /billingDeletionTombstones/)
+    assert.equal(existsSync(join(target, 'convex/emailActions.regression.test.ts')), true)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

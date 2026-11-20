@@ -1,5 +1,6 @@
 import { httpRouter } from 'convex/server'
 import { httpAction } from './_generated/server'
+import { webhook as clerkWebhook } from './clerkWebhook'
 // <convexkit:billing>
 import { webhook as stripeWebhook } from './stripe'
 // </convexkit:billing>
@@ -17,5 +18,6 @@ http.route({
 // <convexkit:billing>
 http.route({ path: '/api/stripe/webhook', method: 'POST', handler: stripeWebhook })
 // </convexkit:billing>
+http.route({ path: '/api/clerk/webhook', method: 'POST', handler: clerkWebhook })
 
 export default http

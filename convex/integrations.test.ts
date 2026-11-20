@@ -1,6 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, internal } from './_generated/api'
 import { createAuthenticatedTest } from './test.utils'
+
+beforeEach(() => {
+  vi.stubEnv('AUTH_EMAIL_FROM', 'ConvexKit <verified@example.com>')
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -27,7 +31,7 @@ describe('optional integrations', () => {
           )
         )
         controller.enqueue(
-          encoder.encode('lo"}\n\ndata: {"type":"response.created"}\n\ndata: [DONE]\n\n')
+          encoder.encode('lo"}\n\ndata: {"type":"response.completed"}\n\ndata: [DONE]\n\n')
         )
         controller.close()
       },
@@ -134,7 +138,7 @@ describe('optional integrations', () => {
     await asUser.mutation(api.ai.start, { prompt: 'long' })
     await t.finishAllScheduledFunctions(vi.runAllTimers)
     const [run] = await asUser.query(api.ai.listRecent)
-    expect(run).toMatchObject({ status: 'completed' })
+    expect(run).toMatchObject({ status: 'error', error: expect.stringContaining('limit') })
     expect(run?.output).toHaveLength(16_000)
     expect(cancel).toHaveBeenCalledOnce()
   })

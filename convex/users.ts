@@ -27,11 +27,13 @@
  */
 
 import { internal } from './_generated/api'
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
+// <convexkit:billing>
 import { Effect } from 'effect'
+import { runEffect } from './lib/runEffect'
+// </convexkit:billing>
 import { authAction, authMutation, internalMutation, publicQuery } from './lib/customFunctions'
 import { getAuthUserSafe, isAdmin as checkIsAdmin } from './lib/authHelpers'
-import { runEffect } from './lib/runEffect'
 
 /**
  * Get the current authenticated user.
@@ -80,37 +82,46 @@ export const queueAccountCleanup = internalMutation({
   },
 })
 
-/** Guard provider obligations, then queue application cleanup before Clerk deletes identity. */
+/** Called only by a trusted identity-provider deletion webhook. */
+export const confirmAccountDeletion = internalMutation({
+  args: { userId: v.string(), email: v.optional(v.string()) },
+  handler: async (ctx, { userId, email }) => {
+    // <convexkit:billing>
+    await ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: userId })
+    // </convexkit:billing>
+    await ctx.scheduler.runAfter(0, internal.maintenance.deleteUserDataBatch, { userId, email })
+  },
+})
+
+/** Reserve the delete boundary; trusted provider confirmation performs cleanup. */
 export const prepareAccountDeletion = authAction({
   args: {},
-  handler: (ctx): Promise<void> =>
-    runEffect(
-      Effect.gen(function* () {
-        // <convexkit:billing>
-        yield* Effect.tryPromise({
-          try: () =>
-            ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: ctx.userId }),
-          catch: (error) => error,
+  handler: async (_ctx): Promise<void> => {
+    if (process.env.CLERK_JWT_ISSUER_DOMAIN && !process.env.CLERK_WEBHOOK_SECRET)
+      throw new ConvexError('Configure the Clerk deletion webhook before deleting an account')
+    // <convexkit:billing>
+    await _ctx.runMutation(internal.billing.beginAccountDeletion, { ownerId: _ctx.userId })
+    try {
+      await runEffect(
+        Effect.gen(function* () {
+          yield* Effect.tryPromise({
+            try: () =>
+              _ctx.runAction(internal.stripe.assertNoProviderObligations, { ownerId: _ctx.userId }),
+            catch: (error) => error,
+          })
+          yield* Effect.tryPromise({
+            try: () =>
+              _ctx.runQuery(internal.billing.assertAccountDeletionAllowed, {
+                ownerId: _ctx.userId,
+              }),
+            catch: (error) => error,
+          })
         })
-        yield* Effect.tryPromise({
-          try: () =>
-            ctx.runQuery(internal.billing.assertAccountDeletionAllowed, { ownerId: ctx.userId }),
-          catch: (error) => error,
-        })
-        yield* Effect.tryPromise({
-          try: () =>
-            ctx.runMutation(internal.billing.prepareAccountDeletion, { ownerId: ctx.userId }),
-          catch: (error) => error,
-        })
-        // </convexkit:billing>
-        yield* Effect.tryPromise({
-          try: () =>
-            ctx.runMutation(internal.users.queueAccountCleanup, {
-              userId: ctx.userId,
-              email: ctx.user.emailVerified ? ctx.user.email : undefined,
-            }),
-          catch: (error) => error,
-        })
-      })
-    ),
+      )
+    } catch (error) {
+      await _ctx.runMutation(internal.billing.abandonAccountDeletion, { ownerId: _ctx.userId })
+      throw error
+    }
+    // </convexkit:billing>
+  },
 })

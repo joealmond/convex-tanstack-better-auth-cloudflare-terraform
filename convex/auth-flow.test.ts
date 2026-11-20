@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest'
 import { createTestBackend } from './test.utils'
 
@@ -100,4 +101,73 @@ it('signs up without a session and sends verification when account email is enab
     body: JSON.stringify({ email: 'person@example.com', password: 'new-long-enough-password' }),
   })
   expect(afterDeletion.status).toBeGreaterThanOrEqual(400)
+})
+
+it('joins with a single-use email link and starts Apple OAuth', async () => {
+  vi.resetModules()
+  vi.stubEnv('SITE_URL', 'https://app.example.com')
+  vi.stubEnv('BETTER_AUTH_SECRET', 'test-secret-with-at-least-32-characters')
+  vi.stubEnv('AUTH_EMAIL_PROVIDER', 'resend')
+  vi.stubEnv('AUTH_EMAIL_FROM', 'App <auth@example.com>')
+  vi.stubEnv('RESEND_API_KEY', 're_test_only')
+  vi.stubEnv('APPLE_CLIENT_ID', 'com.example.web')
+  vi.stubEnv('APPLE_CLIENT_SECRET', 'test-apple-secret')
+  const send = vi.fn().mockResolvedValue(Response.json({ id: 'email_test' }))
+  vi.stubGlobal('fetch', send)
+  const t = createTestBackend()
+  const headers = { 'Content-Type': 'application/json', Origin: 'https://app.example.com' }
+  const response = await t.fetch('/api/auth/sign-in/magic-link', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      email: 'reader@example.com',
+      callbackURL: '/',
+      errorCallbackURL: '/?authError=1',
+    }),
+  })
+  expect(response.status).toBe(200)
+  expect(send).toHaveBeenCalledOnce()
+  const email = JSON.parse(send.mock.calls[0]![1].body as string)
+  expect(email.subject).toBe('Your sign-in link')
+  const link = new URL(email.text.match(/https:\/\/\S+/)![0])
+  const verified = await t.fetch(`${link.pathname}${link.search}`, { headers })
+  expect(verified.status).toBe(302)
+  expect(verified.headers.get('location')).toBe('https://app.example.com/')
+  expect(verified.headers.get('set-cookie')).toContain('session_token')
+  const replayed = await t.fetch(`${link.pathname}${link.search}`, { headers })
+  expect(replayed.headers.get('location')).toContain('error=INVALID_TOKEN')
+  expect(replayed.headers.get('set-cookie') ?? '').not.toContain('session_token=')
+  const apple = await t.fetch('/api/auth/sign-in/social', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ provider: 'apple', callbackURL: '/' }),
+  })
+  expect(apple.status).toBe(200)
+  const appleUrl = new URL(((await apple.json()) as { url: string }).url)
+  expect(appleUrl.origin).toBe('https://appleid.apple.com')
+  expect(appleUrl.searchParams.get('client_id')).toBe('com.example.web')
+  expect(appleUrl.searchParams.get('redirect_uri')).toBe(
+    'https://app.example.com/api/auth/callback/apple'
+  )
+})
+
+it('does not offer magic-link or Apple endpoints without provider configuration', async () => {
+  vi.resetModules()
+  vi.stubEnv('SITE_URL', 'https://app.example.com')
+  vi.stubEnv('AUTH_EMAIL_PROVIDER', 'disabled')
+  vi.stubEnv('APPLE_CLIENT_ID', '')
+  vi.stubEnv('APPLE_CLIENT_SECRET', '')
+  const t = createTestBackend()
+  const response = await t.fetch('/api/auth/sign-in/magic-link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: 'https://app.example.com' },
+    body: JSON.stringify({ email: 'reader@example.com' }),
+  })
+  expect(response.status).toBe(404)
+  const apple = await t.fetch('/api/auth/sign-in/social', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: 'https://app.example.com' },
+    body: JSON.stringify({ provider: 'apple' }),
+  })
+  expect(apple.status).toBe(404)
 })

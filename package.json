@@ -46,11 +46,11 @@
     "test:setup": "node --test scripts/setup.node-test.mjs",
     "test:infra": "node --test scripts/infra-utils.node-test.mjs",
     "test:e2e:local-auth": "node scripts/validate-local-auth.mjs",
-    "test:guardrails": "node --test scripts/sanitize-build-output.test.mjs scripts/check-convex-runtime-imports.test.mjs",
+    "test:guardrails": "node --test scripts/sanitize-build-output.test.mjs scripts/check-convex-runtime-imports.test.mjs scripts/clerk-webhook.node-test.mjs",
     "check:convex-imports": "node scripts/check-convex-runtime-imports.mjs"
   },
   "dependencies": {
-    "@cloudflare/vite-plugin": "1.56.0",
+    "@cloudflare/vite-plugin": "1.62.3",
     "@convex-dev/better-auth": "0.12.5",
     "@convex-dev/rate-limiter": "0.4.0",
     "@convex-dev/react-query": "0.1.0",
@@ -107,6 +107,6 @@
     "vite": "8.3.0",
     "vitepress": "2.0.0-alpha.20",
     "vitest": "4.1.11",
-    "wrangler": "4.135.0"
+    "wrangler": "4.145.0"
   }
 }

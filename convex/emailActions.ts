@@ -62,13 +62,22 @@ export const send = internalAction({
       })
       return
     }
+    const from = process.env.RESEND_FROM_EMAIL || process.env.AUTH_EMAIL_FROM
+    if (!from) {
+      await ctx.runMutation(internal.emails.markFailed, {
+        deliveryId: args.deliveryId,
+        ownerId: args.ownerId,
+        error: 'RESEND_FROM_EMAIL or AUTH_EMAIL_FROM is not configured on this Convex deployment.',
+      })
+      return
+    }
 
     let providerId: string
     try {
       const name = escapeHtml(args.name || 'there')
       const isWelcome = args.kind === 'welcome'
       const payload = {
-        from: process.env.RESEND_FROM_EMAIL || 'ConvexKit <onboarding@resend.dev>',
+        from,
         to: args.to,
         subject: isWelcome ? 'Welcome to ConvexKit' : 'Your ConvexKit email integration works',
         html: isWelcome

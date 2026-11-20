@@ -56,18 +56,23 @@ const featureFiles = {
     'src/routes/examples.ai.tsx',
     'src/components/examples/AiStreamingExample.tsx',
     'convex/ai.ts',
+    'convex/ai.regression.test.ts',
   ],
   billing: [
     'src/routes/examples.billing.tsx',
     'src/components/examples/BillingExample.tsx',
     'convex/billing.ts',
     'convex/stripe.ts',
+    'convex/billing.regression.test.ts',
+    'convex/checkoutRecovery.test.ts',
+    'convex/checkoutActions.test.ts',
   ],
   email: [
     'src/routes/examples.email.tsx',
     'src/components/examples/EmailExample.tsx',
     'convex/emails.ts',
     'convex/emailActions.ts',
+    'convex/emailActions.regression.test.ts',
   ],
 }
 
@@ -213,7 +218,7 @@ function renderConfigurationGuide(options) {
     options.preset === 'team-saas'
       ? '\n## Team SaaS\n\n`convex/organizations.ts` owns organization creation, membership roles, invitations, and organization-scoped authorization. The `/teams` page manages teams and invitations. Invitation acceptance requires a verified email; configure verification delivery for email/password accounts before production. `/account` exports the user’s account-linked data; define a separate organization export policy before adding product-owned tables. Add product tables with an `organizationId` and call `requireOrganizationRole` before reading or changing them.\n'
       : ''
-  return `# Configuration\n\n## Local development\n\nCopy no secrets by hand: ${auth}\n\nRequired browser values: VITE_CONVEX_URL and VITE_CONVEX_SITE_URL. SITE_URL is a backend value and must equal the URL users open.\n\n## Production\n\nUse distinct Convex deployments and auth secrets for preview and production. Set SITE_URL on each Convex deployment to its public Worker or hosting URL. Never prefix a secret with VITE_. ${options.auth === 'better-auth' ? 'Configure [account verification and recovery email](AUTH_EMAIL.md) before production.' : 'Configure Clerk production keys and verified domains before production.'}\n${team}`
+  return `# Configuration\n\n## Local development\n\nCopy no secrets by hand: ${auth}\n\nRequired browser values: VITE_CONVEX_URL and VITE_CONVEX_SITE_URL. Put those values and VITE_ feature flags in the hosting build environment. SITE_URL, auth secrets, and provider keys are Convex backend values.\n\n## Preview and production\n\nUse distinct Convex deployments and auth secrets for preview and production. Set SITE_URL to the exact stable public Worker or hosting URL:\n\n\`\`\`bash\n# Selected preview/development Convex deployment\nCONVEX_DEPLOYMENT=dev:your-preview npx convex env set SITE_URL https://preview.example.com\n\n# Convex Cloud production deployment\nnpx convex env set --prod SITE_URL https://app.example.com\n\`\`\`\n\nNever prefix a secret with VITE_. ${options.auth === 'better-auth' ? 'Configure [account verification and recovery email](AUTH_EMAIL.md) before production.' : 'Configure Clerk production keys and verified domains before production.'}\n${team}`
 }
 
 function runCommand(command, args, cwd) {
@@ -432,7 +437,7 @@ function configurePackage(target, options) {
     delete pkg.scripts['smoke:preview']
     delete pkg.scripts['release:record']
     delete pkg.scripts['test:infra']
-    const buildOutput = options.deploy === 'vercel' ? '.vercel/output' : 'dist'
+    const buildOutput = options.deploy === 'vercel' ? '.vercel/output' : 'dist .netlify'
     pkg.scripts.build = `vite build && node scripts/sanitize-build-output.mjs ${buildOutput}`
     pkg.scripts['build:preview'] =
       `vite build --mode preview && node scripts/sanitize-build-output.mjs ${buildOutput}`
@@ -481,7 +486,7 @@ function configureClerkEnv(target) {
   const path = join(target, '.env.example')
   if (!existsSync(path)) return
   const source = readFileSync(path, 'utf8')
-  const replacement = `# --------------- Clerk Auth ---------------\n# Create an application at https://dashboard.clerk.com. These values are read by\n# Clerk's TanStack Start middleware; do not prefix the secret with VITE_.\nCLERK_PUBLISHABLE_KEY=pk_test_replace_me\nCLERK_SECRET_KEY=sk_test_replace_me\nCLERK_JWT_ISSUER_DOMAIN=https://your-clerk-domain.clerk.accounts.dev\n\n`
+  const replacement = `# --------------- Clerk Auth ---------------\n# Create an application at https://dashboard.clerk.com. These values are read by\n# Clerk's TanStack Start middleware; do not prefix the secret with VITE_.\nCLERK_PUBLISHABLE_KEY=pk_test_replace_me\nCLERK_SECRET_KEY=sk_test_replace_me\nCLERK_JWT_ISSUER_DOMAIN=https://your-clerk-domain.clerk.accounts.dev\n# Set this signing secret on Convex for confirmed account cleanup.\nCLERK_WEBHOOK_SECRET=\n\n`
   writeFileSync(
     path,
     source.replace(
@@ -577,6 +582,11 @@ function compose(options) {
       'convex/lib/customFunctions.test.ts',
       'convex/files.test.ts',
       'convex/integrations.test.ts',
+      'convex/ai.regression.test.ts',
+      'convex/emailActions.regression.test.ts',
+      'convex/billing.regression.test.ts',
+      'convex/checkoutRecovery.test.ts',
+      'convex/checkoutActions.test.ts',
       'convex/maintenance.test.ts',
       'convex/messages.test.ts',
       'convex/messages.mutations.test.ts',
@@ -776,6 +786,7 @@ async function formatGeneratedFiles(target) {
     'convex/schema.ts',
     'convex/auth.ts',
     'convex/auth.config.test.ts',
+    'convex/users.ts',
     'convex/users.test.ts',
     'convex/http.ts',
     'convex/maintenance.ts',

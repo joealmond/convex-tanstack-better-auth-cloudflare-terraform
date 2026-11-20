@@ -12,6 +12,20 @@ const MAX_SSE_BUFFER_LENGTH = 64_000
 const PROVIDER_TIMEOUT_MS = 60_000
 const DEFAULT_MODEL = 'gpt-5.4-mini'
 
+function streamError(event: Record<string, unknown>): Error {
+  const error = event.error
+  const message =
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+      ? error.message
+      : typeof event.message === 'string'
+        ? event.message
+        : 'OpenAI generation did not complete'
+  return new Error(message.slice(0, 500))
+}
+
 export const listRecent = authQuery({
   args: {},
   handler: async (ctx) => {
@@ -145,6 +159,7 @@ export const generate = internalAction({
             let buffer = ''
             let pendingChunk = ''
             let outputLength = 0
+            let completed = false
 
             const flush = async () => {
               if (!pendingChunk) return
@@ -165,27 +180,41 @@ export const generate = internalAction({
 
                 for (const event of events) {
                   for (const line of event.split('\n')) {
-                    if (!line.startsWith('data:')) continue
-                    const data = line.slice(5).trim()
+                    const normalizedLine = line.endsWith('\r') ? line.slice(0, -1) : line
+                    if (!normalizedLine.startsWith('data:')) continue
+                    const data = normalizedLine.slice(5).trim()
                     if (!data || data === '[DONE]') continue
                     const parsed: unknown = JSON.parse(data)
+                    if (typeof parsed !== 'object' || parsed === null || !('type' in parsed)) {
+                      throw new Error('OpenAI stream event was invalid')
+                    }
+                    const streamEvent = parsed as Record<string, unknown>
+                    if (streamEvent.type === 'response.completed') {
+                      completed = true
+                      continue
+                    }
                     if (
-                      typeof parsed === 'object' &&
-                      parsed !== null &&
-                      'type' in parsed &&
-                      parsed.type === 'response.output_text.delta' &&
-                      'delta' in parsed &&
-                      typeof parsed.delta === 'string'
+                      streamEvent.type === 'response.failed' ||
+                      streamEvent.type === 'response.incomplete' ||
+                      streamEvent.type === 'error'
                     ) {
+                      throw streamError(streamEvent)
+                    }
+                    if (streamEvent.type === 'response.output_text.delta') {
+                      if (typeof streamEvent.delta !== 'string') {
+                        throw new Error('OpenAI output event was invalid')
+                      }
                       const remaining = MAX_OUTPUT_LENGTH - outputLength
-                      if (remaining <= 0) return
-                      const delta = parsed.delta.slice(0, remaining)
+                      if (remaining <= 0) {
+                        throw new Error('OpenAI output exceeded the safe limit')
+                      }
+                      const delta = streamEvent.delta.slice(0, remaining)
                       pendingChunk += delta
                       outputLength += delta.length
                       if (pendingChunk.length >= 80) await flush()
                       if (outputLength >= MAX_OUTPUT_LENGTH) {
                         await flush()
-                        return
+                        throw new Error('OpenAI output exceeded the safe limit')
                       }
                     }
                   }
@@ -193,6 +222,7 @@ export const generate = internalAction({
                 if (done) break
               }
 
+              if (!completed) throw new Error('OpenAI stream ended before completion')
               await flush()
             } finally {
               await reader.cancel().catch(() => {})

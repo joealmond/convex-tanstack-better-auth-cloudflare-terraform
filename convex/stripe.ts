@@ -13,6 +13,7 @@ const MAX_WEBHOOK_BYTES = 1_000_000
 const WEBHOOK_BODY_TIMEOUT_MS = 10_000
 const STRIPE_REQUEST_TIMEOUT_MS = 30_000
 const PROVIDER_CHECK_TIMEOUT_MS = 45_000
+const STRIPE_IDEMPOTENCY_WINDOW_MS = 23 * 60 * 60 * 1000
 
 class WebhookBodyTimeoutError extends Error {}
 
@@ -133,41 +134,63 @@ export const createCheckout = authAction({
     }
     await rateLimiter.limit(ctx, 'stripeSession', { key: ctx.userId, throws: true })
 
-    const existing = await ctx.runQuery(internal.billing.getByOwner, { ownerId: ctx.userId })
-    const deleting = await ctx.runQuery(internal.billing.getDeletionTombstone, {
-      ownerId: ctx.userId,
-    })
-    if (deleting) throw new ConvexError('This account is being deleted')
-    if (canStillCharge(existing))
-      throw new ConvexError(
-        'Manage your existing Stripe subscription in the billing portal before starting another Checkout session.'
-      )
-
     const stripe = createStripeClient()
-    let customerId = existing?.stripeCustomerId
+    const reserved = await ctx.runMutation(internal.billing.reserveCheckout, {
+      ownerId: ctx.userId,
+      priceId,
+      email: ctx.user.email,
+      name: ctx.user.name,
+      siteUrl,
+    })
+    if (
+      reserved.checkoutReservedAt === undefined ||
+      Date.now() - reserved.checkoutReservedAt > STRIPE_IDEMPOTENCY_WINDOW_MS
+    ) {
+      const recovered = await ctx.runAction(internal.stripe.reconcileCheckout, {
+        ownerId: ctx.userId,
+      })
+      if (recovered.url) return { url: recovered.url }
+      throw new ConvexError(
+        'This Checkout attempt needs Stripe reconciliation before a new attempt can be started.'
+      )
+    }
+
+    let customerId = reserved.stripeCustomerId
+    if (!reserved.priceId) throw new ConvexError('Checkout reservation is missing its price')
     if (!customerId) {
       const customer = await stripeRequest(() =>
-        stripe.customers.create({
-          email: ctx.user.email,
-          name: ctx.user.name,
-          metadata: { userId: ctx.userId },
-        })
+        stripe.customers.create(
+          {
+            email: reserved.checkoutEmail ?? ctx.user.email,
+            name: reserved.checkoutName ?? ctx.user.name,
+            metadata: { userId: ctx.userId },
+          },
+          { idempotencyKey: `convexkit-customer-${reserved.checkoutOperationId}` }
+        )
       )
       customerId = customer.id
+      await ctx.runMutation(internal.billing.recordCheckoutCustomer, {
+        ownerId: ctx.userId,
+        checkoutOperationId: reserved.checkoutOperationId,
+        stripeCustomerId: customerId,
+      })
     }
 
     const session = await stripeRequest(() =>
-      stripe.checkout.sessions.create({
-        mode: 'subscription',
-        customer: customerId,
-        line_items: [{ price: priceId, quantity: 1 }],
-        allow_promotion_codes: true,
-        client_reference_id: ctx.userId,
-        metadata: { userId: ctx.userId },
-        subscription_data: { metadata: { userId: ctx.userId } },
-        success_url: `${siteUrl}/examples/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${siteUrl}/examples/billing?checkout=cancelled`,
-      })
+      stripe.checkout.sessions.create(
+        {
+          mode: 'subscription',
+          customer: customerId,
+          line_items: [{ price: reserved.priceId, quantity: 1 }],
+          allow_promotion_codes: true,
+          client_reference_id: ctx.userId,
+          metadata: { userId: ctx.userId, checkoutOperationId: reserved.checkoutOperationId },
+          subscription_data: { metadata: { userId: ctx.userId } },
+          success_url: `${reserved.checkoutSiteUrl ?? siteUrl}/examples/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${reserved.checkoutSiteUrl ?? siteUrl}/examples/billing?checkout=cancelled`,
+        },
+        { idempotencyKey: `convexkit-checkout-${reserved.checkoutOperationId}` }
+      )
     )
     if (!session.url) throw new ConvexError('Stripe did not return a Checkout URL')
 
@@ -175,9 +198,179 @@ export const createCheckout = authAction({
       ownerId: ctx.userId,
       stripeCustomerId: customerId,
       checkoutSessionId: session.id,
-      priceId,
+      priceId: reserved.priceId,
+      checkoutOperationId: reserved.checkoutOperationId,
     })
     return { url: session.url }
+  },
+})
+
+/** Read-only recovery. Unknown customer IDs require a verified operator-supplied ID. */
+export const reconcileCheckout = internalAction({
+  args: {
+    ownerId: v.string(),
+    stripeCustomerId: v.optional(v.string()),
+    expectedOperationId: v.optional(v.string()),
+    confirmNoCheckout: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args): Promise<{ status: string; url: string | undefined }> => {
+    const billing = await ctx.runQuery(internal.billing.getByOwner, { ownerId: args.ownerId })
+    if (!billing) throw new ConvexError('No billing operation exists')
+    const customerId = billing.stripeCustomerId ?? args.stripeCustomerId
+    if (!customerId)
+      throw new ConvexError(
+        'Supply the Stripe customer ID after checking its userId metadata in Stripe'
+      )
+    if (
+      args.stripeCustomerId &&
+      billing.stripeCustomerId &&
+      args.stripeCustomerId !== billing.stripeCustomerId
+    )
+      throw new ConvexError('The supplied customer does not match the billing record')
+    if (
+      args.confirmNoCheckout &&
+      (!args.expectedOperationId || args.expectedOperationId !== billing.checkoutOperationId)
+    )
+      throw new ConvexError('Confirm the exact Checkout operation before releasing it')
+    const stripe = createStripeClient()
+    const result = await runEffect(
+      Effect.tryPromise({
+        try: async (signal) => {
+          const customer = await stripe.customers.retrieve(customerId)
+          signal.throwIfAborted()
+          if (customer.deleted || customer.metadata.userId !== args.ownerId)
+            throw new ConvexError('Stripe customer ownership could not be verified')
+          if (
+            !billing.stripeCustomerId &&
+            customer.created * 1_000 < (billing.checkoutReservedAt ?? 0) - 1_000
+          )
+            throw new ConvexError('The supplied customer predates this Checkout operation')
+
+          // Exhaust every page before concluding absence. A cap/timeout never releases the operation.
+          async function listAll<T extends { id: string }>(
+            page: (cursor?: string) => Promise<{ data: T[]; has_more: boolean }>
+          ) {
+            const records: T[] = []
+            let cursor: string | undefined
+            for (let attempt = 0; attempt < 100; attempt++) {
+              const result = await page(cursor)
+              signal.throwIfAborted()
+              records.push(...result.data)
+              if (!result.has_more) return records
+              const next = result.data.at(-1)?.id
+              if (!next || next === cursor)
+                throw new ConvexError('Stripe pagination did not advance')
+              cursor = next
+            }
+            throw new ConvexError(
+              'Stripe reconciliation exceeded its page limit; operation retained'
+            )
+          }
+          const sessions = await listAll<Stripe.Checkout.Session>((starting_after) =>
+            stripe.checkout.sessions.list({ customer: customerId, limit: 100, starting_after })
+          )
+          const matching = sessions.filter((session) =>
+            billing.checkoutSessionId
+              ? session.id === billing.checkoutSessionId
+              : Boolean(
+                  billing.checkoutOperationId &&
+                  session.metadata?.checkoutOperationId === billing.checkoutOperationId
+                )
+          )
+          if (matching.length > 1)
+            throw new ConvexError('Multiple Stripe sessions need operator review')
+          const session = matching[0]
+          if (session && (session.metadata?.userId || session.client_reference_id) !== args.ownerId)
+            throw new ConvexError('Stripe Checkout ownership could not be verified')
+          if (
+            sessions.some(
+              (candidate) => candidate.status === 'open' && candidate.id !== session?.id
+            )
+          )
+            throw new ConvexError('Another open Stripe Checkout must be resolved first')
+          const subscriptions = await listAll<Stripe.Subscription>((starting_after) =>
+            stripe.subscriptions.list({
+              customer: customerId,
+              status: 'all',
+              limit: 100,
+              starting_after,
+            })
+          )
+          const subscriptionId = session ? id(session.subscription) : undefined
+          if (
+            subscriptions.some(
+              (subscription) =>
+                subscription.id !== subscriptionId &&
+                !isTerminalStripeSubscription(subscription.status)
+            )
+          )
+            throw new ConvexError('Other Stripe subscriptions must be resolved first')
+          if (!session) {
+            if (!args.confirmNoCheckout)
+              throw new ConvexError(
+                'No matching session was found; operator confirmation is required'
+              )
+            return {
+              status: 'provider_clear',
+              checkoutSessionId: undefined,
+              stripeSubscriptionId: undefined,
+              currentPeriodEnd: undefined,
+              url: undefined,
+            }
+          }
+          if (session.status === 'open')
+            return {
+              status: 'checkout_pending',
+              checkoutSessionId: session.id,
+              stripeSubscriptionId: undefined,
+              currentPeriodEnd: undefined,
+              url: session.url ?? undefined,
+            }
+          if (session.status === 'expired')
+            return {
+              status: 'checkout_expired',
+              checkoutSessionId: session.id,
+              stripeSubscriptionId: undefined,
+              currentPeriodEnd: undefined,
+              url: undefined,
+            }
+          if (session.status !== 'complete' || !subscriptionId)
+            throw new ConvexError('Stripe Checkout completion is not reconciled yet')
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          signal.throwIfAborted()
+          if (id(subscription.customer) !== customerId)
+            throw new ConvexError('Stripe subscription customer does not match')
+          return {
+            status: subscription.status,
+            checkoutSessionId: session.id,
+            stripeSubscriptionId: subscription.id,
+            currentPeriodEnd: subscription.items.data[0]?.current_period_end
+              ? subscription.items.data[0].current_period_end * 1_000
+              : undefined,
+            url: undefined,
+          }
+        },
+        catch: (error) => error,
+      }).pipe(
+        Effect.timeoutFail({
+          duration: PROVIDER_CHECK_TIMEOUT_MS,
+          onTimeout: () => new ConvexError('Stripe reconciliation timed out; operation retained'),
+        })
+      )
+    )
+    await ctx.runMutation(internal.billing.commitCheckoutReconciliation, {
+      ownerId: args.ownerId,
+      expectedUpdatedAt: billing.updatedAt,
+      expectedStatus: billing.status,
+      expectedOperationId: billing.checkoutOperationId,
+      expectedSessionId: billing.checkoutSessionId,
+      stripeCustomerId: customerId,
+      checkoutSessionId: result.checkoutSessionId,
+      stripeSubscriptionId: result.stripeSubscriptionId,
+      status: result.status,
+      currentPeriodEnd: result.currentPeriodEnd,
+    })
+    return { status: result.status, url: result.url }
   },
 })
 
@@ -273,10 +466,12 @@ export const webhook = httpAction(async (ctx, request) => {
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId || undefined,
           checkoutSessionId: session.id,
+          checkoutOperationId: session.metadata?.checkoutOperationId,
           status:
             event.type === 'checkout.session.expired'
               ? 'checkout_expired'
               : (subscription?.status ?? 'checkout_completed'),
+          eventCreatedAt: event.created * 1_000,
         })
       }
     } else if (
@@ -298,6 +493,7 @@ export const webhook = httpAction(async (ctx, request) => {
           currentPeriodEnd: subscription.items.data[0]?.current_period_end
             ? subscription.items.data[0].current_period_end * 1_000
             : undefined,
+          eventCreatedAt: event.created * 1_000,
         })
       }
     } else {

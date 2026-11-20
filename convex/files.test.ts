@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, internal } from './_generated/api'
 import { createAuthenticatedTest } from './test.utils'
+import * as filePolicy from './lib/filePolicy'
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 describe('files', () => {
   it('authorizes, records, lists, downloads, and deletes a stored file', async () => {
@@ -44,7 +48,7 @@ describe('files', () => {
     expect(await t.run((ctx) => ctx.storage.get(storageId))).toBeNull()
   })
 
-  it('rejects an expired upload intent', async () => {
+  it('commits cleanup for an expired upload intent', async () => {
     const { t, asUser, userId } = await createAuthenticatedTest()
     const intentId = await t.run((ctx) =>
       ctx.db.insert('uploadIntents', { userId, expiresAt: Date.now() - 1 })
@@ -54,7 +58,90 @@ describe('files', () => {
     )
     await expect(
       asUser.mutation(api.files.saveFile, { intentId, storageId, name: 'notes.txt' })
-    ).rejects.toThrow('Upload authorization expired')
+    ).resolves.toEqual({ rejected: true, reason: 'Upload authorization expired' })
+    await t.run(async (ctx) => {
+      expect(await ctx.storage.get(storageId)).toBeNull()
+      expect(await ctx.db.get(intentId)).toBeNull()
+    })
+  })
+
+  it('commits cleanup for an invalid upload', async () => {
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const invalidIntent = await t.run((ctx) =>
+      ctx.db.insert('uploadIntents', { userId, expiresAt: Date.now() + 60_000 })
+    )
+    const invalidStorage = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['hello'], { type: 'text/plain' }))
+    )
+    await expect(
+      asUser.mutation(api.files.saveFile, {
+        intentId: invalidIntent,
+        storageId: invalidStorage,
+        name: 'bad/name',
+      })
+    ).resolves.toMatchObject({ rejected: true })
+    await t.run(async (ctx) => {
+      expect(await ctx.storage.get(invalidStorage)).toBeNull()
+      expect(await ctx.db.get(invalidIntent)).toBeNull()
+    })
+  })
+
+  it('does not delete a registered blob when the storage ID is reused', async () => {
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const intentId = await t.run((ctx) =>
+      ctx.db.insert('uploadIntents', { userId, expiresAt: Date.now() + 60_000 })
+    )
+    const storageId = await t.run(async (ctx) => {
+      const id = await ctx.storage.store(new Blob(['keep'], { type: 'text/plain' }))
+      await ctx.db.insert('files', {
+        storageId: id,
+        name: 'keep.txt',
+        type: 'text/plain',
+        size: 4,
+        uploadedBy: userId,
+      })
+      return id
+    })
+    await expect(
+      asUser.mutation(api.files.saveFile, { intentId, storageId, name: 'reuse.txt' })
+    ).rejects.toThrow('Uploaded file is already registered')
+    await t.run(async (ctx) => {
+      expect(await ctx.storage.get(storageId)).not.toBeNull()
+      expect(await ctx.db.get(intentId)).not.toBeNull()
+    })
+  })
+
+  it('commits rejected-blob cleanup when another upload consumes the quota', async () => {
+    const { t, asUser, userId } = await createAuthenticatedTest()
+    const { intentId } = await asUser.mutation(api.files.generateUploadUrl)
+    const storageId = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['hello'], { type: 'text/plain' }))
+    )
+    // Supply the MIME type omitted by convex-test; keep the actual policy checks.
+    const validate = filePolicy.validateStoredFile
+    vi.spyOn(filePolicy, 'validateStoredFile').mockImplementation((metadata) =>
+      validate({ ...metadata, contentType: 'text/plain' })
+    )
+    await t.run(async (ctx) => {
+      const usage = await ctx.db
+        .query('fileUsage')
+        .withIndex('by_user', (query) => query.eq('userId', userId))
+        .unique()
+      if (!usage) throw new Error('Expected upload usage')
+      await ctx.db.patch(usage._id, { fileCount: filePolicy.MAX_FILES_PER_USER })
+    })
+    await expect(
+      asUser.mutation(api.files.saveFile, { intentId, storageId, name: 'notes.txt' })
+    ).resolves.toMatchObject({ rejected: true, reason: expect.stringContaining('File quota') })
+    await t.run(async (ctx) => {
+      expect(await ctx.storage.get(storageId)).toBeNull()
+      expect(await ctx.db.get(intentId)).toBeNull()
+      const usage = await ctx.db
+        .query('fileUsage')
+        .withIndex('by_user', (query) => query.eq('userId', userId))
+        .unique()
+      expect(usage?.fileCount).toBe(filePolicy.MAX_FILES_PER_USER)
+    })
   })
 })
 

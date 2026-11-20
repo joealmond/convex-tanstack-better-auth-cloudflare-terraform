@@ -1,442 +1,113 @@
 # File Uploads Guide
 
-Handle file uploads with Convex Storage and create drag-and-drop UI components.
+The files example uses authenticated, two-step uploads to Convex Storage. See
+`convex/files.ts` for the backend and
+`src/components/examples/FileUploadsExample.tsx` for the runnable UI.
 
-## Storage limits and abandoned uploads
+## Upload contract
 
-The 10 MB file limit, 100-file limit, and 100 MB account quota are enforced when
-`saveFile` registers metadata. Convex direct-upload URLs do not enforce these byte
-limits before storage accepts a transfer. Never treat them as a hard billing cap.
-An hourly job deletes unregistered storage objects older than 24 hours in bounded
-pages, including uploads where the client never calls `saveFile`. Registered and
-recent files are preserved. Storage in this template belongs exclusively to the
-`files` table; extend the cleanup reference check before storing blobs elsewhere.
-For a strict pre-transfer byte cap, replace direct upload URLs with a controlled
-HTTP upload endpoint. Issuance rate limits and cleanup reduce abuse but cannot
-prevent transfer costs incurred before cleanup.
+1. Call `generateUploadUrl` as the signed-in user. It checks issuance limits and
+   returns `{ uploadUrl, intentId }`. The one-time intent expires after 15 minutes.
+2. POST the file to `uploadUrl`; the response contains `storageId`.
+3. Call `saveFile({ intentId, storageId, name })`. The backend reads size and MIME
+   type from storage, validates the filename, and enforces account quotas.
 
-## Quick Start
+`saveFile` returns the file ID on success. A rejected upload returns
+`{ rejected: true, reason: string }` after deleting its unregistered blob and
+intent. Callers must handle that result; resolving the mutation lets Convex
+commit the cleanup. Throwing after cleanup would roll the writes back.
+Unauthorized intents and already-registered storage IDs still throw, preserving
+other users' registered files.
 
-Convex Storage is already configured in this template! You just need to build the UI.
+The current component runs its upload workflow with Effect at the React event
+handler boundary. Keep that pattern when adding drag-and-drop or batch upload:
 
-### Basic Upload Flow
+```tsx
+import { useConvexMutation } from '@convex-dev/react-query'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
 
-```typescript
-// 1. Generate upload URL (backend)
-// convex/files.ts - Already in template!
-export const generateUploadUrl = authMutation({
-  handler: async (ctx) => {
-    return await ctx.storage.generateUploadUrl()
-  },
-})
+function UploadButton() {
+  const generateUploadUrl = useConvexMutation(api.files.generateUploadUrl)
+  const saveFile = useConvexMutation(api.files.saveFile)
 
-// 2. Upload file (frontend)
-async function uploadFile(file: File) {
-  // Get upload URL from Convex
-  const uploadUrl = await api.files.generateUploadUrl()
-
-  // Upload file to Convex Storage
-  const result = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': file.type },
-    body: file,
-  })
-
-  const { storageId } = await result.json()
-
-  // Save metadata
-  await api.files.saveFile({
-    storageId,
-    name: file.name,
-    type: file.type,
-    size: file.size,
-  })
-}
-```
-
-## Drag-and-Drop Component
-
-```typescript
-// src/components/FileUpload.tsx
-import { useCallback, useState } from 'react'
-import { useConvexMutation } from '@/lib/patterns/useConvexMutation'
-import { api } from '@/convex/_generated/api'
-import { Upload, X, CheckCircle } from 'lucide-react'
-
-export function FileUpload() {
-  const [files, setFiles] = useState<File[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    setFiles((prev) => [...prev, ...droppedFiles])
-  }, [])
-
-  const handleUpload = async () => {
-    setUploading(true)
-
-    for (const file of files) {
-      try {
-        // 1. Generate upload URL
-        const uploadUrl = await api.files.generateUploadUrl()
-
-        // 2. Upload to Convex Storage
-        const result = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': file.type },
-          body: file,
+  async function upload(file: File) {
+    const Effect = await import('@/lib/effect-runtime')
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const { uploadUrl, intentId } = yield* Effect.tryPromise({
+          try: () => generateUploadUrl({}),
+          catch: (error) => error,
         })
-
-        const { storageId } = await result.json()
-
-        // 3. Save metadata
-        await api.files.saveFile({
-          storageId,
-          name: file.name,
-          type: file.type,
-          size: file.size,
+        const storageId = yield* Effect.tryPromise({
+          try: async (signal) => {
+            const response = await fetch(uploadUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': file.type },
+              body: file,
+              signal,
+            })
+            if (!response.ok) throw new Error('Upload failed')
+            const body: unknown = await response.json()
+            if (
+              typeof body !== 'object' ||
+              body === null ||
+              !('storageId' in body) ||
+              typeof body.storageId !== 'string' ||
+              !body.storageId
+            )
+              throw new Error('Invalid upload response')
+            return body.storageId as Id<'_storage'>
+          },
+          catch: (error) => error,
         })
-
-        setUploadedFiles((prev) => [...prev, file.name])
-      } catch (error) {
-        console.error('Upload failed:', error)
-      }
-    }
-
-    setUploading(false)
-    setFiles([])
+        const saved = yield* Effect.tryPromise({
+          try: () => saveFile({ intentId, storageId, name: file.name }),
+          catch: (error) => error,
+        })
+        if (typeof saved === 'object') {
+          return yield* Effect.fail(new Error(saved.reason))
+        }
+        return saved
+      })
+    )
   }
 
   return (
-    <div>
-      {/* Drop Zone */}
-      <div
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-gray-400 transition-colors"
-      >
-        <Upload className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-2 text-sm text-gray-600">
-          Drag and drop files here, or click to select
-        </p>
-        <input
-          type="file"
-          multiple
-          onChange={(e) => {
-            if (e.target.files) {
-              setFiles(Array.from(e.target.files))
-            }
-          }}
-          className="hidden"
-        />
-      </div>
-
-      {/* File List */}
-      {files.length > 0 && (
-        <div className="mt-4">
-          <h3 className="font-semibold mb-2">Files to upload:</h3>
-          <ul className="space-y-2">
-            {files.map((file, i) => (
-              <li key={i} className="flex items-center justify-between">
-                <span>{file.name} ({formatFileSize(file.size)})</span>
-                <button
-                  onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={handleUpload}
-            disabled={uploading}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-          >
-            {uploading ? 'Uploading...' : 'Upload Files'}
-          </button>
-        </div>
-      )}
-
-      {/* Uploaded Files */}
-      {uploadedFiles.length > 0 && (
-        <div className="mt-4">
-          <h3 className="font-semibold mb-2 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            Uploaded successfully:
-          </h3>
-          <ul className="space-y-1">
-            {uploadedFiles.map((name, i) => (
-              <li key={i} className="text-green-600">{name}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
-```
-
-## Progress Tracking
-
-```typescript
-// src/components/FileUploadWithProgress.tsx
-export function FileUploadWithProgress() {
-  const [progress, setProgress] = useState<Record<string, number>>({})
-
-  const uploadWithProgress = async (file: File) => {
-    const uploadUrl = await api.files.generateUploadUrl()
-
-    const xhr = new XMLHttpRequest()
-
-    // Track progress
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
-        const percentage = (e.loaded / e.total) * 100
-        setProgress((prev) => ({ ...prev, [file.name]: percentage }))
-      }
-    })
-
-    // Upload
-    await new Promise((resolve, reject) => {
-      xhr.open('POST', uploadUrl)
-      xhr.setRequestHeader('Content-Type', file.type)
-      xhr.onload = () => resolve(xhr.response)
-      xhr.onerror = reject
-      xhr.send(file)
-    })
-
-    const { storageId } = JSON.parse(xhr.response)
-
-    // Save metadata
-    await api.files.saveFile({
-      storageId,
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    })
-  }
-
-  return (
-    <div>
-      {Object.entries(progress).map(([name, pct]) => (
-        <div key={name}>
-          <span>{name}</span>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-500 h-2 rounded-full transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <span>{pct.toFixed(0)}%</span>
-        </div>
-      ))}
-    </div>
+    <input
+      type="file"
+      onChange={(event) => {
+        const file = event.target.files?.[0]
+        if (file) void upload(file).catch((error) => console.error('Upload failed', error))
+      }}
+    />
   )
 }
 ```
 
-## Image Preview
+For a product UI, disable input while uploading and show errors with the existing
+notification pattern. An uncertain transfer is not automatically retried: storage
+may have accepted bytes before the browser receives a storage ID.
 
-```typescript
-export function ImageUpload() {
-  const [preview, setPreview] = useState<string | null>(null)
+## Download and deletion
 
-  const handleFileSelect = (file: File) => {
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
+`listMyFiles` returns owner-scoped metadata. Call `getDownloadUrl({ id })` for an
+owned file; storage download URLs are bearer URLs, so share them only deliberately.
+`deleteFile({ id })` verifies ownership, deletes the blob and metadata, and updates
+quota counters in one mutation. Account export includes file bytes, and confirmed
+account deletion queues file cleanup.
 
-  return (
-    <div>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => {
-          if (e.target.files?.[0]) {
-            handleFileSelect(e.target.files[0])
-          }
-        }}
-      />
-      {preview && (
-        <img
-          src={preview}
-          alt="Preview"
-          className="mt-4 max-w-sm rounded-lg"
-        />
-      )}
-    </div>
-  )
-}
-```
+## Quotas and abandoned uploads
 
-## File Type Restrictions
+The 10 MB per-file limit, 100-file limit, and 100 MB account quota are enforced
+when registering metadata. Direct-upload URLs do not enforce byte limits before
+storage accepts a transfer; these limits are not a hard billing cap. Issuance is
+rate limited. Validation/quota rejections delete known blobs immediately.
 
-```typescript
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+An hourly job deletes unregistered objects older than 24 hours in bounded pages,
+including transfers whose client never calls `saveFile`. Registered and recent
+files are preserved. Storage currently belongs exclusively to `files`; extend
+its reference checks before another feature stores blobs.
 
-function validateFile(file: File): string | null {
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return `File type ${file.type} not allowed`
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    return `File size exceeds ${formatFileSize(MAX_FILE_SIZE)}`
-  }
-
-  return null
-}
-
-// Usage
-const error = validateFile(file)
-if (error) {
-  toast.error(error)
-  return
-}
-```
-
-## Rate Limiting
-
-Apply rate limiting to uploads:
-
-```typescript
-// convex/files.ts
-import { withFileUploadLimit } from './lib/middleware/withRateLimit'
-
-export const saveFile = authMutation({
-  args: {/* ... */},
-  handler: withFileUploadLimit(async (ctx, args, user) => {
-    return await ctx.db.insert('files', {
-      ...args,
-      uploadedBy: user._id,
-      uploadedAt: Date.now(),
-    })
-  }),
-})
-```
-
-## Delete Files
-
-```typescript
-// Frontend
-async function deleteFile(fileId: Id<'files'>) {
-  await api.files.deleteFile({ id: fileId })
-}
-
-// Backend (already in template)
-export const deleteFile = authMutation({
-  args: { id: v.id('files') },
-  handler: async (ctx, args) => {
-    // ctx.user and ctx.userId are auto-injected by authMutation
-    const file = await ctx.db.get(args.id)
-
-    if (file.uploadedBy !== ctx.userId) {
-      throw new ConvexError('Not authorized')
-    }
-
-    await ctx.storage.delete(file.storageId)
-    await ctx.db.delete(args.id)
-  },
-})
-```
-
-## Best Practices
-
-- ✅ Validate file types and sizes
-- ✅ Show upload progress
-- ✅ Apply rate limiting
-- ✅ Clean up failed uploads
-- ✅ Use image previews
-- ✅ Handle errors gracefully
-- ❌ Don't allow unlimited file sizes
-- ❌ Don't skip validation
-- ❌ Don't forget to delete storage when deleting records
-
----
-
-## Storage Alternatives
-
-Convex native storage works great for most apps. For larger-scale needs, consider alternatives:
-
-| Solution            | Cost      | Best For                      |
-| ------------------- | --------- | ----------------------------- |
-| **Convex Native**   | $0.033/GB | <1 GB, simple setup           |
-| **Cloudflare R2**   | $0.015/GB | Already on Cloudflare         |
-| **Bunny.net (CDN)** | $0.01/GB  | Global CDN, large media       |
-| **Transloadit**     | $69/mo    | Video processing, transcoding |
-
-For most template users, Convex native storage is the right choice. Switch to R2 if you're already on Cloudflare and need cheaper storage at scale.
-
-### Cloudflare R2 Mobile (iOS Capacitor) Walkaround
-
-If you use Cloudflare R2 with Capacitor iOS, direct client-side uploads using AWS SDK or presigned URLs will fail due to CORS. WKWebView uses the `capacitor://localhost` scheme which S3/R2 endpoints often reject. Furthermore, using `@aws-sdk/client-s3` inside a Convex Edge function causes `DOMParser is not defined` crashes.
-
-**The Solution:** Use a server-side `fetch` proxy.
-
-```typescript
-// convex/r2.ts (Edge Runtime)
-import { action } from './_generated/server'
-import { v } from 'convex/values'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner' // Import ONLY presigner
-
-export const uploadToR2 = action({
-  args: { base64Data: v.string(), contentType: v.string() },
-  handler: async (ctx, args) => {
-    // 1. Initialize S3 client just for signing the URL (No DOMParser required)
-    const s3 = new S3Client({
-      region: 'auto',
-      endpoint: process.env.R2_ENDPOINT,
-      forcePathStyle: true, // Required for Cloudflare R2!
-      credentials: {/* ... */},
-    })
-
-    // 2. Decode base64 to binary using Web APIs (No Node.js Buffer needed)
-    const binaryString = atob(args.base64Data)
-    const binaryData = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) binaryData[i] = binaryString.charCodeAt(i)
-
-    // 3. Generate Pre-signed URL
-    const command = new PutObjectCommand({ Bucket: process.env.R2_BUCKET, Key: 'file.jpg' })
-    const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
-
-    // 4. Force Path-style URL rewrite to prevent Cloudflare 404s
-    const urlObj = new URL(signedUrl)
-    if (urlObj.hostname.startsWith(`${process.env.R2_BUCKET}.`)) {
-      urlObj.hostname = urlObj.hostname.replace(`${process.env.R2_BUCKET}.`, '')
-      urlObj.pathname = `/${process.env.R2_BUCKET}${urlObj.pathname}`
-    }
-
-    // 5. Fetch from Convex Server! Completely bypasses iOS CORS and AWS DOMParser crash
-    const response = await fetch(urlObj.toString(), {
-      method: 'PUT',
-      headers: { 'Content-Type': args.contentType },
-      body: binaryData,
-    })
-
-    if (!response.ok) throw new Error(await response.text())
-    return { url: `${process.env.R2_PUBLIC_URL}/file.jpg` }
-  },
-})
-```
-
-## Examples
-
-See working examples in:
-
-- `convex/files.ts` — Backend mutations for upload, save, list, delete
-- `src/routes/files.tsx` — Frontend upload UI with progress
+For a strict byte limit before transfer, use a controlled HTTP upload endpoint.
+Issuance limits and cleanup cannot prevent costs already incurred by a transfer.

@@ -14,7 +14,7 @@ dependency graph. Use Node 24 LTS; Node 22.12+ and Node 26+ are also allowed by 
 | Tailwind CSS                          | 4.3.3               |
 | TypeScript / ESLint                   | 6.0.3 / 10.10.0     |
 | Vitest                                | 4.1.11              |
-| Wrangler / Cloudflare Vite plugin     | 4.129.0 / 1.54.4    |
+| Wrangler / Cloudflare Vite plugin     | 4.145.0 / 1.62.3    |
 | Terraform in CI / Cloudflare provider | 1.16.1 / 5.24.0     |
 | Clerk overlay                         | 1.5.12              |
 | Nitro overlay (Vercel and Netlify)    | 3.0.260903-beta     |
@@ -28,6 +28,9 @@ dependency graph. Use Node 24 LTS; Node 22.12+ and Node 26+ are also allowed by 
   beta release. These prerelease dependencies are explicit exceptions to stable-release defaults.
 - Netlify now uses Nitro's Netlify preset. The official Netlify development adapter's dependency
   tree contained unpatched audit findings; the Nitro path avoids that tooling.
+- The September 30 security refresh pins Wrangler 4.145.0 and the Cloudflare Vite plugin 1.62.3.
+  Their bundled Miniflare uses patched Undici 7.29.1; the lockfile also updates brace-expansion
+  to 5.0.12. Keep these fixes in generated projects by retaining the template lockfile.
 
 Verify these constraints again before the next upgrade; do not use `--force` or
 `--legacy-peer-deps` to bypass them.

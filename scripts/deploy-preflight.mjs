@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import {
   authProvider,
   configuredUrl,
@@ -18,6 +19,7 @@ if (!['preview', 'production'].includes(environment)) {
 
 const env = { ...readEnv(), ...process.env }
 const selectedAuth = authProvider()
+const selectedExamples = JSON.parse(readFileSync('package.json', 'utf8')).convexkit?.examples || []
 requireConfiguredEnv(env, ['VITE_CONVEX_URL', 'VITE_CONVEX_SITE_URL'])
 if (process.env.OTHER_CONVEX_URL && env.VITE_CONVEX_URL === process.env.OTHER_CONVEX_URL) {
   throw new Error(`${environment} must use its own Convex deployment URL.`)
@@ -57,6 +59,16 @@ function validSender(value) {
   return new RegExp(`^(?:${email}|[^<>\\r\\n]{1,80}\\s+<${email}>)$`).test(value)
 }
 
+function configuredTransactionalEmail() {
+  const key = convexEnv('RESEND_API_KEY')
+  const from = convexEnv('RESEND_FROM_EMAIL') || convexEnv('AUTH_EMAIL_FROM')
+  if (!key && !from) return
+  if (!key || !validSender(from))
+    throw new Error(
+      'Transactional email is incomplete. Set RESEND_API_KEY and RESEND_FROM_EMAIL or AUTH_EMAIL_FROM in Convex.'
+    )
+}
+
 check('npx', ['wrangler', 'whoami'])
 if (selectedAuth === 'better-auth') {
   const convexArgs = ['convex', 'env', 'get', 'BETTER_AUTH_SECRET']
@@ -93,5 +105,14 @@ if (selectedAuth === 'better-auth') {
     throw new Error(
       'Clerk deploy requires publishable key, secret key, and JWT issuer domain. See docs/CLERK_SETUP.md.'
     )
+  const webhookSecret = convexEnv('CLERK_WEBHOOK_SECRET')
+  if (!/^whsec_[A-Za-z0-9+/]{20,}={0,2}$/.test(webhookSecret)) {
+    if (environment === 'production')
+      throw new Error(
+        'Set CLERK_WEBHOOK_SECRET on Convex and register the user.deleted webhook before production.'
+      )
+    console.warn('Clerk account deletion is unavailable until its Convex webhook is configured.')
+  }
 }
+if (selectedExamples.includes('email')) configuredTransactionalEmail()
 console.log(`PASS deploy preflight: ${environment}`)

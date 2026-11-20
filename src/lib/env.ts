@@ -38,6 +38,9 @@ const envSchema = z.object({
     .default('false')
     .describe('Whether to show Google OAuth sign-in UI'),
 
+  VITE_APPLE_AUTH_ENABLED: z.enum(['true', 'false']).default('false'),
+  VITE_MAGIC_LINK_AUTH_ENABLED: z.enum(['true', 'false']).default('false'),
+
   // Sentry DSN for error tracking (optional — omit to disable Sentry)
   VITE_SENTRY_DSN: z
     .string()
@@ -58,6 +61,8 @@ function getEnv(): Env {
     VITE_CONVEX_SITE_URL: import.meta.env.VITE_CONVEX_SITE_URL || undefined,
     VITE_APP_ENV: import.meta.env.VITE_APP_ENV,
     VITE_GOOGLE_AUTH_ENABLED: import.meta.env.VITE_GOOGLE_AUTH_ENABLED,
+    VITE_APPLE_AUTH_ENABLED: import.meta.env.VITE_APPLE_AUTH_ENABLED,
+    VITE_MAGIC_LINK_AUTH_ENABLED: import.meta.env.VITE_MAGIC_LINK_AUTH_ENABLED,
     VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN || undefined,
   })
 
@@ -79,3 +84,6 @@ export const isDev = env.VITE_APP_ENV === 'development'
 export const isPreview = env.VITE_APP_ENV === 'preview'
 export const isProd = env.VITE_APP_ENV === 'production'
 export const isGoogleAuthEnabled = env.VITE_GOOGLE_AUTH_ENABLED === 'true'
+
+export const isAppleAuthEnabled = env.VITE_APPLE_AUTH_ENABLED === 'true'
+export const isMagicLinkAuthEnabled = env.VITE_MAGIC_LINK_AUTH_ENABLED === 'true'

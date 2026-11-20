@@ -9,6 +9,14 @@ crons.daily(
   internal.maintenance.deleteExpiredData
 )
 
+// <convexkit:billing>
+crons.daily(
+  'delete expired Stripe webhook deduplication records',
+  { hourUTC: 2, minuteUTC: 25 },
+  internal.billing.deleteExpiredStripeEvents
+)
+// </convexkit:billing>
+
 // <convexkit:files>
 crons.hourly(
   'delete abandoned uploads',

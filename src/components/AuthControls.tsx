@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { LogIn, Loader2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { authClient, signIn, signUp, signOut, useSession } from '@/lib/auth-client'
-import { isGoogleAuthEnabled } from '@/lib/env'
+import { isGoogleAuthEnabled, isAppleAuthEnabled, isMagicLinkAuthEnabled } from '@/lib/env'
 
 export function AuthControls() {
   const { data: session, isPending } = useSession()
@@ -34,13 +34,20 @@ export function AuthControls() {
 }
 
 export function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => void }) {
-  const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot' | 'verify'>('sign-in')
+  const linkFailed =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('authError') === '1'
+  const [open, setOpen] = useState(linkFailed)
+  const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot' | 'verify' | 'magic-link'>(
+    isMagicLinkAuthEnabled ? 'magic-link' : 'sign-in'
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    linkFailed ? 'This sign-in link is invalid or expired. Request a new link.' : null
+  )
   const [notice, setNotice] = useState<string | null>(null)
 
   const submit = async (event: FormEvent) => {
@@ -49,6 +56,16 @@ export function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => vo
     setErrorMessage(null)
     setNotice(null)
     try {
+      if (mode === 'magic-link') {
+        const result = await signIn.magicLink({
+          email: email.trim(),
+          callbackURL: '/',
+          errorCallbackURL: '/?authError=1',
+        })
+        if (result.error) throw new Error(result.error.message ?? 'Sign-in email unavailable')
+        setNotice('Check your email for a sign-in link. It expires in 5 minutes.')
+        return
+      }
       if (mode === 'forgot') {
         const result = await authClient.requestPasswordReset({
           email: email.trim(),
@@ -118,6 +135,23 @@ export function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => vo
               </button>
             ))}
           </div>
+          {isMagicLinkAuthEnabled && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setMode('magic-link')
+                setNotice(null)
+                setErrorMessage(null)
+              }}
+              className="w-full rounded bg-secondary px-3 py-2 text-sm"
+            >
+              Continue with email link
+            </button>
+          )}
+          {mode === 'magic-link' && (
+            <p className="text-sm">Sign in or join with an email link. No password needed.</p>
+          )}
           {(mode === 'forgot' || mode === 'verify') && (
             <button type="button" onClick={() => setMode('sign-in')} className="text-sm underline">
               Back to sign in
@@ -173,17 +207,43 @@ export function EmailAuthControls({ onGoogleSignIn }: { onGoogleSignIn: () => vo
           >
             {pending
               ? 'Please wait…'
-              : mode === 'sign-in'
-                ? 'Sign in'
-                : mode === 'sign-up'
-                  ? 'Create account'
-                  : mode === 'forgot'
-                    ? 'Send reset link'
-                    : 'Resend verification'}
+              : mode === 'magic-link'
+                ? 'Send sign-in link'
+                : mode === 'sign-in'
+                  ? 'Sign in'
+                  : mode === 'sign-up'
+                    ? 'Create account'
+                    : mode === 'forgot'
+                      ? 'Send reset link'
+                      : 'Resend verification'}
           </button>
           {mode === 'sign-in' && (
             <button type="button" onClick={() => setMode('forgot')} className="text-sm underline">
               Forgot password?
+            </button>
+          )}
+          {isAppleAuthEnabled && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={async () => {
+                setPending(true)
+                setErrorMessage(null)
+                try {
+                  const result = await signIn.social({ provider: 'apple', callbackURL: '/' })
+                  if (result.error)
+                    throw new Error(result.error.message ?? 'Apple sign-in unavailable')
+                } catch (error) {
+                  setErrorMessage(
+                    error instanceof Error ? error.message : 'Apple sign-in unavailable'
+                  )
+                } finally {
+                  setPending(false)
+                }
+              }}
+              className="w-full rounded bg-secondary px-3 py-2 text-sm"
+            >
+              Continue with Apple
             </button>
           )}
           {isGoogleAuthEnabled && (

@@ -71,9 +71,12 @@ export function TodosExample() {
             type="button"
             aria-label={row.original.completed ? 'Mark incomplete' : 'Mark complete'}
             className="flex h-6 w-6 items-center justify-center rounded border border-input transition-colors hover:border-primary"
-            onClick={() =>
-              void setCompleted({ id: row.original._id, completed: !row.original.completed })
-            }
+            onClick={() => {
+              void setCompleted({ id: row.original._id, completed: !row.original.completed }).catch(
+                (error: unknown) =>
+                  toast.error(error instanceof Error ? error.message : 'Unable to update todo')
+              )
+            }}
           >
             {row.original.completed && <Check className="h-4 w-4 text-primary" />}
           </button>

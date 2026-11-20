@@ -4,6 +4,14 @@ This template pins `effect@3.22.2`. Use the [Effect v3 documentation](https://ef
 
 Effect programs own the AI stream deadline and cancellation, Resend and Stripe calls, account deletion orchestration, account export, and file upload. Convex actions and React event handlers run these programs at their boundaries. Convex queries and mutations retain native database transactions; React rendering, TanStack routing, and Cloudflare entry points retain their native APIs. Browser Effect code loads only when upload or export is used.
 
+AI success requires a provider `response.completed` event. Failed or incomplete responses,
+unexpected EOF, and the local output cap preserve available text with an error state. They
+are never retried after output has been persisted.
+
+File registration returns a typed rejection after deleting a rejected blob and its intent.
+The browser converts this result into an Effect failure. The mutation itself must resolve
+successfully so its cleanup commits; throwing inside the mutation would undo the deletion.
+
 Stripe SDK calls use its own 30-second request timeout. Effect does not interrupt a Checkout or customer creation call independently because an uncertain provider result must be reconciled before retrying it.
 
 The read-only Stripe checks before account deletion have a 45-second total deadline. An SDK read already in flight may finish afterward; the action does not start further reads or run the `provider_clear` write after timeout.

@@ -46,9 +46,19 @@ For GitHub deployment, set `CLERK_SECRET_KEY` as a protected Environment Secret 
 Clerk hosts account management, so the Better Auth API route and component are not included in a
 Clerk-generated project.
 
-The generated `/account` page exports Convex application data. Its delete action queues Convex
-data cleanup before requesting Clerk identity deletion. If Clerk rejects that second step, the
-page reports the partial result so the user can retry or contact support.
+Before enabling account deletion, register `https://YOUR_CONVEX_SITE/api/clerk/webhook` in Clerk for
+the `user.deleted` event and set its signing secret on the matching Convex deployment:
+
+```bash
+npx convex env set CLERK_WEBHOOK_SECRET  # paste the whsec_ signing secret at the prompt
+```
+
+The signed webhook queues application cleanup only after Clerk confirms identity deletion.
+Billing-enabled apps also persist the provider tombstone. This webhook is required for cleanup
+even when billing is not selected. Production preflight rejects a missing signing secret;
+account deletion is unavailable until it is configured. The account page holds a short Checkout-blocking lease while the
+client requests deletion. An uncertain provider response retains the lease until its ten-minute
+expiry; a browser error cannot safely establish that Clerk did not delete the identity.
 
 See the current [Clerk TanStack Start quickstart](https://clerk.com/docs/tanstack-react-start/getting-started/quickstart)
 and [Convex TanStack Start with Clerk guide](https://docs.convex.dev/client/tanstack/tanstack-start/clerk).

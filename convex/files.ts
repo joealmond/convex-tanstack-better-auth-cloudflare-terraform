@@ -64,10 +64,6 @@ export const saveFile = authMutation({
     if (!intent || intent.userId !== ctx.userId) {
       throw new ConvexError('Upload authorization is invalid')
     }
-    if (intent.expiresAt < Date.now()) {
-      await ctx.db.delete(args.intentId)
-      throw new ConvexError('Upload authorization expired')
-    }
 
     const duplicate = await ctx.db
       .query('files')
@@ -75,8 +71,19 @@ export const saveFile = authMutation({
       .first()
     if (duplicate) throw new ConvexError('Uploaded file is already registered')
 
+    const rejectUpload = async (reason: string) => {
+      // This mutation must resolve successfully so Convex commits this cleanup.
+      await ctx.storage.delete(args.storageId)
+      await ctx.db.delete(args.intentId)
+      return { rejected: true as const, reason }
+    }
+
+    if (intent.expiresAt < Date.now()) {
+      return await rejectUpload('Upload authorization expired')
+    }
+
     const metadata = await ctx.db.system.get('_storage', args.storageId)
-    if (!metadata) throw new ConvexError('Uploaded file was not found')
+    if (!metadata) return await rejectUpload('Uploaded file was not found')
 
     let validated: ReturnType<typeof validateStoredFile>
     let name: string
@@ -84,19 +91,16 @@ export const saveFile = authMutation({
       validated = validateStoredFile(metadata)
       name = validateFileName(args.name)
     } catch (error) {
-      // The storage ID is unreferenced and belongs to this one-time upload flow.
-      await ctx.storage.delete(args.storageId)
-      await ctx.db.delete(args.intentId)
-      throw new ConvexError(error instanceof Error ? error.message : 'Invalid uploaded file')
+      return await rejectUpload(error instanceof Error ? error.message : 'Invalid uploaded file')
     }
 
     const usage = await getOrCreateUsage(ctx, ctx.userId)
     try {
       assertWithinStorageQuota(usage, validated.size)
     } catch (error) {
-      await ctx.storage.delete(args.storageId)
-      await ctx.db.delete(args.intentId)
-      throw new ConvexError(error instanceof Error ? error.message : 'File storage quota reached')
+      return await rejectUpload(
+        error instanceof Error ? error.message : 'File storage quota reached'
+      )
     }
 
     const fileId = await ctx.db.insert('files', {

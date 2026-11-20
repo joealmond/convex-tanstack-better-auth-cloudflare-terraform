@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { TodosExample } from './TodosExample'
+import { toast } from 'sonner'
 
 const { mutation, loadMore, todos } = vi.hoisted(() => ({
   mutation: vi.fn().mockResolvedValue(undefined),
@@ -49,4 +50,13 @@ it('sorts fetched todos, keeps actions on the correct row, and requests another 
   expect(within(rows()[0]!).getByText('Bravo')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
   expect(loadMore).toHaveBeenCalledWith(10)
+})
+
+it('shows an error when changing completion fails', async () => {
+  cleanup()
+  const errorToast = vi.spyOn(toast, 'error')
+  mutation.mockRejectedValueOnce(new Error('Unable to save completion'))
+  render(<TodosExample />)
+  fireEvent.click(screen.getAllByRole('button', { name: 'Mark complete' })[0]!)
+  await vi.waitFor(() => expect(errorToast).toHaveBeenCalledWith('Unable to save completion'))
 })

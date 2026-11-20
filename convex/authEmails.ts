@@ -4,6 +4,7 @@ import { internalAction } from './_generated/server'
 import { runEffect } from './lib/runEffect'
 
 const messages = {
+  'magic-link': ['Your sign-in link', 'Sign in or create your account (link expires in 5 minutes)'],
   verify: ['Verify your email address', 'Verify your email address'],
   reset: ['Reset your password', 'Reset your password'],
   delete: ['Confirm account deletion', 'Confirm permanent account deletion'],
@@ -21,7 +22,12 @@ export const send = internalAction({
   args: {
     to: v.string(),
     url: v.string(),
-    kind: v.union(v.literal('verify'), v.literal('reset'), v.literal('delete')),
+    kind: v.union(
+      v.literal('verify'),
+      v.literal('reset'),
+      v.literal('delete'),
+      v.literal('magic-link')
+    ),
   },
   handler: async (_ctx, { to, url, kind }) => {
     if (process.env.AUTH_EMAIL_PROVIDER !== 'resend')

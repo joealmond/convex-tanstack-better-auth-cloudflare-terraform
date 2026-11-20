@@ -40,7 +40,7 @@ function AccountPage() {
       location.href = '/'
     } catch (error) {
       setNotice(
-        `Application data cleanup was requested. Clerk account deletion failed: ${error instanceof Error ? error.message : 'contact support to finish deletion.'}`
+        `Clerk account deletion could not be confirmed: ${error instanceof Error ? error.message : 'contact support to finish deletion.'}`
       )
     } finally {
       setPending(false)

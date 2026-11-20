@@ -9,10 +9,12 @@ Verify a sending domain in Resend, then set Convex variables:
 
 ```bash
 npx convex env set RESEND_API_KEY  # paste at the prompt
-npx convex env set RESEND_FROM_EMAIL "ConvexKit <hello@your-domain.example>"
+npx convex env set AUTH_EMAIL_FROM "ConvexKit <hello@your-domain.example>"
 ```
 
-For a first test you can use Resend's onboarding sender within the provider's documented limits.
+Transactional email reuses `AUTH_EMAIL_FROM`, so account and product email share a verified sender. Set
+`RESEND_FROM_EMAIL` only when transactional email needs a different verified sender. Do not use an onboarding
+sender in a deployed app. For production Convex Cloud, add `--prod` to each command.
 
 ## How it works
 
@@ -38,6 +40,6 @@ For a first test you can use Resend's onboarding sender within the provider's do
 
 ## Testing
 
-`convex/integrations.test.ts` verifies queueing, idempotency keys, bounded retries, timeout, and the
-safe missing-key path without sending real mail. Live delivery tests should use a dedicated provider
+`convex/emailActions.regression.test.ts` verifies sender selection and the safe missing-sender path without
+sending real mail. Live delivery tests should use a dedicated provider
 account and should not run for untrusted pull requests.

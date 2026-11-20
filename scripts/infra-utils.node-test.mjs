@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { Buffer } from 'node:buffer'
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -353,8 +354,51 @@ test('deploy preflight requires account email only for production Better Auth', 
       CLERK_PUBLISHABLE_KEY: 'pk_test_fixture',
       CLERK_SECRET_KEY: 'sk_test_fixture',
       CLERK_JWT_ISSUER_DOMAIN: 'https://issuer.example.com',
+      MOCK_CLERK_WEBHOOK_SECRET: `whsec_${Buffer.from('fixture-signing-key-for-local-tests').toString('base64')}`,
     })
     assert.equal(clerkReady.status, 0, clerkReady.stderr)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('deploy preflight validates configured transactional email without requiring it', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'convexkit-preflight-email-'))
+  try {
+    const mock = join(directory, 'npx')
+    writeFileSync(
+      mock,
+      '#!/usr/bin/env node\nconst a=process.argv.slice(2); if(a[0]==="wrangler") process.exit(0); const value=process.env[`MOCK_${a[3]}`]; if(value===undefined) process.exit(1); process.stdout.write(value)\n'
+    )
+    chmodSync(mock, 0o755)
+    writeFileSync(
+      join(directory, 'package.json'),
+      JSON.stringify({ convexkit: { auth: 'better-auth', examples: ['email'] } })
+    )
+    const baseEnv = {
+      PATH: `${directory}:${process.env.PATH}`,
+      VITE_CONVEX_URL: 'https://preview.convex.cloud',
+      VITE_CONVEX_SITE_URL: 'https://preview.convex.site',
+      MOCK_BETTER_AUTH_SECRET: 'test-secret',
+    }
+    const run = (extraEnv = {}) =>
+      spawnSync(
+        process.execPath,
+        [resolve('scripts/deploy-preflight.mjs'), '--environment', 'preview'],
+        { cwd: directory, env: { ...baseEnv, ...extraEnv }, encoding: 'utf8' }
+      )
+    assert.equal(run().status, 0)
+    const missingSender = run({ MOCK_RESEND_API_KEY: 're_test_only' })
+    assert.notEqual(missingSender.status, 0)
+    assert.match(
+      `${missingSender.stdout}${missingSender.stderr}`,
+      /RESEND_FROM_EMAIL or AUTH_EMAIL_FROM/
+    )
+    const ready = run({
+      MOCK_RESEND_API_KEY: 're_test_only',
+      MOCK_AUTH_EMAIL_FROM: 'App <auth@example.com>',
+    })
+    assert.equal(ready.status, 0, ready.stderr)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

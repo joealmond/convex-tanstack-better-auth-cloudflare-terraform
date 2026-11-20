@@ -82,10 +82,18 @@ export function FileUploadsExample({ backTo = '/' }: FileUploadsExampleProps) {
             catch: (error) => error,
           })
           yield* Effect.sync(() => setUploadProgress('Saving metadata...'))
-          yield* Effect.tryPromise({
+          const saved = yield* Effect.tryPromise({
             try: () => saveFile({ intentId, storageId, name: file.name }),
             catch: (error) => error,
           })
+          if (
+            typeof saved === 'object' &&
+            saved !== null &&
+            'rejected' in saved &&
+            saved.rejected
+          ) {
+            return yield* Effect.fail(new Error(saved.reason))
+          }
         })
       )
 
